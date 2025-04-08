@@ -1,6 +1,5 @@
 use relaxng_model::Compiler;
 use relaxng_validator::Validator;
-
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -8,14 +7,18 @@ use std::process::exit;
 
 use structopt::StructOpt;
 
+mod rustgen;
+
 #[derive(Debug, StructOpt)]
 enum Cli {
     Validate { schema: PathBuf, xml: Vec<PathBuf> },
+    Generate { schema: PathBuf },
 }
 
 fn main() {
     match Cli::from_args() {
         Cli::Validate { schema, xml } => validate(schema, xml),
+        Cli::Generate { schema } => rustgen::generate(schema),
     }
 }
 
