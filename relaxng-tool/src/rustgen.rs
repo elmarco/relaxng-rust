@@ -4,13 +4,14 @@ use prettyplease::unparse;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
+use quote::ToTokens;
+use std::arch::x86_64::_SIDD_CMP_EQUAL_ORDERED;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::exit;
-use syn::parse_quote;
-use syn::punctuated::Punctuated;
-use syn::Field;
+use syn::AttrStyle;
 use syn::Ident;
-use syn::Token;
 
 use relaxng_model::model::NameClass;
 use relaxng_model::model::Pattern;
@@ -35,6 +36,7 @@ pub(crate) fn generate(schema: PathBuf) {
     ctx.deny_unknown = true;
     let _gen_pattern = generate_pattern(pattern, &mut ctx);
     let global = ctx.global;
+    dbg!(global.to_string());
 
     let tokens = quote! {
         use serde::{Serialize, Deserialize};
@@ -107,65 +109,39 @@ macro_rules! push_hint {
     }};
 }
 
-fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
+fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> GenFields {
     match pattern {
         Pattern::Choice(vec) => {
-            let mut choice_fields = TokenStream::new();
+            let mut choice_fields = GenFields::new();
             ctx.in_choice = true;
             push_hint!(ctx, Hint::None, {
                 for p in vec {
                     let gen_pattern = generate_pattern(p, ctx);
-                    // Append the generated fields (as TokenStream) directly.
-                    // generate_pattern should already return comma-terminated fields.
-                    if !gen_pattern.is_empty() {
-                        choice_fields.extend(gen_pattern);
-                    }
+                    choice_fields.extend(gen_pattern);
                 }
             });
             ctx.in_choice = false;
-            // Return the combined TokenStream of fields from all choice branches.
             choice_fields
         }
         Pattern::Interleave(_vec) => panic!("Unimplemented: Interleave"),
         Pattern::Group(vec) => {
-            let mut group_fields = TokenStream::new();
+            let mut group_fields = GenFields::new();
             push_hint!(ctx, Hint::None, {
                 for p in vec {
                     let gen_pattern = generate_pattern(p, ctx);
-                    // Append the generated fields (as TokenStream) directly.
-                    if !gen_pattern.is_empty() {
-                        group_fields.extend(gen_pattern);
-                    }
+                    group_fields.extend(gen_pattern);
                 }
             });
-            // Return the combined TokenStream of fields from all group sub-patterns.
             group_fields
         }
         Pattern::Mixed(_pattern) => panic!("Unimplemented: Mixed"),
         Pattern::Empty => panic!("Unimplemented: Empty"),
         Pattern::Text => {
-            // Generate field for text content. Using "value" is common.
-            let base_type = quote! { String };
             let is_already_optional = ctx.optional();
-            let needs_option = ctx.in_choice && !is_already_optional;
+            let mut field = GenField::new("value", "$text", "String");
+            field.set_optional(ctx.in_choice && !is_already_optional);
 
-            let final_type = if needs_option || is_already_optional {
-                quote! { Option<#base_type> }
-            } else {
-                base_type
-            };
-
-            let skip_if_attr = if needs_option || is_already_optional {
-                Some(quote! { #[serde(skip_serializing_if = "Option::is_none")] })
-            } else {
-                None
-            };
-
-            quote! {
-                #[serde(rename = "$text")]
-                #skip_if_attr
-                value: #final_type,
-            }
+            GenFields::new_with(field)
         }
         Pattern::NotAllowed => panic!("Unimplemented: NotAllowed"),
         Pattern::Optional(pattern) => {
@@ -178,7 +154,6 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
             push_hint!(ctx, Hint::OneOrMore, { generate_pattern(pattern, ctx) })
         }
         Pattern::Attribute(name_class, pattern) => {
-            // TODO: Handle other NameClass variants if necessary
             let NameClass::Named {
                 namespace_uri: _,
                 name,
@@ -189,42 +164,20 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
 
             // TODO: Handle inner patterns other than Text if needed.
             // For now, assume attributes contain simple text.
-            let base_type = match **pattern {
-                Pattern::Text => quote! { String },
+            let ty = match **pattern {
+                Pattern::Text => "String",
                 // Add other cases like DatatypeName, DatatypeValue etc. if required
                 _ => panic!("Unsupported inner pattern for Attribute: {:?}", pattern),
             };
 
-            let field_name = Ident::new(&name.to_snake_case(), Span::call_site());
-
-            // Attributes cannot be repeated (ZeroOrMore/OneOrMore don't apply)
-            // Check if the attribute itself is marked optional in the schema
-            let is_schema_optional = ctx.optional();
-
-            // Determine if the final type needs to be Option<T>
-            // It's optional if explicitly marked so OR if it's part of a choice
-            let needs_option = is_schema_optional || ctx.in_choice;
-
-            let final_type = if needs_option {
-                quote! { Option<#base_type> }
-            } else {
-                base_type
-            };
-
-            let skip_if_attr = if needs_option {
-                Some(quote! { #[serde(skip_serializing_if = "Option::is_none")] })
-            } else {
-                None
-            };
-
+            let field_name = name.to_snake_case();
             // Use "@name" convention for XML attributes in serde
-            let rename_attr_name = format!("@{}", name);
+            let rename = format!("@{}", name);
 
-            quote! {
-                #[serde(rename = #rename_attr_name)]
-                #skip_if_attr
-                #field_name: #final_type,
-            }
+            let mut field = GenField::new(&field_name, &rename, ty);
+            field.set_optional(ctx.optional() || ctx.in_choice);
+
+            GenFields::new_with(field)
         }
         Pattern::Element(name_class, pattern) => {
             let NameClass::Named {
@@ -235,19 +188,16 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
                 panic!("Unexpected name class");
             };
             let struct_name = name.to_upper_camel_case();
-            let struct_name = Ident::new(&struct_name, Span::call_site());
-            let field_name = Ident::new(
-                &format!(
-                    "{}{}",
-                    name.to_snake_case(),
-                    if ctx.zero_or_more() || ctx.one_or_more() {
-                        "s"
-                    } else {
-                        ""
-                    }
-                ),
-                Span::call_site(),
+            let field_name = format!(
+                "{}{}",
+                name.to_snake_case(),
+                if ctx.zero_or_more() || ctx.one_or_more() {
+                    "s"
+                } else {
+                    ""
+                }
             );
+
             let gen_pattern = generate_pattern(pattern, ctx);
 
             let mut serde_attr = Vec::new();
@@ -256,7 +206,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
                     deny_unknown_fields
                 });
             }
-            if struct_name != name {
+            if struct_name != *name {
                 serde_attr.push(quote! {
                     rename = #name
                 })
@@ -270,56 +220,24 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
                 None
             };
 
-            let global = &ctx.global;
-            ctx.global = quote! {
-                #global
+            {
+                let struct_name = Ident::new(&struct_name, Span::call_site());
+                let global = &ctx.global;
+                ctx.global = quote! {
+                    #global
 
-                #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-                #struct_attr
-                pub struct #struct_name {
-                    #gen_pattern
-                }
-            };
-
-            let serde_rename = if field_name != name {
-                Some(quote! {
-                    #[serde(rename = #name)]
-                })
-            } else {
-                None
-            };
-
-            // Determine base type based on hints
-            let (base_field_type, is_already_optional) = if ctx.zero_or_more() {
-                (quote! { Option<Vec<#struct_name>> }, true) // Vec implies optionality for serialization
-            } else if ctx.one_or_more() {
-                (quote! { Vec<#struct_name> }, false) // Vec<T> must have at least one item
-            } else if ctx.optional() {
-                (quote! { Option<#struct_name> }, true)
-            } else {
-                (quote! { #struct_name }, false)
-            };
-
-            // Wrap in Option if in choice and not already optional
-            let needs_option = ctx.in_choice && !is_already_optional;
-            let final_field_type = if needs_option {
-                quote! { Option<#base_field_type> }
-            } else {
-                base_field_type
-            };
-
-            // Add skip_serializing_if if the final type is optional
-            let skip_if_attr = if needs_option || is_already_optional {
-                Some(quote! { #[serde(skip_serializing_if = "Option::is_none")] })
-            } else {
-                None
-            };
-
-            quote! {
-                #serde_rename
-                #skip_if_attr
-                #field_name: #final_field_type,
+                    #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+                    #struct_attr
+                    pub struct #struct_name {
+                        #gen_pattern
+                    }
+                };
             }
+
+            let mut field = GenField::new(&field_name, name, &struct_name);
+            field.set_optional(ctx.optional() | ctx.zero_or_more() || ctx.in_choice);
+            field.set_vec(ctx.zero_or_more() || ctx.one_or_more());
+            GenFields::new_with(field)
         }
         Pattern::Ref(_span, _, _pat_ref) => panic!("Unimplemented: Ref"),
         Pattern::DatatypeValue { datatype: _ } => panic!("Unimplemented: DatatypeValue"),
@@ -328,5 +246,101 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
             except: _,
         } => panic!("Unimplemented: DatatypeName"),
         Pattern::List(_pattern) => panic!("Unimplemented: List"),
+    }
+}
+
+#[derive(Debug)]
+struct GenField {
+    name: String,
+    rename: String,
+    ty: String,
+    optional: bool,
+    vec: bool,
+}
+
+impl GenField {
+    fn new(name: &str, rename: &str, ty: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            rename: rename.to_string(),
+            ty: ty.to_string(),
+            optional: false,
+            vec: false,
+        }
+    }
+
+    fn set_optional(&mut self, optional: bool) {
+        self.optional = optional;
+    }
+
+    fn set_vec(&mut self, vec: bool) {
+        self.vec = vec;
+    }
+}
+
+impl ToTokens for GenField {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let mut serde_attr = Vec::new();
+        if self.name != self.rename {
+            let rename = &self.rename;
+            serde_attr.push(quote! { rename = #rename });
+        };
+        if self.optional {
+            serde_attr.push(quote! { skip_serializing_if = "Option::is_none" });
+        };
+        let serde_attr = if !serde_attr.is_empty() {
+            Some(quote! {
+                #[serde(#(#serde_attr),*)]
+            })
+        } else {
+            None
+        };
+        let ty = Ident::new(&self.ty, Span::call_site());
+        let ty = if self.vec {
+            quote! { Vec<#ty> }
+        } else {
+            quote! { #ty }
+        };
+        let ty = if self.optional {
+            quote! { Option<#ty> }
+        } else {
+            quote! { #ty }
+        };
+        let field_name = Ident::new(&self.name, Span::call_site());
+        let gen = quote! {
+            #serde_attr
+            #field_name: #ty
+        };
+        tokens.extend(gen);
+    }
+}
+
+#[derive(Debug)]
+struct GenFields {
+    fields: Vec<GenField>,
+}
+
+impl GenFields {
+    fn new() -> Self {
+        GenFields { fields: Vec::new() }
+    }
+
+    fn new_with(field: GenField) -> Self {
+        GenFields {
+            fields: vec![field],
+        }
+    }
+
+    fn extend(&mut self, other: GenFields) {
+        self.fields.extend(other.fields);
+    }
+}
+
+impl ToTokens for GenFields {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let fields = &self.fields;
+        dbg!(&fields);
+        let gen = quote! { #(#fields),* };
+        tokens.extend(gen);
     }
 }
