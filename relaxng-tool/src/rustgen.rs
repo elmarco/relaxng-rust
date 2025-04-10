@@ -59,6 +59,8 @@ struct Context {
     global: TokenStream,
     hint: Vec<Hint>,
     deny_unknown: bool,
+    /// True if currently generating fields within a Choice pattern branch.
+    in_choice: bool,
 }
 
 impl Context {
@@ -67,6 +69,7 @@ impl Context {
             global: TokenStream::new(),
             hint: Vec::new(),
             deny_unknown: false,
+            in_choice: false,
         }
     }
 
@@ -106,7 +109,28 @@ macro_rules! push_hint {
 
 fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
     match pattern {
-        Pattern::Choice(vec) => panic!("Unimplemented: Choice"),
+        Pattern::Choice(vec) => {
+            let mut fields = Punctuated::<Field, Token![,]>::new();
+            ctx.in_choice = true;
+            push_hint!(ctx, Hint::None, {
+                for p in vec {
+                    let gen_pattern = generate_pattern(p, ctx);
+                    // Parse the generated TokenStream (which should be fields)
+                    // and add them to our list. This assumes gen_pattern returns
+                    // comma-terminated fields suitable for Punctuated.
+                    // A more robust approach might involve generate_pattern returning
+                    // Vec<Field> directly.
+                    if !gen_pattern.is_empty() {
+                        let generated_fields: Punctuated<Field, Token![,]> =
+                            syn::parse2(gen_pattern)
+                                .expect("Failed to parse generated fields in Choice");
+                        fields.extend(generated_fields);
+                    }
+                }
+            });
+            ctx.in_choice = false;
+            quote! { #fields }
+        }
         Pattern::Interleave(vec) => panic!("Unimplemented: Interleave"),
         Pattern::Group(vec) => {
             let mut fields = Punctuated::<Field, Token![,]>::new();
@@ -123,18 +147,26 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
         Pattern::Empty => panic!("Unimplemented: Empty"),
         Pattern::Text => {
             // Generate field for text content. Using "value" is common.
-            let type_name = quote! { String };
-            if ctx.optional() {
-                quote! {
-                    #[serde(rename = "$text")]
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    value: Option<#type_name>,
-                }
+            let base_type = quote! { String };
+            let is_already_optional = ctx.optional();
+            let needs_option = ctx.in_choice && !is_already_optional;
+
+            let final_type = if needs_option || is_already_optional {
+                quote! { Option<#base_type> }
             } else {
-                quote! {
-                    #[serde(rename = "$text")]
-                    value: #type_name,
-                }
+                base_type
+            };
+
+            let skip_if_attr = if needs_option || is_already_optional {
+                Some(quote! { #[serde(skip_serializing_if = "Option::is_none")] })
+            } else {
+                None
+            };
+
+            quote! {
+                #[serde(rename = "$text")]
+                #skip_if_attr
+                value: #final_type,
             }
         }
         Pattern::NotAllowed => panic!("Unimplemented: NotAllowed"),
@@ -211,17 +243,27 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
                 None
             };
 
-            let field_type = if ctx.zero_or_more() {
-                quote! { Option<Vec<#struct_name>> }
+            // Determine base type based on hints
+            let (base_field_type, is_already_optional) = if ctx.zero_or_more() {
+                (quote! { Vec<#struct_name> }, true) // Vec implies optionality for serialization
             } else if ctx.one_or_more() {
-                quote! { Vec<#struct_name> }
+                (quote! { Vec<#struct_name> }, false) // Vec<T> must have at least one item
             } else if ctx.optional() {
-                quote! { Option<#struct_name> }
+                (quote! { Option<#struct_name> }, true)
             } else {
-                quote! { #struct_name }
+                (quote! { #struct_name }, false)
             };
 
-            let skip_if_attr = if ctx.zero_or_more() || ctx.optional() {
+            // Wrap in Option if in choice and not already optional
+            let needs_option = ctx.in_choice && !is_already_optional;
+            let final_field_type = if needs_option {
+                quote! { Option<#base_field_type> }
+            } else {
+                base_field_type
+            };
+
+            // Add skip_serializing_if if the final type is optional
+            let skip_if_attr = if needs_option || is_already_optional {
                 Some(quote! { #[serde(skip_serializing_if = "Option::is_none")] })
             } else {
                 None
