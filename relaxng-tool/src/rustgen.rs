@@ -97,8 +97,8 @@ macro_rules! push_hint {
 
 fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
     match pattern {
-        Pattern::Choice(vec) => todo!(),
-        Pattern::Interleave(vec) => todo!(),
+        Pattern::Choice(vec) => panic!("Unimplemented: Choice"),
+        Pattern::Interleave(vec) => panic!("Unimplemented: Interleave"),
         Pattern::Group(vec) => {
             let mut fields = Punctuated::<Field, Token![,]>::new();
             push_hint!(ctx, Hint::None, {
@@ -110,8 +110,8 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
 
             quote! { #fields }
         }
-        Pattern::Mixed(pattern) => todo!(),
-        Pattern::Empty => todo!(),
+        Pattern::Mixed(pattern) => panic!("Unimplemented: Mixed"),
+        Pattern::Empty => panic!("Unimplemented: Empty"),
         Pattern::Text => {
             // Generate field for text content. Using "value" is common.
             quote! {
@@ -119,7 +119,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
                 value: String,
             }
         }
-        Pattern::NotAllowed => todo!(),
+        Pattern::NotAllowed => panic!("Unimplemented: NotAllowed"),
         Pattern::Optional(pattern) => {
             // Generate the inner pattern. Assume it produces a single field definition.
             let inner_tokens = generate_pattern(pattern, ctx);
@@ -157,7 +157,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
         Pattern::OneOrMore(pattern) => {
             push_hint!(ctx, Hint::OneOrMore, { generate_pattern(pattern, ctx) })
         }
-        Pattern::Attribute(name_class, pattern) => todo!(),
+        Pattern::Attribute(name_class, pattern) => panic!("Unimplemented: Attribute"),
         Pattern::Element(name_class, pattern) => {
             let NameClass::Named {
                 namespace_uri: _,
@@ -239,9 +239,9 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
                 }
             }
         }
-        Pattern::Ref(span, _, pat_ref) => todo!(),
-        Pattern::DatatypeValue { datatype } => todo!(),
-        Pattern::DatatypeName { datatype, except } => todo!(),
-        Pattern::List(pattern) => todo!(),
+        Pattern::Ref(span, _, pat_ref) => panic!("Unimplemented: Ref"),
+        Pattern::DatatypeValue { datatype } => panic!("Unimplemented: DatatypeValue"),
+        Pattern::DatatypeName { datatype, except } => panic!("Unimplemented: DatatypeName"),
+        Pattern::List(pattern) => panic!("Unimplemented: List"),
     }
 }
