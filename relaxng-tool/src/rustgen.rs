@@ -111,25 +111,21 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
     match pattern {
         Pattern::Choice(vec) => {
             let mut fields = Punctuated::<Field, Token![,]>::new();
+            let mut choice_fields = TokenStream::new();
             ctx.in_choice = true;
             push_hint!(ctx, Hint::None, {
                 for p in vec {
                     let gen_pattern = generate_pattern(p, ctx);
-                    // Parse the generated TokenStream (which should be fields)
-                    // and add them to our list. This assumes gen_pattern returns
-                    // comma-terminated fields suitable for Punctuated.
-                    // A more robust approach might involve generate_pattern returning
-                    // Vec<Field> directly.
+                    // Append the generated fields (as TokenStream) directly.
+                    // generate_pattern should already return comma-terminated fields.
                     if !gen_pattern.is_empty() {
-                        let generated_fields: Punctuated<Field, Token![,]> =
-                            syn::parse2(gen_pattern)
-                                .expect("Failed to parse generated fields in Choice");
-                        fields.extend(generated_fields);
+                        choice_fields.extend(gen_pattern);
                     }
                 }
             });
             ctx.in_choice = false;
-            quote! { #fields }
+            // Return the combined TokenStream of fields from all choice branches.
+            choice_fields
         }
         Pattern::Interleave(vec) => panic!("Unimplemented: Interleave"),
         Pattern::Group(vec) => {
@@ -272,7 +268,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
             quote! {
                 #serde_rename
                 #skip_if_attr
-                #field_name: #field_type
+                #field_name: #final_field_type,
             }
         }
         Pattern::Ref(span, _, pat_ref) => panic!("Unimplemented: Ref"),
