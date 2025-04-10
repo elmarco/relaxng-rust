@@ -47,11 +47,12 @@ pub(crate) fn generate(schema: PathBuf) {
     println!("{unparsed}");
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 enum Hint {
     None,
     ZeroOrMore,
     OneOrMore,
+    Optional,
 }
 
 struct Context {
@@ -84,6 +85,14 @@ impl Context {
 
         *last == Hint::OneOrMore
     }
+
+    fn optional(&self) -> bool {
+        let Some(last) = self.hint.last() else {
+            return false;
+        };
+
+        *last == Hint::Optional
+    }
 }
 
 macro_rules! push_hint {
@@ -114,42 +123,23 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
         Pattern::Empty => panic!("Unimplemented: Empty"),
         Pattern::Text => {
             // Generate field for text content. Using "value" is common.
-            quote! {
-                #[serde(rename = "$text")]
-                value: String,
+            let type_name = quote! { String };
+            if ctx.optional() {
+                quote! {
+                    #[serde(rename = "$text")]
+                    #[serde(skip_serializing_if = "Option::is_none")]
+                    value: Option<#type_name>,
+                }
+            } else {
+                quote! {
+                    #[serde(rename = "$text")]
+                    value: #type_name,
+                }
             }
         }
         Pattern::NotAllowed => panic!("Unimplemented: NotAllowed"),
         Pattern::Optional(pattern) => {
-            // Generate the inner pattern. Assume it produces a single field definition.
-            let inner_tokens = generate_pattern(pattern, ctx);
-            // Attempt to parse the generated tokens as a Field.
-            // This is fragile and might fail if `inner_tokens` is not a valid field definition
-            // (e.g., if the inner pattern was Group or Choice).
-            match syn::parse2::<Field>(inner_tokens.clone()) {
-                Ok(mut field) => {
-                    // Wrap the field's type in Option<T>
-                    let original_type = field.ty;
-                    field.ty = parse_quote! { Option<#original_type> };
-
-                    // Add #[serde(skip_serializing_if = "Option::is_none")] attribute
-                    // Ensure the attribute is added correctly, potentially merging with existing #[serde(...)]
-                    // For simplicity, we add it as a separate attribute for now.
-                    let skip_attr: syn::Attribute = parse_quote! { #[serde(skip_serializing_if = "Option::is_none")] };
-                    field.attrs.push(skip_attr);
-
-                    // Return the modified field
-                    quote! { #field }
-                }
-                Err(e) => {
-                    // If parsing as a Field fails, it indicates an unsupported structure within Optional.
-                    // Panic for now, highlighting the generated tokens that failed parsing.
-                    panic!(
-                        "Optional pattern did not generate a single field: {:?}\nParser error: {}",
-                        inner_tokens.to_string(), e
-                    );
-                }
-            }
+            push_hint!(ctx, Hint::Optional, { generate_pattern(pattern, ctx) })
         }
         Pattern::ZeroOrMore(pattern) => {
             push_hint!(ctx, Hint::ZeroOrMore, { generate_pattern(pattern, ctx) })
@@ -221,22 +211,26 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
                 None
             };
 
-            if ctx.zero_or_more() {
-                quote! {
-                    #serde_rename
-                    #[serde(skip_serializing_if = "Option::is_none")]
-                    #field_name: Option<Vec<#struct_name>>
-                }
+            let field_type = if ctx.zero_or_more() {
+                quote! { Option<Vec<#struct_name>> }
             } else if ctx.one_or_more() {
-                quote! {
-                    #serde_rename
-                    #field_name: Vec<#struct_name>
-                }
+                quote! { Vec<#struct_name> }
+            } else if ctx.optional() {
+                quote! { Option<#struct_name> }
             } else {
-                quote! {
-                    #serde_rename
-                    #field_name: #struct_name
-                }
+                quote! { #struct_name }
+            };
+
+            let skip_if_attr = if ctx.zero_or_more() || ctx.optional() {
+                Some(quote! { #[serde(skip_serializing_if = "Option::is_none")] })
+            } else {
+                None
+            };
+
+            quote! {
+                #serde_rename
+                #skip_if_attr
+                #field_name: #field_type
             }
         }
         Pattern::Ref(span, _, pat_ref) => panic!("Unimplemented: Ref"),
