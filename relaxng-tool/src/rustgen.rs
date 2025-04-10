@@ -136,7 +136,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> GenFields {
             group_fields
         }
         Pattern::Mixed(_pattern) => panic!("Unimplemented: Mixed"),
-        Pattern::Empty => panic!("Unimplemented: Empty"),
+        Pattern::Empty => GenFields::new(),
         Pattern::Text => {
             let is_already_optional = ctx.optional();
             let mut field = GenField::new("value", "$text", "String");
