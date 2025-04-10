@@ -19,6 +19,7 @@ quote = "1.0.40"
 prettyplease = "0.2.32"
 syn = "2.0.100"
 proc-macro2 = "1.0.94"
+indexmap = "2.9.0"
 
 [[bin]]
 name = "rng"

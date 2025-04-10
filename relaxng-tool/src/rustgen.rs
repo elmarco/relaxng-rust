@@ -1,5 +1,6 @@
 use heck::ToSnakeCase;
 use heck::ToUpperCamelCase;
+use indexmap::IndexMap;
 use prettyplease::unparse;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
@@ -276,6 +277,10 @@ impl GenField {
     fn set_vec(&mut self, vec: bool) {
         self.vec = vec;
     }
+
+    fn is_attr(&self) -> bool {
+        self.name.starts_with('@')
+    }
 }
 
 impl ToTokens for GenField {
@@ -317,29 +322,47 @@ impl ToTokens for GenField {
 
 #[derive(Debug)]
 struct GenFields {
-    fields: Vec<GenField>,
+    fields: IndexMap<String, GenField>,
 }
 
 impl GenFields {
     fn new() -> Self {
-        GenFields { fields: Vec::new() }
-    }
-
-    fn new_with(field: GenField) -> Self {
-        GenFields {
-            fields: vec![field],
+        Self {
+            fields: IndexMap::new(),
         }
     }
 
-    fn extend(&mut self, other: GenFields) {
-        self.fields.extend(other.fields);
+    fn new_with(field: GenField) -> Self {
+        let mut fields = IndexMap::new();
+        fields.insert(field.name.clone(), field);
+
+        Self { fields }
+    }
+
+    fn extend(&mut self, others: GenFields) {
+        for (other_name, mut other) in others.fields.into_iter() {
+            let entry = self.fields.entry(other_name);
+            match entry {
+                indexmap::map::Entry::Occupied(entry) => {
+                    if !other.is_attr() && entry.get().is_attr() {
+                        let entry = entry.into_mut();
+                        std::mem::swap(&mut *entry, &mut other);
+                    }
+
+                    other.name = format!("{}_attr", other.name);
+                    self.fields.insert(other.name.clone(), other);
+                }
+                indexmap::map::Entry::Vacant(entry) => {
+                    entry.insert(other);
+                }
+            }
+        }
     }
 }
 
 impl ToTokens for GenFields {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let fields = &self.fields;
-        dbg!(&fields);
+        let fields = self.fields.values();
         let gen = quote! { #(#fields),* };
         tokens.extend(gen);
     }
