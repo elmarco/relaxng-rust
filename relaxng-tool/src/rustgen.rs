@@ -113,13 +113,44 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
         Pattern::Mixed(pattern) => todo!(),
         Pattern::Empty => todo!(),
         Pattern::Text => {
+            // Generate field for text content. Using "value" is common.
             quote! {
                 #[serde(rename = "$text")]
-                text: String,
+                value: String,
             }
         }
         Pattern::NotAllowed => todo!(),
-        Pattern::Optional(pattern) => todo!(),
+        Pattern::Optional(pattern) => {
+            // Generate the inner pattern. Assume it produces a single field definition.
+            let inner_tokens = generate_pattern(pattern, ctx);
+            // Attempt to parse the generated tokens as a Field.
+            // This is fragile and might fail if `inner_tokens` is not a valid field definition
+            // (e.g., if the inner pattern was Group or Choice).
+            match syn::parse2::<Field>(inner_tokens.clone()) {
+                Ok(mut field) => {
+                    // Wrap the field's type in Option<T>
+                    let original_type = field.ty;
+                    field.ty = parse_quote! { Option<#original_type> };
+
+                    // Add #[serde(skip_serializing_if = "Option::is_none")] attribute
+                    // Ensure the attribute is added correctly, potentially merging with existing #[serde(...)]
+                    // For simplicity, we add it as a separate attribute for now.
+                    let skip_attr: syn::Attribute = parse_quote! { #[serde(skip_serializing_if = "Option::is_none")] };
+                    field.attrs.push(skip_attr);
+
+                    // Return the modified field
+                    quote! { #field }
+                }
+                Err(e) => {
+                    // If parsing as a Field fails, it indicates an unsupported structure within Optional.
+                    // Panic for now, highlighting the generated tokens that failed parsing.
+                    panic!(
+                        "Optional pattern did not generate a single field: {:?}\nParser error: {}",
+                        inner_tokens.to_string(), e
+                    );
+                }
+            }
+        }
         Pattern::ZeroOrMore(pattern) => {
             push_hint!(ctx, Hint::ZeroOrMore, { generate_pattern(pattern, ctx) })
         }
