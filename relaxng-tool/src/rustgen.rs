@@ -177,7 +177,55 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
         Pattern::OneOrMore(pattern) => {
             push_hint!(ctx, Hint::OneOrMore, { generate_pattern(pattern, ctx) })
         }
-        Pattern::Attribute(_name_class, _pattern) => panic!("Unimplemented: Attribute"),
+        Pattern::Attribute(name_class, pattern) => {
+            // TODO: Handle other NameClass variants if necessary
+            let NameClass::Named {
+                namespace_uri: _,
+                name,
+            } = name_class
+            else {
+                panic!("Unexpected name class for attribute");
+            };
+
+            // TODO: Handle inner patterns other than Text if needed.
+            // For now, assume attributes contain simple text.
+            let base_type = match **pattern {
+                Pattern::Text => quote! { String },
+                // Add other cases like DatatypeName, DatatypeValue etc. if required
+                _ => panic!("Unsupported inner pattern for Attribute: {:?}", pattern),
+            };
+
+            let field_name = Ident::new(&name.to_snake_case(), Span::call_site());
+
+            // Attributes cannot be repeated (ZeroOrMore/OneOrMore don't apply)
+            // Check if the attribute itself is marked optional in the schema
+            let is_schema_optional = ctx.optional();
+
+            // Determine if the final type needs to be Option<T>
+            // It's optional if explicitly marked so OR if it's part of a choice
+            let needs_option = is_schema_optional || ctx.in_choice;
+
+            let final_type = if needs_option {
+                quote! { Option<#base_type> }
+            } else {
+                base_type
+            };
+
+            let skip_if_attr = if needs_option {
+                Some(quote! { #[serde(skip_serializing_if = "Option::is_none")] })
+            } else {
+                None
+            };
+
+            // Use "@name" convention for XML attributes in serde
+            let rename_attr_name = format!("@{}", name);
+
+            quote! {
+                #[serde(rename = #rename_attr_name)]
+                #skip_if_attr
+                #field_name: #final_type,
+            }
+        }
         Pattern::Element(name_class, pattern) => {
             let NameClass::Named {
                 namespace_uri: _,
