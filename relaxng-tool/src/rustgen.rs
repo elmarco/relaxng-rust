@@ -110,7 +110,6 @@ macro_rules! push_hint {
 fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
     match pattern {
         Pattern::Choice(vec) => {
-            let mut fields = Punctuated::<Field, Token![,]>::new();
             let mut choice_fields = TokenStream::new();
             ctx.in_choice = true;
             push_hint!(ctx, Hint::None, {
@@ -127,19 +126,22 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
             // Return the combined TokenStream of fields from all choice branches.
             choice_fields
         }
-        Pattern::Interleave(vec) => panic!("Unimplemented: Interleave"),
+        Pattern::Interleave(_vec) => panic!("Unimplemented: Interleave"),
         Pattern::Group(vec) => {
-            let mut fields = Punctuated::<Field, Token![,]>::new();
+            let mut group_fields = TokenStream::new();
             push_hint!(ctx, Hint::None, {
                 for p in vec {
                     let gen_pattern = generate_pattern(p, ctx);
-                    fields.push(parse_quote! { #gen_pattern });
+                    // Append the generated fields (as TokenStream) directly.
+                    if !gen_pattern.is_empty() {
+                        group_fields.extend(gen_pattern);
+                    }
                 }
             });
-
-            quote! { #fields }
+            // Return the combined TokenStream of fields from all group sub-patterns.
+            group_fields
         }
-        Pattern::Mixed(pattern) => panic!("Unimplemented: Mixed"),
+        Pattern::Mixed(_pattern) => panic!("Unimplemented: Mixed"),
         Pattern::Empty => panic!("Unimplemented: Empty"),
         Pattern::Text => {
             // Generate field for text content. Using "value" is common.
@@ -175,7 +177,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
         Pattern::OneOrMore(pattern) => {
             push_hint!(ctx, Hint::OneOrMore, { generate_pattern(pattern, ctx) })
         }
-        Pattern::Attribute(name_class, pattern) => panic!("Unimplemented: Attribute"),
+        Pattern::Attribute(_name_class, _pattern) => panic!("Unimplemented: Attribute"),
         Pattern::Element(name_class, pattern) => {
             let NameClass::Named {
                 namespace_uri: _,
@@ -241,7 +243,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
 
             // Determine base type based on hints
             let (base_field_type, is_already_optional) = if ctx.zero_or_more() {
-                (quote! { Vec<#struct_name> }, true) // Vec implies optionality for serialization
+                (quote! { Option<Vec<#struct_name>> }, true) // Vec implies optionality for serialization
             } else if ctx.one_or_more() {
                 (quote! { Vec<#struct_name> }, false) // Vec<T> must have at least one item
             } else if ctx.optional() {
@@ -271,9 +273,12 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> TokenStream {
                 #field_name: #final_field_type,
             }
         }
-        Pattern::Ref(span, _, pat_ref) => panic!("Unimplemented: Ref"),
-        Pattern::DatatypeValue { datatype } => panic!("Unimplemented: DatatypeValue"),
-        Pattern::DatatypeName { datatype, except } => panic!("Unimplemented: DatatypeName"),
-        Pattern::List(pattern) => panic!("Unimplemented: List"),
+        Pattern::Ref(_span, _, _pat_ref) => panic!("Unimplemented: Ref"),
+        Pattern::DatatypeValue { datatype: _ } => panic!("Unimplemented: DatatypeValue"),
+        Pattern::DatatypeName {
+            datatype: _,
+            except: _,
+        } => panic!("Unimplemented: DatatypeName"),
+        Pattern::List(_pattern) => panic!("Unimplemented: List"),
     }
 }
