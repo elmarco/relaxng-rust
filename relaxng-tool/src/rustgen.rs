@@ -2,16 +2,16 @@ use heck::ToSnakeCase;
 use heck::ToUpperCamelCase;
 use indexmap::IndexMap;
 use prettyplease::unparse;
+use proc_macro2::Literal;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
+use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 use quote::TokenStreamExt;
-use relaxng_model::datatype::relax::BuiltinDatatypeValue;
 use relaxng_model::datatype::Datatypes;
 use relaxng_model::FsFiles;
 use relaxng_model::Syntax;
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::exit;
 use syn::Ident;
@@ -35,161 +35,167 @@ pub(crate) fn generate(schema: PathBuf) {
         }
     };
     dbg!(&model);
-    let p = model.as_ref();
-    let p = p.borrow();
-    let pattern = p.as_ref().unwrap().pattern();
+    let define = model.as_ref().borrow();
+    let pattern = define.as_ref().unwrap().pattern();
 
     let mut ctx = Context::new();
-    ctx.deny_unknown = true;
-    let _gen_pattern = generate_pattern(pattern, &mut ctx);
-    let global = ctx.global;
-    // dbg!(global.to_string());
+    generate_pattern(pattern, &mut ctx);
+    let stream = ctx.into_stream();
+    // dbg!(stream.to_string());
 
-    let tokens = quote! {
-        use std::str::FromStr;
-        use std::fmt;
+    let mut tokens = quote! {
+        use thiserror::Error;
 
-        use serde::de::{self, Deserializer, Error as DeError};
-        use serde::ser::Serializer;
-        use serde::{Deserialize, Serialize};
+        #[derive(Error, Debug)]
+        pub enum Error {
+            #[error("IO error: {0}")]
+            Io(#[from] std::io::Error),
 
-        macro_rules! impl_enum_serialize {
-            ($enum_type:ident) => {
-                impl Serialize for $enum_type {
-                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                    where
-                        S: Serializer,
-                    {
-                        serializer.serialize_str(self.as_str())
-                    }
-                }
-            };
+            #[error("XML parsing error: {0}")]
+            Xml(#[from] quick_xml::Error),
+
+            #[error("Unexpected XML event: {0:?}")]
+            UnexpectedEvent(String),
+
+            #[error("Unexpected end of file")]
+            UnexpectedEof,
+
+            #[error("Invalid value for attribute '{attr}' on element <{elem}>: {reason}")]
+            InvalidAttributeValue {
+                elem: &'static str,
+                attr: &'static str,
+                reason: String,
+            },
+
+            #[error("Invalid value for element <{0}>: {1}")]
+            InvalidElementValue(&'static str, String),
+
+            #[error("Builder {0} missing mandatory field: {0}")]
+            BuilderMissingField(&'static str, &'static str),
         }
 
-        macro_rules! impl_enum_deserialize {
-            ($enum_type:ident) => {
-                impl<'de> Deserialize<'de> for $enum_type {
-                    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                    where
-                        D: Deserializer<'de>,
-                    {
-                        struct EnumVisitor;
-
-                        impl<'de> de::Visitor<'de> for EnumVisitor {
-                            type Value = $enum_type;
-
-                            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter.write_str(concat!(
-                                    "a string representing a ",
-                                    stringify!($enum_type),
-                                    " variant"
-                                ))
-                            }
-
-                            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-                            where
-                                E: DeError,
-                            {
-                                $enum_type::from_str(value).map_err(E::custom)
-                            }
-                        }
-
-                        deserializer.deserialize_str(EnumVisitor)
-                    }
-                }
-            };
-        }
-
-        #global
+        pub type Result<T, E = Error> = std::result::Result<T, E>;
     };
+    tokens.append_all(stream);
 
     let file = syn::parse2(tokens).unwrap();
     let unparsed = unparse(&file);
     println!("{unparsed}");
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-enum Hint {
-    None,
-    ZeroOrMore,
-    OneOrMore,
+enum State {
+    Group,
     Optional,
-    Choice,
+    OneOrMore,
+    ZeroOrMore,
+    Struct(GenStruct),
+}
+
+impl State {
+    fn into_struct(self) -> GenStruct {
+        match self {
+            State::Struct(str) => str,
+            _ => panic!("Expected Struct state"),
+        }
+    }
 }
 
 struct Context {
-    global: TokenStream,
-    hint: Vec<Hint>,
-    deny_unknown: bool,
-    ref_seen: HashSet<String>,
+    stream: TokenStream,
+    state: Vec<State>,
 }
 
 impl Context {
     fn new() -> Self {
         Self {
-            global: TokenStream::new(),
-            hint: Vec::new(),
-            deny_unknown: false,
-            ref_seen: HashSet::new(),
+            stream: TokenStream::new(),
+            state: Vec::new(),
         }
     }
 
-    fn in_hint(&self, hint: Hint) -> bool {
-        self.hint.last().map_or(false, |last| last == &hint)
+    fn add_stream(&mut self, stream: TokenStream) {
+        self.stream.extend(stream);
+    }
+
+    fn push_state(&mut self, state: State) {
+        self.state.push(state);
+    }
+
+    fn pop_state(&mut self) -> State {
+        self.state.pop().unwrap()
+    }
+
+    fn into_stream(self) -> TokenStream {
+        self.stream
+    }
+
+    fn add_field(&mut self, name: &str, ty: &str) {
+        let mut optional = false;
+        let mut multiple = false;
+        for state in &mut self.state.iter_mut().rev() {
+            match state {
+                State::Struct(str) => {
+                    let mut field = GenField::new(name, ty);
+                    field.set_optional(optional);
+                    field.set_multiple(multiple);
+                    str.add_field(field);
+                    return;
+                }
+                State::Optional => optional = true,
+                State::OneOrMore => multiple = true,
+                State::ZeroOrMore => {
+                    optional = true;
+                    multiple = true;
+                }
+                State::Group => continue,
+            }
+        }
+    }
+
+    fn element(&mut self, name: &str, str: GenStruct) {
+        self.add_stream(str.to_token_stream());
+
+        self.add_field(name, &str.ident().to_string());
+    }
+
+    fn text(&mut self) {
+        self.add_field("value", "String");
     }
 }
 
-macro_rules! push_hint {
-    ($ctx:expr, $hint:expr, $block:expr) => {{
-        $ctx.hint.push($hint);
-        let gen_pattern = $block;
-        $ctx.hint.pop();
-        gen_pattern
-    }};
-}
-
-fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> GenFields {
+fn generate_pattern(pattern: &Pattern, ctx: &mut Context) {
     match pattern {
         Pattern::Choice(vec) => {
-            let mut choice_fields = GenFields::new();
-            // quick-xml/serde doesn't handle untagged enums
-            // https://github.com/tafia/quick-xml/issues/203
-            push_hint!(ctx, Hint::Choice, {
-                for p in vec {
-                    let gen_pattern = generate_pattern(p, ctx);
-                    choice_fields.extend(gen_pattern);
-                }
-            });
-            choice_fields
+            panic!("Unimplemented: Choice")
         }
         Pattern::Interleave(_vec) => panic!("Unimplemented: Interleave"),
         Pattern::Group(vec) => {
-            let mut group_fields = GenFields::new();
-            push_hint!(ctx, Hint::None, {
-                for p in vec {
-                    let gen_pattern = generate_pattern(p, ctx);
-                    group_fields.extend(gen_pattern);
-                }
-            });
-            group_fields
+            ctx.push_state(State::Group);
+            for pattern in vec {
+                generate_pattern(pattern, ctx);
+            }
+            ctx.pop_state();
         }
         Pattern::Mixed(_pattern) => panic!("Unimplemented: Mixed"),
-        Pattern::Empty => GenFields::new(),
-        Pattern::Text => {
-            let mut field = GenField::new("value", "$text", "String");
-            field.set_optional(ctx.in_hint(Hint::Optional) || ctx.in_hint(Hint::Choice));
-
-            GenFields::new_with(field)
+        Pattern::Empty => {
+            panic!("Unimplemented: Empty")
         }
+        Pattern::Text => ctx.text(),
         Pattern::NotAllowed => panic!("Unimplemented: NotAllowed"),
         Pattern::Optional(pattern) => {
-            push_hint!(ctx, Hint::Optional, { generate_pattern(pattern, ctx) })
+            ctx.push_state(State::Optional);
+            generate_pattern(pattern, ctx);
+            ctx.pop_state();
         }
         Pattern::ZeroOrMore(pattern) => {
-            push_hint!(ctx, Hint::ZeroOrMore, { generate_pattern(pattern, ctx) })
+            ctx.push_state(State::ZeroOrMore);
+            generate_pattern(pattern, ctx);
+            ctx.pop_state();
         }
         Pattern::OneOrMore(pattern) => {
-            push_hint!(ctx, Hint::OneOrMore, { generate_pattern(pattern, ctx) })
+            ctx.push_state(State::OneOrMore);
+            generate_pattern(pattern, ctx);
+            ctx.pop_state();
         }
         Pattern::Attribute(name_class, pattern) => {
             let NameClass::Named {
@@ -201,41 +207,23 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> GenFields {
             };
 
             let field_ty = name.to_upper_camel_case();
-            let ty = match &**pattern {
-                Pattern::Text => "String".to_string(),
-                Pattern::DatatypeName {
-                    datatype,
-                    except: _,
-                } => datatype_to_ty(datatype),
-                Pattern::Choice(vec) => {
-                    let mut e = GenEnum::new(&field_ty);
-                    for p in vec {
-                        use relaxng_model::datatype::DatatypeValues::*;
+            // Pattern::Choice(vec) => {
+            //     let mut e = GenEnum::new(&field_ty);
+            //     for p in vec {
+            //         use relaxng_model::datatype::DatatypeValues::*;
 
-                        let Pattern::DatatypeValue { datatype } = p else {
-                            panic!("Unexpected pattern in Choice for Attribute");
-                        };
-                        match datatype {
-                            Relax(BuiltinDatatypeValue::TokenValue(value)) => e.insert(value),
-                            Xsd(xsd_datatype_values) => todo!(),
-                            _ => todo!(),
-                        }
-                    }
-                    ctx.global.append_all(e.to_token_stream());
-                    e.name
-                }
-                // Add other cases like DatatypeName, DatatypeValue etc. if required
-                _ => panic!("Unsupported inner pattern for Attribute: {:?}", pattern),
-            };
+            //         let Pattern::DatatypeValue { datatype } = p else {
+            //             panic!("Unexpected pattern in Choice for Attribute");
+            //         };
+            //         match datatype {
+            //             Relax(BuiltinDatatypeValue::TokenValue(value)) => e.insert(value),
+            //             Xsd(xsd_datatype_values) => todo!(),
+            //             _ => todo!(),
+            //         }
+            //     }
 
             let field_name = name.to_snake_case();
-            // Use "@name" convention for XML attributes in serde
-            let rename = format!("@{}", name);
-
-            let mut field = GenField::new(&field_name, &rename, &ty);
-            field.set_optional(ctx.in_hint(Hint::Optional) || ctx.in_hint(Hint::Choice));
-
-            GenFields::new_with(field)
+            panic!("unimplemented attr")
         }
         Pattern::Element(name_class, pattern) => {
             let NameClass::Named {
@@ -245,69 +233,21 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> GenFields {
             else {
                 panic!("Unexpected name class");
             };
-            let struct_name = name.to_upper_camel_case();
-            let field_name = format!(
-                "{}{}",
-                name.to_snake_case(),
-                if ctx.in_hint(Hint::ZeroOrMore) || ctx.in_hint(Hint::OneOrMore) {
-                    "s"
-                } else {
-                    ""
-                }
-            );
-
-            let gen_pattern = push_hint!(ctx, Hint::None, { generate_pattern(pattern, ctx) });
-
-            let mut serde_attr = Vec::new();
-            if ctx.deny_unknown {
-                serde_attr.push(quote! {
-                    deny_unknown_fields
-                });
-            }
-            if struct_name != *name {
-                serde_attr.push(quote! {
-                    rename = #name
-                })
-            };
-
-            let struct_attr = if !serde_attr.is_empty() {
-                Some(quote! {
-                    #[serde(#(#serde_attr),*)]
-                })
-            } else {
-                None
-            };
-
-            {
-                let struct_name = Ident::new(&struct_name, Span::call_site());
-                let global = &ctx.global;
-                ctx.global = quote! {
-                    #global
-
-                    #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-                    #struct_attr
-                    pub struct #struct_name {
-                        #gen_pattern
-                    }
-                };
-            }
-
-            let mut field = GenField::new(&field_name, name, &struct_name);
-            field.set_optional(
-                ctx.in_hint(Hint::Optional) | ctx.in_hint(Hint::ZeroOrMore)
-                    || ctx.in_hint(Hint::Choice),
-            );
-            field.set_vec(ctx.in_hint(Hint::ZeroOrMore) || ctx.in_hint(Hint::OneOrMore));
-            GenFields::new_with(field)
+            let str = GenStruct::new(name);
+            ctx.push_state(State::Struct(str));
+            generate_pattern(pattern, ctx);
+            let str = ctx.pop_state().into_struct();
+            ctx.element(name, str);
         }
         Pattern::Ref(_span, name, pat_ref) => {
-            if ctx.ref_seen.insert(name.clone()) {
-                let rule = pat_ref.0.borrow();
-                let rule = rule.as_ref().unwrap();
-                generate_pattern(rule.pattern(), ctx)
-            } else {
-                panic!("Unhandled circular reference detected");
-            }
+            // if ctx.ref_seen.insert(name.clone()) {
+            //     let rule = pat_ref.0.borrow();
+            //     let rule = rule.as_ref().unwrap();
+            //     generate_pattern(rule.pattern(), ctx)
+            // } else {
+            //     panic!("Unhandled circular reference detected");
+            // }
+            panic!("unhandled ref")
         }
         Pattern::DatatypeValue { datatype: _ } => panic!("Unimplemented: DatatypeValue"),
         Pattern::DatatypeName { datatype, except } => {
@@ -315,9 +255,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) -> GenFields {
                 panic!("Unimplemented: DatatypeName with exception");
             }
             let ty = datatype_to_ty(datatype);
-            let mut field = GenField::new("value", "$text", &ty);
-            field.set_optional(ctx.in_hint(Hint::Optional) || ctx.in_hint(Hint::Choice));
-            GenFields::new_with(field)
+            panic!("unimplemented dn {}", ty)
         }
         Pattern::List(_pattern) => panic!("Unimplemented: List"),
     }
@@ -365,180 +303,166 @@ fn datatype_to_ty(datatype: &Datatypes) -> String {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct GenField {
     name: String,
-    rename: String,
     ty: String,
     optional: bool,
-    vec: bool,
+    multiple: bool,
 }
 
 impl GenField {
-    fn new(name: &str, rename: &str, ty: &str) -> Self {
+    fn new(name: &str, ty: &str) -> Self {
         Self {
-            name: name.to_string(),
-            rename: rename.to_string(),
+            name: name.to_snake_case(),
             ty: ty.to_string(),
             optional: false,
-            vec: false,
+            multiple: false,
         }
+    }
+
+    fn name(&self) -> String {
+        format!("{}{}", self.name, if self.multiple { "s" } else { "" })
     }
 
     fn set_optional(&mut self, optional: bool) {
         self.optional = optional;
     }
 
-    fn set_vec(&mut self, vec: bool) {
-        self.vec = vec;
+    fn set_multiple(&mut self, multiple: bool) {
+        self.multiple = multiple;
     }
 
-    fn is_attr(&self) -> bool {
-        self.name.starts_with('@')
+    fn ident(&self) -> Ident {
+        format_ident!("{}", self.name())
     }
 }
 
 impl ToTokens for GenField {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let mut serde_attr = Vec::new();
-        if self.name != self.rename {
-            let rename = &self.rename;
-            serde_attr.push(quote! { rename = #rename });
+        let name_ident = Ident::new(&self.name(), Span::call_site());
+        let mut ty = Ident::new(&self.ty, Span::call_site()).to_token_stream();
+
+        if self.multiple {
+            ty = quote! { Vec<#ty> };
+        } else if self.optional {
+            ty = quote! { Option<#ty> };
         };
-        if self.optional {
-            serde_attr.push(quote! { skip_serializing_if = "Option::is_none" });
-        };
-        let serde_attr = if !serde_attr.is_empty() {
-            Some(quote! {
-                #[serde(#(#serde_attr),*)]
-            })
-        } else {
-            None
-        };
-        let ty = Ident::new(&self.ty, Span::call_site());
-        let ty = if self.vec {
-            quote! { Vec<#ty> }
-        } else {
-            quote! { #ty }
-        };
-        let ty = if self.optional {
-            quote! { Option<#ty> }
-        } else {
-            quote! { #ty }
-        };
-        let field_name = Ident::new(&self.name, Span::call_site());
+
         let gen = quote! {
-            #serde_attr
-            #field_name: #ty
+            #name_ident: #ty
         };
+
         tokens.extend(gen);
     }
 }
 
 #[derive(Debug)]
-struct GenFields {
-    fields: IndexMap<String, GenField>,
-}
-
-impl GenFields {
-    fn new() -> Self {
-        Self {
-            fields: IndexMap::new(),
-        }
-    }
-
-    fn new_with(field: GenField) -> Self {
-        let mut fields = IndexMap::new();
-        fields.insert(field.name.clone(), field);
-
-        Self { fields }
-    }
-
-    fn extend(&mut self, others: GenFields) {
-        for (other_name, mut other) in others.fields.into_iter() {
-            let entry = self.fields.entry(other_name);
-            match entry {
-                indexmap::map::Entry::Occupied(entry) => {
-                    if !other.is_attr() && entry.get().is_attr() {
-                        let entry = entry.into_mut();
-                        std::mem::swap(&mut *entry, &mut other);
-                    }
-
-                    other.name = format!("{}_attr", other.name);
-                    self.fields.insert(other.name.clone(), other);
-                }
-                indexmap::map::Entry::Vacant(entry) => {
-                    entry.insert(other);
-                }
-            }
-        }
-    }
-}
-
-impl ToTokens for GenFields {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let fields = self.fields.values();
-        let gen = quote! { #(#fields),* };
-        tokens.extend(gen);
-    }
-}
-
-struct GenEnum {
+struct GenStruct {
     name: String,
-    variants: IndexMap<String, String>,
+    fields: Vec<GenField>,
 }
 
-impl GenEnum {
+impl GenStruct {
     fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
-            variants: IndexMap::new(),
+            fields: Vec::new(),
         }
     }
 
-    fn insert(&mut self, value: &str) {
-        let name = value.to_upper_camel_case();
-        self.variants.insert(name, value.to_owned());
+    fn add_field(&mut self, field: GenField) {
+        self.fields.push(field);
+    }
+
+    fn ident(&self) -> Ident {
+        format_ident!("{}", self.name.to_upper_camel_case())
+    }
+
+    fn builder_ident(&self) -> Ident {
+        format_ident!("{}Builder", self.name.to_upper_camel_case())
     }
 }
 
-impl ToTokens for GenEnum {
+impl ToTokens for GenStruct {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let name = &Ident::new(&self.name, Span::call_site());
-        let variants = self
-            .variants
-            .keys()
-            .map(|variant| Ident::new(variant, Span::call_site()))
-            .collect::<Vec<_>>();
-        let values = self.variants.values().collect::<Vec<_>>();
+        let name = &self.name;
+        let name_b = Literal::byte_string(self.name.as_bytes());
+        let name_ident = self.ident();
+        let builder_ident = self.builder_ident();
+        let fields = &self.fields;
+        let mut builder_fields = fields.clone();
+        builder_fields.iter_mut().for_each(|f| f.optional = true);
+        let field_names = fields.iter().map(|f| f.ident());
+
+        let mut build_fields = quote! {};
+        for field in &self.fields {
+            let field_name = field.name();
+            let field_ident = field.ident();
+            let field = if field.optional {
+                quote! {
+                    #field_ident,
+                }
+            } else {
+                quote! {
+                    #field_ident: #field_ident.ok_or_else(|| Error::BuilderMissingField(#name, #field_name))?,
+                }
+            };
+            build_fields.extend(field);
+        }
+
         let gen = quote! {
-            #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-            pub enum #name {
-                #(#variants),*
+            #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+            pub struct #name_ident {
+                #(#fields),*
             }
 
-            impl #name {
-                fn as_str(&self) -> &str {
-                    match self {
-                        #(Self::#variants => #values),*
+            #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+            pub struct #builder_ident {
+                #(#builder_fields),*
+            }
+
+            impl #name_ident {
+                pub fn builder() -> #builder_ident {
+                    Default::default()
+                }
+
+                pub fn from_xml<R>(reader: &mut quick_xml::Reader<R>, start_element: &quick_xml::events::BytesStart) -> Result<Self>
+                where
+                    R: std::io::BufRead,
+                {
+                    let builder = Self::builder();
+
+                    if start_element.name().local_name().as_ref() != #name_b {
+                        return Err(Error::UnexpectedEvent(format!("{:?}", start_element)));
                     }
+
+                    builder.build()
+                }
+
+                pub fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+                where
+                    W: std::io::Write,
+                {
+                    use quick_xml::events::{self, BytesStart, BytesEnd};
+
+                    writer.write_event(events::Event::Start(BytesStart::new(#name)))?;
+                    writer.write_event(events::Event::End(BytesEnd::new(#name)))?;
+                    Ok(())
                 }
             }
 
-            impl FromStr for #name {
-                type Err = String;
+            impl #builder_ident {
+                pub fn build(self) -> Result<#name_ident> {
+                    let Self { #(#field_names),* } = self;
 
-                fn from_str(s: &str) -> Result<Self, Self::Err> {
-                    match s {
-                        #(#values => Ok(Self::#variants)),*,
-                        _ => Err(format!("Invalid {} value: {}", stringify!(#name), s)),
-                    }
+                    Ok(#name_ident {
+                        #build_fields
+                    })
                 }
             }
-
-            impl_enum_serialize!(#name);
-            impl_enum_deserialize!(#name);
         };
+
         tokens.extend(gen);
     }
 }
