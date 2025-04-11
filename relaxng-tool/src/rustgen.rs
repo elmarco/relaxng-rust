@@ -9,6 +9,8 @@ use quote::ToTokens;
 use quote::TokenStreamExt;
 use relaxng_model::datatype::relax::BuiltinDatatypeValue;
 use relaxng_model::datatype::Datatypes;
+use relaxng_model::FsFiles;
+use relaxng_model::Syntax;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::exit;
@@ -20,7 +22,11 @@ use relaxng_model::model::Pattern;
 use relaxng_model::Compiler;
 
 pub(crate) fn generate(schema: PathBuf) {
-    let mut compiler = Compiler::default();
+    let mut compiler = if schema.extension().map(|ext| ext == "rng").unwrap_or(false) {
+        Compiler::new(FsFiles, Syntax::Xml)
+    } else {
+        Compiler::default()
+    };
     let model = match compiler.compile(&schema) {
         Ok(m) => m,
         Err(err) => {
@@ -28,6 +34,7 @@ pub(crate) fn generate(schema: PathBuf) {
             exit(1);
         }
     };
+    dbg!(&model);
     let p = model.as_ref();
     let p = p.borrow();
     let pattern = p.as_ref().unwrap().pattern();
