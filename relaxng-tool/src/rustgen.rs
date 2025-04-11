@@ -129,23 +129,19 @@ impl Context {
         self.stream
     }
 
-    fn add_field(&mut self, name: &str, ty: &str) {
-        let mut optional = false;
-        let mut multiple = false;
+    fn add_field(&mut self, name: &str, ty: &str, text: bool) {
+        let mut field = GenField::new(name, ty, text);
         for state in &mut self.state.iter_mut().rev() {
             match state {
                 State::Struct(str) => {
-                    let mut field = GenField::new(name, ty);
-                    field.set_optional(optional);
-                    field.set_multiple(multiple);
                     str.add_field(field);
                     return;
                 }
-                State::Optional => optional = true,
-                State::OneOrMore => multiple = true,
+                State::Optional => field.set_optional(true),
+                State::OneOrMore => field.set_multiple(true),
                 State::ZeroOrMore => {
-                    optional = true;
-                    multiple = true;
+                    field.set_optional(true);
+                    field.set_multiple(true);
                 }
                 State::Group => continue,
             }
@@ -155,11 +151,11 @@ impl Context {
     fn element(&mut self, name: &str, str: GenStruct) {
         self.add_stream(str.to_token_stream());
 
-        self.add_field(name, &str.ident().to_string());
+        self.add_field(name, &str.ident().to_string(), false);
     }
 
     fn text(&mut self) {
-        self.add_field("value", "String");
+        self.add_field("value", "String", true);
     }
 }
 
@@ -307,15 +303,17 @@ fn datatype_to_ty(datatype: &Datatypes) -> String {
 struct GenField {
     name: String,
     ty: String,
+    text: bool,
     optional: bool,
     multiple: bool,
 }
 
 impl GenField {
-    fn new(name: &str, ty: &str) -> Self {
+    fn new(name: &str, ty: &str, text: bool) -> Self {
         Self {
             name: name.to_snake_case(),
             ty: ty.to_string(),
+            text,
             optional: false,
             multiple: false,
         }
@@ -395,11 +393,15 @@ impl ToTokens for GenStruct {
         builder_fields.iter_mut().for_each(|f| f.optional = true);
         let field_names = fields.iter().map(|f| f.ident());
 
+        let mut to_xml_attrs = quote! {};
+        let mut to_xml_elems = quote! {};
         let mut build_fields = quote! {};
         for field in &self.fields {
             let field_name = field.name();
             let field_ident = field.ident();
-            let field = if field.optional {
+
+            // builder
+            let build_field = if field.optional {
                 quote! {
                     #field_ident,
                 }
@@ -408,7 +410,34 @@ impl ToTokens for GenStruct {
                     #field_ident: #field_ident.ok_or_else(|| Error::BuilderMissingField(#name, #field_name))?,
                 }
             };
-            build_fields.extend(field);
+            build_fields.extend(build_field);
+
+            // to_xml
+            let mut elem_to_xml = if field.text {
+                quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string()))); }
+            } else {
+                quote! { elem.to_xml(writer); }
+            };
+            if field.multiple {
+                elem_to_xml = quote! {
+                    for elem in elem {
+                        #elem_to_xml
+                    }
+                }
+            };
+            let elem = if field.optional && !field.multiple {
+                quote! {
+                    if let Some(elem) = &self.#field_ident {
+                        #elem_to_xml
+                    }
+                }
+            } else {
+                quote! {
+                    let elem = &self.#field_ident;
+                    #elem_to_xml
+                }
+            };
+            to_xml_elems.extend(elem);
         }
 
         let gen = quote! {
@@ -446,10 +475,18 @@ impl ToTokens for GenStruct {
                 {
                     use quick_xml::events::{self, BytesStart, BytesEnd};
 
-                    writer.write_event(events::Event::Start(BytesStart::new(#name)))?;
+                    let start = BytesStart::new(#name);
+
+                    #to_xml_attrs
+
+                    writer.write_event(events::Event::Start(start))?;
+
+                    #to_xml_elems
+
                     writer.write_event(events::Event::End(BytesEnd::new(#name)))?;
                     Ok(())
                 }
+
             }
 
             impl #builder_ident {
