@@ -460,10 +460,46 @@ impl ToTokens for GenStruct {
                 where
                     R: std::io::BufRead,
                 {
+                    use quick_xml::events::Event;
+
                     let builder = Self::builder();
 
                     if start_element.name().local_name().as_ref() != #name_b {
                         return Err(Error::UnexpectedEvent(format!("{:?}", start_element)));
+                    }
+
+                    let mut buf = Vec::new();
+                    let mut end: Option<quick_xml::events::BytesEnd<'static>> = None;
+                    loop {
+                        if let Some(end) = end.take() {
+                            reader.read_to_end_into(end.name(), &mut buf)?;
+                            buf.clear();
+                        }
+                        match reader.read_event_into(&mut buf)? {
+                            event @ (Event::Start(_) | Event::Empty(_)) => {
+                                let (e, is_start) = match event {
+                                    Event::Start(e) => (e, true),
+                                    Event::Empty(e) => (e, false),
+                                    _ => continue,
+                                };
+
+                                match e.name().as_ref() {
+                                    other => {
+                                        dbg!("other elem", other);
+                                        if is_start {
+                                            end = Some(e.to_end().into_owned());
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            Event::End(e) => break,
+                            Event::Eof => return Err(Error::UnexpectedEof),
+                            other => {
+                                dbg!("other event", other);
+                            }
+                        }
+                        buf.clear();
                     }
 
                     builder.build()
@@ -473,17 +509,17 @@ impl ToTokens for GenStruct {
                 where
                     W: std::io::Write,
                 {
-                    use quick_xml::events::{self, BytesStart, BytesEnd};
+                    use quick_xml::events::{Event, BytesStart, BytesEnd};
 
                     let start = BytesStart::new(#name);
 
                     #to_xml_attrs
 
-                    writer.write_event(events::Event::Start(start))?;
+                    writer.write_event(Event::Start(start))?;
 
                     #to_xml_elems
 
-                    writer.write_event(events::Event::End(BytesEnd::new(#name)))?;
+                    writer.write_event(Event::End(BytesEnd::new(#name)))?;
                     Ok(())
                 }
 
