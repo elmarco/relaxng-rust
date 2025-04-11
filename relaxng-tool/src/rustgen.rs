@@ -302,6 +302,7 @@ fn datatype_to_ty(datatype: &Datatypes) -> String {
 #[derive(Debug, Clone)]
 struct GenField {
     name: String,
+    xml_name: String,
     ty: String,
     text: bool,
     optional: bool,
@@ -312,6 +313,7 @@ impl GenField {
     fn new(name: &str, ty: &str, text: bool) -> Self {
         Self {
             name: name.to_snake_case(),
+            xml_name: name.to_string(),
             ty: ty.to_string(),
             text,
             optional: false,
@@ -321,6 +323,10 @@ impl GenField {
 
     fn name(&self) -> String {
         format!("{}{}", self.name, if self.multiple { "s" } else { "" })
+    }
+
+    fn name_b(&self) -> Literal {
+        Literal::byte_string(self.name.as_bytes())
     }
 
     fn set_optional(&mut self, optional: bool) {
@@ -373,6 +379,10 @@ impl GenStruct {
         self.fields.push(field);
     }
 
+    fn name_b(&self) -> Literal {
+        Literal::byte_string(self.name.as_bytes())
+    }
+
     fn ident(&self) -> Ident {
         format_ident!("{}", self.name.to_upper_camel_case())
     }
@@ -385,7 +395,7 @@ impl GenStruct {
 impl ToTokens for GenStruct {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = &self.name;
-        let name_b = Literal::byte_string(self.name.as_bytes());
+        let name_b = self.name_b();
         let name_ident = self.ident();
         let builder_ident = self.builder_ident();
         let fields = &self.fields;
@@ -393,6 +403,7 @@ impl ToTokens for GenStruct {
         builder_fields.iter_mut().for_each(|f| f.optional = true);
         let field_names = fields.iter().map(|f| f.ident());
 
+        let mut from_xml_elems = quote! {};
         let mut to_xml_attrs = quote! {};
         let mut to_xml_elems = quote! {};
         let mut build_fields = quote! {};
@@ -438,6 +449,12 @@ impl ToTokens for GenStruct {
                 }
             };
             to_xml_elems.extend(elem);
+
+            if !field.text {
+                let name_b = field.name_b();
+                let elem = quote! { #name_b => todo!(), };
+                from_xml_elems.extend(elem);
+            }
         }
 
         let gen = quote! {
@@ -484,8 +501,9 @@ impl ToTokens for GenStruct {
                                 };
 
                                 match e.name().as_ref() {
+                                    #from_xml_elems
                                     other => {
-                                        dbg!("other elem", other);
+                                        //dbg!(std::str::from_utf8(other));
                                         if is_start {
                                             end = Some(e.to_end().into_owned());
                                             continue;
@@ -496,7 +514,7 @@ impl ToTokens for GenStruct {
                             Event::End(e) => break,
                             Event::Eof => return Err(Error::UnexpectedEof),
                             other => {
-                                dbg!("other event", other);
+                                //dbg!(other);
                             }
                         }
                         buf.clear();
