@@ -14,6 +14,7 @@ use relaxng_model::FsFiles;
 use relaxng_model::Syntax;
 use std::path::PathBuf;
 use std::process::exit;
+use syn::AttrStyle;
 use syn::Ident;
 
 use relaxng_model::model::NameClass;
@@ -95,6 +96,7 @@ enum State {
     OneOrMore,
     ZeroOrMore,
     Struct(GenStruct),
+    Attribute(String),
 }
 
 impl State {
@@ -139,6 +141,10 @@ impl Context {
         let mut field = GenField::new(name, ty, text);
         for state in &mut self.state.iter_mut().rev() {
             match state {
+                State::Attribute(name) => {
+                    field.set_name(name);
+                    field.set_attribute(true);
+                }
                 State::Struct(str) => {
                     str.add_field(field);
                     return;
@@ -224,8 +230,9 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) {
             //         }
             //     }
 
-            let field_name = name.to_snake_case();
-            panic!("unimplemented attr")
+            ctx.push_state(State::Attribute(name.to_string()));
+            generate_pattern(pattern, ctx);
+            ctx.pop_state();
         }
         Pattern::Element(name_class, pattern) => {
             let NameClass::Named {
@@ -313,6 +320,7 @@ struct GenField {
     text: bool,
     optional: bool,
     multiple: bool,
+    attribute: bool,
 }
 
 impl GenField {
@@ -324,7 +332,16 @@ impl GenField {
             text,
             optional: false,
             multiple: false,
+            attribute: false,
         }
+    }
+
+    fn set_name(&mut self, name: &str) {
+        self.name = name.to_string();
+    }
+
+    fn set_attribute(&mut self, attribute: bool) {
+        self.attribute = attribute;
     }
 
     fn set_optional(&mut self, optional: bool) {
@@ -476,7 +493,10 @@ impl ToTokens for GenStruct {
             builder_fns.extend(build_fn);
 
             // to_xml
-            let mut elem_to_xml = if field.text {
+            let mut elem_to_xml = if field.attribute {
+                let name_b = field.name_b();
+                quote! {  start.push_attribute((&#name_b[..], quick_xml::escape::escape("foo").as_bytes())); }
+            } else if field.text {
                 quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string())))?; }
             } else {
                 quote! { elem.to_xml(writer); }
@@ -500,8 +520,13 @@ impl ToTokens for GenStruct {
                     #elem_to_xml
                 }
             };
-            to_xml_elems.extend(elem);
+            if field.attribute {
+                to_xml_attrs.extend(elem);
+            } else {
+                to_xml_elems.extend(elem);
+            }
 
+            // from_xml
             if field.text {
                 let mut val = quote! {
                     e.unescape()?
@@ -600,7 +625,7 @@ impl ToTokens for GenStruct {
                 {
                     use quick_xml::events::{Event, BytesStart, BytesEnd};
 
-                    let start = BytesStart::new(#name);
+                    let mut start = BytesStart::new(#name);
 
                     #to_xml_attrs
 
