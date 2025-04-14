@@ -337,7 +337,8 @@ impl GenField {
     }
 
     fn set_name(&mut self, name: &str) {
-        self.name = name.to_string();
+        self.xml_name = name.to_string();
+        self.name = name.to_snake_case();
     }
 
     fn set_attribute(&mut self, attribute: bool) {
