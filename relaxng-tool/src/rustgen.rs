@@ -440,13 +440,31 @@ impl ToTokens for GenStruct {
                 }
             };
             build_fields.extend(build_field);
+
+            let mut val = quote! { #field_single.try_into()? };
+            if field.optional && !field.multiple {
+                val = quote! {
+                    if let Some(#field_single) = #field_single {
+                        Some(#val)
+                    } else {
+                        None
+                    }
+                };
+            }
             let body = if field.multiple {
-                quote! { self.#field_ident.push(#field_single.try_into()?); }
+                quote! { self.#field_ident.push(#val); }
+            } else if field.optional {
+                quote! { self.#field_ident = #val; }
             } else {
-                quote! { self.#field_ident = Some(#field_single.try_into()?); }
+                quote! { self.#field_ident = Some(#val); }
+            };
+            let t = if field.optional && !field.multiple {
+                quote! { Option<T> }
+            } else {
+                quote! { T }
             };
             let build_fn = quote! {
-                pub fn #field_single<T>(mut self, #field_single: T) -> Result<Self>
+                pub fn #field_single<T>(mut self, #field_single: #t) -> Result<Self>
                 where
                     T: TryInto<#field_ty>,
                     Error: From<<T as TryInto<#field_ty>>::Error>
@@ -485,16 +503,25 @@ impl ToTokens for GenStruct {
             to_xml_elems.extend(elem);
 
             if field.text {
+                let mut val = quote! {
+                    e.unescape()?
+                };
+                if field.optional && !field.multiple {
+                    val = quote! { Some(#val) };
+                };
                 let event = quote! {
                     Event::Text(e) => {
-                        builder = builder.#field_single(e.unescape()?)?;
+                        builder = builder.#field_single(#val)?;
                     }
                 };
                 xml_events.extend(event);
             } else {
+                let mut val = quote! { #field_ty::from_xml(reader, &e)? };
+                if field.optional && !field.multiple {
+                    val = quote! { Some(#val) };
+                }
                 let name_b = field.name_b();
-                let build_field =
-                    quote! { builder = builder.#field_single(#field_ty::from_xml(reader, &e)?)?; };
+                let build_field = quote! { builder = builder.#field_single(#val)?; };
                 let elem = quote! { #name_b => { #build_field } };
                 from_xml_elems.extend(elem);
             }
