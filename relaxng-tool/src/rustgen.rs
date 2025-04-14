@@ -312,21 +312,13 @@ struct GenField {
 impl GenField {
     fn new(name: &str, ty: &str, text: bool) -> Self {
         Self {
-            name: name.to_snake_case(),
             xml_name: name.to_string(),
+            name: name.to_snake_case(),
             ty: ty.to_string(),
             text,
             optional: false,
             multiple: false,
         }
-    }
-
-    fn name(&self) -> String {
-        format!("{}{}", self.name, if self.multiple { "s" } else { "" })
-    }
-
-    fn name_b(&self) -> Literal {
-        Literal::byte_string(self.name.as_bytes())
     }
 
     fn set_optional(&mut self, optional: bool) {
@@ -337,15 +329,31 @@ impl GenField {
         self.multiple = multiple;
     }
 
+    fn name(&self) -> String {
+        format!("{}{}", self.name, if self.multiple { "s" } else { "" })
+    }
+
+    fn name_b(&self) -> Literal {
+        Literal::byte_string(self.xml_name.as_bytes())
+    }
+
     fn ident(&self) -> Ident {
         format_ident!("{}", self.name())
+    }
+
+    fn single_ident(&self) -> Ident {
+        format_ident!("{}", self.name)
+    }
+
+    fn ty_ident(&self) -> Ident {
+        format_ident!("{}", self.ty)
     }
 }
 
 impl ToTokens for GenField {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let name_ident = Ident::new(&self.name(), Span::call_site());
-        let mut ty = Ident::new(&self.ty, Span::call_site()).to_token_stream();
+        let name_ident = self.ident();
+        let mut ty = self.ty_ident().to_token_stream();
 
         if self.multiple {
             ty = quote! { Vec<#ty> };
@@ -407,9 +415,12 @@ impl ToTokens for GenStruct {
         let mut to_xml_attrs = quote! {};
         let mut to_xml_elems = quote! {};
         let mut build_fields = quote! {};
+        let mut builder_fns = quote! {};
         for field in &self.fields {
             let field_name = field.name();
             let field_ident = field.ident();
+            let field_single = field.single_ident();
+            let field_ty = field.ty_ident();
 
             // builder
             let build_field = if field.optional {
@@ -422,6 +433,18 @@ impl ToTokens for GenStruct {
                 }
             };
             build_fields.extend(build_field);
+            let body = if field.multiple {
+                quote! { self.#field_ident.push(#field_single); }
+            } else {
+                quote! { self.#field_ident = Some(#field_single); }
+            };
+            let build_fn = quote! {
+                pub fn #field_single(mut self, #field_single: #field_ty) -> Self {
+                    #body
+                    self
+                }
+            };
+            builder_fns.extend(build_fn);
 
             // to_xml
             let mut elem_to_xml = if field.text {
@@ -452,7 +475,7 @@ impl ToTokens for GenStruct {
 
             if !field.text {
                 let name_b = field.name_b();
-                let elem = quote! { #name_b => todo!(), };
+                let elem = quote! { #name_b => builder = builder.#field_single(#field_ty::from_xml(reader, &e)?), };
                 from_xml_elems.extend(elem);
             }
         }
@@ -479,7 +502,7 @@ impl ToTokens for GenStruct {
                 {
                     use quick_xml::events::Event;
 
-                    let builder = Self::builder();
+                    let mut builder = Self::builder();
 
                     if start_element.name().local_name().as_ref() != #name_b {
                         return Err(Error::UnexpectedEvent(format!("{:?}", start_element)));
@@ -551,6 +574,8 @@ impl ToTokens for GenStruct {
                         #build_fields
                     })
                 }
+
+                #builder_fns
             }
         };
 
