@@ -74,6 +74,12 @@ pub(crate) fn generate(schema: PathBuf) {
             BuilderMissingField(&'static str, &'static str),
         }
 
+        impl From<std::convert::Infallible> for Error {
+            fn from(_: std::convert::Infallible) -> Self {
+                unreachable!("Infallible error should not occur")
+            }
+        }
+
         pub type Result<T, E = Error> = std::result::Result<T, E>;
     };
     tokens.append_all(stream);
@@ -411,6 +417,7 @@ impl ToTokens for GenStruct {
         builder_fields.iter_mut().for_each(|f| f.optional = true);
         let field_names = fields.iter().map(|f| f.ident());
 
+        let mut xml_events = quote! {};
         let mut from_xml_elems = quote! {};
         let mut to_xml_attrs = quote! {};
         let mut to_xml_elems = quote! {};
@@ -434,21 +441,25 @@ impl ToTokens for GenStruct {
             };
             build_fields.extend(build_field);
             let body = if field.multiple {
-                quote! { self.#field_ident.push(#field_single); }
+                quote! { self.#field_ident.push(#field_single.try_into()?); }
             } else {
-                quote! { self.#field_ident = Some(#field_single); }
+                quote! { self.#field_ident = Some(#field_single.try_into()?); }
             };
             let build_fn = quote! {
-                pub fn #field_single(mut self, #field_single: #field_ty) -> Self {
+                pub fn #field_single<T>(mut self, #field_single: T) -> Result<Self>
+                where
+                    T: TryInto<#field_ty>,
+                    Error: From<<T as TryInto<#field_ty>>::Error>
+                {
                     #body
-                    self
+                    Ok(self)
                 }
             };
             builder_fns.extend(build_fn);
 
             // to_xml
             let mut elem_to_xml = if field.text {
-                quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string()))); }
+                quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string())))?; }
             } else {
                 quote! { elem.to_xml(writer); }
             };
@@ -473,9 +484,18 @@ impl ToTokens for GenStruct {
             };
             to_xml_elems.extend(elem);
 
-            if !field.text {
+            if field.text {
+                let event = quote! {
+                    Event::Text(e) => {
+                        builder = builder.#field_single(e.unescape()?)?;
+                    }
+                };
+                xml_events.extend(event);
+            } else {
                 let name_b = field.name_b();
-                let elem = quote! { #name_b => builder = builder.#field_single(#field_ty::from_xml(reader, &e)?), };
+                let build_field =
+                    quote! { builder = builder.#field_single(#field_ty::from_xml(reader, &e)?)?; };
+                let elem = quote! { #name_b => { #build_field } };
                 from_xml_elems.extend(elem);
             }
         }
@@ -534,6 +554,7 @@ impl ToTokens for GenStruct {
                                     }
                                 }
                             }
+                            #xml_events
                             Event::End(e) => break,
                             Event::Eof => return Err(Error::UnexpectedEof),
                             other => {
