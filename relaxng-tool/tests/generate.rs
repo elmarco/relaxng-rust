@@ -1,7 +1,7 @@
 use assert_cmd::prelude::*;
 use insta::assert_snapshot;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{exit, Command};
 
 fn locate_test_file(filename: &str) -> std::io::Result<PathBuf> {
     let base_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -17,15 +17,11 @@ fn locate_test_file(filename: &str) -> std::io::Result<PathBuf> {
     Ok(full_path)
 }
 
-#[test]
-fn tuto1() -> Result<(), Box<dyn std::error::Error>> {
-    let mut cmd = Command::cargo_bin("rng")?;
-    let rng = locate_test_file("tuto1.rng")?;
-    let xml = locate_test_file("tuto1.xml")?;
-
+fn test(rng: PathBuf, xml: PathBuf) -> Result<String, Box<dyn std::error::Error>> {
     let temp_dir = tempfile::tempdir()?;
     let out_path = temp_dir.path();
 
+    let mut cmd = Command::cargo_bin("rng")?;
     cmd.arg("generate")
         .arg(rng)
         .arg(out_path)
@@ -34,11 +30,13 @@ fn tuto1() -> Result<(), Box<dyn std::error::Error>> {
         .success();
 
     let mut cargo_cmd = Command::new("cargo");
-    cargo_cmd
-        .current_dir(out_path)
-        .arg("build")
-        .assert()
-        .success();
+    let output = cargo_cmd.current_dir(out_path).arg("build").output()?;
+    eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    if !output.status.success() {
+        let path = temp_dir.into_path();
+        eprintln!("Build failed: {}", path.display());
+        exit(1);
+    }
 
     let mut cargo_cmd = Command::new("cargo");
     let output = cargo_cmd
@@ -48,7 +46,26 @@ fn tuto1() -> Result<(), Box<dyn std::error::Error>> {
         .output()?;
 
     assert!(output.status.success(), "Command failed: {:?}", output);
-    let output = String::from_utf8_lossy(&output.stdout);
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[test]
+fn tuto1() -> Result<(), Box<dyn std::error::Error>> {
+    let rng = locate_test_file("tuto1.rng")?;
+    let xml = locate_test_file("tuto1.xml")?;
+
+    let output = test(rng, xml)?;
+    assert_snapshot!(output);
+
+    Ok(())
+}
+
+#[test]
+fn tuto1b() -> Result<(), Box<dyn std::error::Error>> {
+    let rng = locate_test_file("tuto1b.rng")?;
+    let xml = locate_test_file("tuto1.xml")?;
+
+    let output = test(rng, xml)?;
     assert_snapshot!(output);
 
     Ok(())

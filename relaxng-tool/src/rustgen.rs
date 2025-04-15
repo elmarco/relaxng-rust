@@ -139,7 +139,11 @@ thiserror = "2.0"
             };
 
             let res = gen::#root::from_xml(&mut reader, &e).unwrap();
-            println!("{res:#?}");
+            let mut writer = Writer::new_with_indent(Cursor::new(Vec::new()), b' ', 2);
+            res.to_xml(&mut writer).unwrap();
+            let res = writer.into_inner().into_inner();
+            let res = String::from_utf8(res).unwrap();
+            println!("{}", res);
         }
     };
     let file = syn::parse2(main_rs).unwrap();
@@ -513,8 +517,18 @@ impl ToTokens for GenStruct {
                     #field_ident,
                 }
             } else {
-                quote! {
-                    #field_ident: #field_ident.ok_or(Error::BuilderMissingField(#name, #field_name))?,
+                if field.multiple {
+                    quote! {
+                        #field_ident: if #field_ident.is_empty() {
+                            return Err(Error::BuilderMissingField(#name, #field_name));
+                        } else {
+                            #field_ident
+                        }
+                    }
+                } else {
+                    quote! {
+                        #field_ident: #field_ident.ok_or(Error::BuilderMissingField(#name, #field_name))?,
+                    }
                 }
             };
             build_fields.extend(build_field);
