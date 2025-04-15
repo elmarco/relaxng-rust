@@ -16,6 +16,7 @@ use std::path::PathBuf;
 use std::process::exit;
 use syn::AttrStyle;
 use syn::Ident;
+use syn::Index;
 
 use relaxng_model::model::NameClass;
 use relaxng_model::model::Pattern;
@@ -89,7 +90,7 @@ pub(crate) fn generate(schema: PathBuf, out: PathBuf, test: bool) {
 
     let file = syn::parse2(tokens).unwrap();
     let generated = unparse(&file);
-    println!("{generated}");
+    // println!("{generated}");
 
     if test {
         generate_test(ctx, out, generated);
@@ -154,6 +155,7 @@ thiserror = "2.0"
 }
 
 enum State {
+    Choice(GenEnum),
     Group,
     Optional,
     OneOrMore,
@@ -175,6 +177,7 @@ struct Context {
     stream: TokenStream,
     state: Vec<State>,
     last_struct: Option<GenStruct>,
+    choice_count: usize,
 }
 
 impl Context {
@@ -183,6 +186,7 @@ impl Context {
             stream: TokenStream::new(),
             state: Vec::new(),
             last_struct: None,
+            choice_count: 0,
         }
     }
 
@@ -191,11 +195,22 @@ impl Context {
     }
 
     fn push_state(&mut self, state: State) {
+        if let Some(State::Choice(gen)) = self.state.last_mut() {
+            gen.push_variant();
+        }
         self.state.push(state);
     }
 
-    fn pop_state(&mut self) -> State {
-        self.state.pop().unwrap()
+    fn pop_state(&mut self) {
+        match self.state.pop().unwrap() {
+            State::Choice(e) => self.pop_enum(e),
+            State::Group => {}
+            State::Optional => {}
+            State::OneOrMore => {}
+            State::ZeroOrMore => {}
+            State::Struct(str) => self.pop_element(str),
+            State::Attribute(_) => {}
+        }
     }
 
     fn add_field(&mut self, name: &str, ty: &str, text: bool) {
@@ -217,26 +232,49 @@ impl Context {
                     field.set_multiple(true);
                 }
                 State::Group => continue,
+                State::Choice(e) => {
+                    e.add_field(field);
+                    return;
+                }
             }
         }
     }
 
-    fn element(&mut self, name: &str, str: GenStruct) {
+    fn pop_element(&mut self, str: GenStruct) {
+        let name = &str.name;
         self.add_stream(str.to_token_stream());
 
         self.add_field(name, &str.ident().to_string(), false);
         self.last_struct = Some(str);
     }
 
+    fn pop_enum(&mut self, e: GenEnum) {
+        let name = &e.name;
+        self.add_stream(e.to_token_stream());
+
+        self.add_field(&name.to_snake_case(), &e.ident().to_string(), false);
+    }
+
     fn text(&mut self) {
         self.add_field("value", "String", true);
+    }
+
+    fn new_choice(&mut self) -> GenEnum {
+        self.choice_count += 1;
+
+        GenEnum::new(format!("Choice{}", self.choice_count))
     }
 }
 
 fn generate_pattern(pattern: &Pattern, ctx: &mut Context) {
     match pattern {
         Pattern::Choice(vec) => {
-            panic!("Unimplemented: Choice")
+            let choice = ctx.new_choice();
+            ctx.push_state(State::Choice(choice));
+            for pattern in vec {
+                generate_pattern(pattern, ctx);
+            }
+            ctx.pop_state();
         }
         Pattern::Interleave(_vec) => panic!("Unimplemented: Interleave"),
         Pattern::Group(vec) => {
@@ -307,8 +345,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) {
             let str = GenStruct::new(name);
             ctx.push_state(State::Struct(str));
             generate_pattern(pattern, ctx);
-            let str = ctx.pop_state().into_struct();
-            ctx.element(name, str);
+            ctx.pop_state();
         }
         Pattern::Ref(_span, name, pat_ref) => {
             // if ctx.ref_seen.insert(name.clone()) {
@@ -376,9 +413,13 @@ fn datatype_to_ty(datatype: &Datatypes) -> String {
 
 #[derive(Debug, Clone)]
 struct GenField {
+    // name of the rs field, ex "snake_case"
     name: String,
+    // name of the xml element, ex "OriginalName"
     xml_name: String,
+    // associate rs type, ex "String"
     ty: String,
+    // whether this is a text/body
     text: bool,
     optional: bool,
     multiple: bool,
@@ -449,6 +490,89 @@ impl ToTokens for GenField {
 
         let gen = quote! {
             #name_ident: #ty
+        };
+
+        tokens.extend(gen);
+    }
+}
+
+#[derive(Debug)]
+struct GenEnum {
+    // rs type name
+    name: String,
+    variants: Vec<Vec<GenField>>,
+}
+
+impl GenEnum {
+    fn new(name: String) -> Self {
+        Self {
+            name,
+            variants: Vec::new(),
+        }
+    }
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn ident(&self) -> Ident {
+        format_ident!("{}", self.name())
+    }
+
+    fn add_field(&mut self, field: GenField) {
+        let variant = self.variants.last_mut().expect("an enum variant");
+
+        variant.push(field);
+    }
+
+    fn push_variant(&mut self) {
+        self.variants.push(Vec::new());
+    }
+}
+
+impl ToTokens for GenEnum {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let name_ident = self.ident();
+        let mut variants = Vec::new();
+        let mut to_xml = Vec::new();
+        for (n, v) in self.variants.iter().enumerate() {
+            let ty = v.iter().map(|f| f.ty_ident());
+            let ty = quote! {
+                (#(#ty),*)
+            };
+            let variant = format_ident!("Variant{}", n);
+            let gen = quote! {
+                #variant(#ty)
+            };
+            variants.push(gen);
+
+            let mut to_xml_variant = quote! {};
+            for (n, _ty) in v.iter().enumerate() {
+                let n = Index::from(n);
+                let gen = quote! {
+                    v.#n.to_xml();
+                };
+                to_xml_variant.append_all(gen);
+            }
+            let gen = quote! {
+                #variant(v) => { #to_xml_variant }
+            };
+            to_xml.push(gen);
+        }
+        let gen = quote! {
+            pub enum #name_ident {
+                #(#variants),*
+            }
+
+            impl #name_ident {
+                pub fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+                where
+                    W: std::io::Write,
+                {
+                    match self {
+                        #(#to_xml),*
+                    }
+                }
+            }
         };
 
         tokens.extend(gen);

@@ -85,3 +85,14 @@ fn tuto1c() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn tuto2() -> Result<(), Box<dyn std::error::Error>> {
+    let rng = locate_test_file("tuto2.rnc")?;
+    let xml = locate_test_file("tuto2.xml")?;
+
+    let output = test(rng, xml)?;
+    assert_snapshot!(output);
+
+    Ok(())
+}
