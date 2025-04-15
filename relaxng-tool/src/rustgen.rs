@@ -22,7 +22,7 @@ use relaxng_model::model::Pattern;
 
 use relaxng_model::Compiler;
 
-pub(crate) fn generate(schema: PathBuf) {
+pub(crate) fn generate(schema: PathBuf, out: PathBuf, test: bool) {
     let mut compiler = if schema.extension().map(|ext| ext == "rng").unwrap_or(false) {
         Compiler::new(FsFiles, Syntax::Xml)
     } else {
@@ -35,16 +35,15 @@ pub(crate) fn generate(schema: PathBuf) {
             exit(1);
         }
     };
-    dbg!(&model);
+    // dbg!(&model);
     let define = model.as_ref().borrow();
     let pattern = define.as_ref().unwrap().pattern();
 
     let mut ctx = Context::new();
     generate_pattern(pattern, &mut ctx);
-    let stream = ctx.into_stream();
-    // dbg!(stream.to_string());
+    let stream = &ctx.stream;
 
-    let mut tokens = quote! {
+    let tokens = quote! {
         #![allow(unused_mut)]
         #![allow(unused_variables)]
         use thiserror::Error;
@@ -84,12 +83,70 @@ pub(crate) fn generate(schema: PathBuf) {
         }
 
         pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+        #stream
     };
-    tokens.append_all(stream);
 
     let file = syn::parse2(tokens).unwrap();
-    let unparsed = unparse(&file);
-    println!("{unparsed}");
+    let generated = unparse(&file);
+    println!("{generated}");
+
+    if test {
+        generate_test(ctx, out, generated);
+    }
+}
+
+fn generate_test(ctx: Context, out: PathBuf, generated: String) {
+    let src_dir = out.join("src");
+    std::fs::create_dir(&src_dir).expect("creating src directory");
+
+    let cargo_toml_path = out.join("Cargo.toml");
+    let cargo_toml_content = r#"
+[package]
+name = "test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+quick-xml = "0.37"
+thiserror = "2.0"
+"#;
+    std::fs::write(&cargo_toml_path, cargo_toml_content).expect("writing Cargo.toml");
+
+    let gen_path = src_dir.join("gen.rs");
+    std::fs::write(&gen_path, generated).expect("writing gen.rs");
+
+    let root = ctx.last_struct.unwrap();
+    let root = root.ident();
+    let main_rs_path = src_dir.join("main.rs");
+    let main_rs = quote! {
+        use quick_xml::{Reader, Writer, events::*};
+        use std::io::Cursor;
+        use std::path::Path; // Import logger implementation
+        use std::{env::args, fs};
+
+        mod gen;
+
+        fn main() {
+            let path = args().nth(1).expect("No XML file path provided");
+            let xml_path = Path::new(&path);
+            let xml = fs::read_to_string(xml_path).expect("Failed to read test XML file");
+
+            let mut reader = Reader::from_str(&xml);
+
+            let Event::Start(e) = reader.read_event().unwrap() else {
+                panic!("not xml?");
+            };
+
+            let res = gen::#root::from_xml(&mut reader, &e).unwrap();
+            dbg!(&res);
+        }
+    };
+    let file = syn::parse2(main_rs).unwrap();
+    let main_rs = unparse(&file);
+
+    std::fs::write(&main_rs_path, main_rs).expect("writing main.rs");
+    println!("Created test Rust project at {:?}", out);
 }
 
 enum State {
@@ -113,6 +170,7 @@ impl State {
 struct Context {
     stream: TokenStream,
     state: Vec<State>,
+    last_struct: Option<GenStruct>,
 }
 
 impl Context {
@@ -120,6 +178,7 @@ impl Context {
         Self {
             stream: TokenStream::new(),
             state: Vec::new(),
+            last_struct: None,
         }
     }
 
@@ -133,10 +192,6 @@ impl Context {
 
     fn pop_state(&mut self) -> State {
         self.state.pop().unwrap()
-    }
-
-    fn into_stream(self) -> TokenStream {
-        self.stream
     }
 
     fn add_field(&mut self, name: &str, ty: &str, text: bool) {
@@ -166,6 +221,7 @@ impl Context {
         self.add_stream(str.to_token_stream());
 
         self.add_field(name, &str.ident().to_string(), false);
+        self.last_struct = Some(str);
     }
 
     fn text(&mut self) {

@@ -11,14 +11,22 @@ mod rustgen;
 
 #[derive(Debug, StructOpt)]
 enum Cli {
-    Validate { schema: PathBuf, xml: Vec<PathBuf> },
-    Generate { schema: PathBuf },
+    Validate {
+        schema: PathBuf,
+        xml: Vec<PathBuf>,
+    },
+    Generate {
+        schema: PathBuf,
+        out: PathBuf,
+        #[structopt(long, takes_value = false)]
+        test: bool,
+    },
 }
 
 fn main() {
     match Cli::from_args() {
         Cli::Validate { schema, xml } => validate(schema, xml),
-        Cli::Generate { schema } => rustgen::generate(schema),
+        Cli::Generate { schema, out, test } => rustgen::generate(schema, out, test),
     }
 }
 
