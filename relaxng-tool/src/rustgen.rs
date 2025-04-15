@@ -284,10 +284,7 @@ impl Context {
             panic!();
         };
 
-        let name = &str.xml_name;
-
         let mods = gen_mods(str.fields.iter());
-
         let gen = str.to_token_stream();
         let gen = quote! {
             #mods
@@ -296,6 +293,7 @@ impl Context {
         };
         self.write_rs(gen, output);
 
+        let name = &str.xml_name;
         self.add_field(name, &str.ident().to_string(), false);
         self.last_struct = Some(str);
     }
@@ -306,8 +304,17 @@ impl Context {
             panic!();
         };
 
+        let fields: Vec<GenField> = e.variants.iter().flatten().cloned().collect();
+        let mods = gen_mods(fields.iter());
+        let gen = e.to_token_stream();
+        let gen = quote! {
+            #mods
+
+            #gen
+        };
+
         let name = &e.name;
-        self.write_rs(e.to_token_stream(), output);
+        self.write_rs(gen, output);
         self.add_field(&name.to_snake_case(), &e.ident().to_string(), false);
     }
 
