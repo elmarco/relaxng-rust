@@ -24,3 +24,8 @@ indexmap = "2.9.0"
 [[bin]]
 name = "rng"
 path = "src/main.rs"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+insta = "1.42.2"
+tempfile = "3.19"

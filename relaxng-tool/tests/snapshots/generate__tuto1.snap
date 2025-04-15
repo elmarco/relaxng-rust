@@ -1,0 +1,24 @@
+---
+source: relaxng-tool/tests/generate.rs
+expression: output
+---
+AddressBook {
+    cards: [
+        Card {
+            name: Name {
+                value: "John Smith",
+            },
+            email: Email {
+                value: "js@example.com",
+            },
+        },
+        Card {
+            name: Name {
+                value: "Fred Bloggs",
+            },
+            email: Email {
+                value: "fb@example.net",
+            },
+        },
+    ],
+}

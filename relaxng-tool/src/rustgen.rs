@@ -139,7 +139,7 @@ thiserror = "2.0"
             };
 
             let res = gen::#root::from_xml(&mut reader, &e).unwrap();
-            dbg!(&res);
+            println!("{res:#?}");
         }
     };
     let file = syn::parse2(main_rs).unwrap();
