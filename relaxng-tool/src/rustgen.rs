@@ -45,6 +45,8 @@ pub(crate) fn generate(schema: PathBuf) {
     // dbg!(stream.to_string());
 
     let mut tokens = quote! {
+        #![allow(unused_mut)]
+        #![allow(unused_variables)]
         use thiserror::Error;
 
         #[derive(Error, Debug)]
@@ -436,6 +438,7 @@ impl ToTokens for GenStruct {
         let field_names = fields.iter().map(|f| f.ident());
 
         let mut xml_events = quote! {};
+        let mut from_xml_attrs = quote! {};
         let mut from_xml_elems = quote! {};
         let mut to_xml_attrs = quote! {};
         let mut to_xml_elems = quote! {};
@@ -443,6 +446,7 @@ impl ToTokens for GenStruct {
         let mut builder_fns = quote! {};
         for field in &self.fields {
             let field_name = field.name();
+            let field_name_b = field.name_b();
             let field_ident = field.ident();
             let field_single = field.single_ident();
             let field_ty = field.ty_ident();
@@ -454,7 +458,7 @@ impl ToTokens for GenStruct {
                 }
             } else {
                 quote! {
-                    #field_ident: #field_ident.ok_or_else(|| Error::BuilderMissingField(#name, #field_name))?,
+                    #field_ident: #field_ident.ok_or(Error::BuilderMissingField(#name, #field_name))?,
                 }
             };
             build_fields.extend(build_field);
@@ -493,6 +497,46 @@ impl ToTokens for GenStruct {
             };
             builder_fns.extend(build_fn);
 
+            // from_xml
+            if field.text {
+                let mut val = if field.attribute {
+                    quote! {
+                        attr.unescape_value()?
+                    }
+                } else {
+                    quote! {
+                        e.unescape()?
+                    }
+                };
+                if field.optional && !field.multiple {
+                    val = quote! { Some(#val) };
+                };
+                let build_field = quote! { builder = builder.#field_single(#val)?; };
+                if field.attribute {
+                    let pat = quote! {
+                        #field_name_b => {
+                            #build_field
+                        }
+                    };
+                    from_xml_attrs.extend(pat)
+                } else {
+                    let event = quote! {
+                        Event::Text(e) => {
+                            #build_field
+                        }
+                    };
+                    xml_events.extend(event);
+                }
+            } else {
+                let mut val = quote! { #field_ty::from_xml(reader, &e)? };
+                if field.optional && !field.multiple {
+                    val = quote! { Some(#val) };
+                }
+                let build_field = quote! { builder = builder.#field_single(#val)?; };
+                let elem = quote! { #field_name_b => { #build_field } };
+                from_xml_elems.extend(elem);
+            }
+
             // to_xml
             let mut elem_to_xml = if field.attribute {
                 let name_b = field.name_b();
@@ -500,7 +544,7 @@ impl ToTokens for GenStruct {
             } else if field.text {
                 quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string())))?; }
             } else {
-                quote! { elem.to_xml(writer); }
+                quote! { elem.to_xml(writer)?; }
             };
             if field.multiple {
                 elem_to_xml = quote! {
@@ -525,31 +569,6 @@ impl ToTokens for GenStruct {
                 to_xml_attrs.extend(elem);
             } else {
                 to_xml_elems.extend(elem);
-            }
-
-            // from_xml
-            if field.text {
-                let mut val = quote! {
-                    e.unescape()?
-                };
-                if field.optional && !field.multiple {
-                    val = quote! { Some(#val) };
-                };
-                let event = quote! {
-                    Event::Text(e) => {
-                        builder = builder.#field_single(#val)?;
-                    }
-                };
-                xml_events.extend(event);
-            } else {
-                let mut val = quote! { #field_ty::from_xml(reader, &e)? };
-                if field.optional && !field.multiple {
-                    val = quote! { Some(#val) };
-                }
-                let name_b = field.name_b();
-                let build_field = quote! { builder = builder.#field_single(#val)?; };
-                let elem = quote! { #name_b => { #build_field } };
-                from_xml_elems.extend(elem);
             }
         }
 
@@ -579,6 +598,16 @@ impl ToTokens for GenStruct {
 
                     if start_element.name().local_name().as_ref() != #name_b {
                         return Err(Error::UnexpectedEvent(format!("{:?}", start_element)));
+                    }
+
+                    for attr in start_element.attributes() {
+                        let attr = attr.map_err(|e| Error::Xml(e.into()))?;
+                        match attr.key.as_ref() {
+                            #from_xml_attrs
+                            other => {
+                                dbg!(other);
+                            }
+                        }
                     }
 
                     let mut buf = Vec::new();
