@@ -4,6 +4,7 @@ use prettyplease::unparse;
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
+use quote::TokenStreamExt;
 use relaxng_model::datatype::Datatypes;
 use relaxng_model::FsFiles;
 use relaxng_model::Syntax;
@@ -173,7 +174,6 @@ enum State {
 
 struct Context {
     out: PathBuf,
-    stream: TokenStream,
     state: Vec<State>,
     last_struct: Option<GenStruct>,
     choice_count: usize,
@@ -185,7 +185,6 @@ impl Context {
 
         Self {
             out,
-            stream: TokenStream::new(),
             state: Vec::new(),
             last_struct: None,
             choice_count: 0,
@@ -221,7 +220,7 @@ impl Context {
         path.with_extension("rs")
     }
 
-    fn add_stream(&mut self, stream: TokenStream, path: PathBuf) {
+    fn write_rs(&mut self, stream: TokenStream, path: PathBuf) {
         let stream = quote! {
             use crate::xml::{Result, Error};
 
@@ -229,7 +228,6 @@ impl Context {
         };
 
         write_rs(&path, &stream);
-        self.stream.extend(stream);
     }
 
     fn push_state(&mut self, state: State) {
@@ -287,7 +285,17 @@ impl Context {
         };
 
         let name = &str.xml_name;
-        self.add_stream(str.to_token_stream(), output);
+
+        let mods = gen_mods(str.fields.iter());
+
+        let gen = str.to_token_stream();
+        let gen = quote! {
+            #mods
+
+            #gen
+        };
+        self.write_rs(gen, output);
+
         self.add_field(name, &str.ident().to_string(), false);
         self.last_struct = Some(str);
     }
@@ -299,7 +307,7 @@ impl Context {
         };
 
         let name = &e.name;
-        self.add_stream(e.to_token_stream(), output);
+        self.write_rs(e.to_token_stream(), output);
         self.add_field(&name.to_snake_case(), &e.ident().to_string(), false);
     }
 
@@ -312,6 +320,23 @@ impl Context {
 
         GenEnum::new(format!("Choice{}", self.choice_count))
     }
+}
+
+fn gen_mods(fields: std::slice::Iter<'_, GenField>) -> TokenStream {
+    let mut mods = quote! {};
+    for field in fields {
+        if field.text {
+            continue;
+        }
+        let ty = field.ty_ident();
+        let name = field.single_ident();
+        let gen = quote! {
+            pub mod #name;
+            use #name::#ty;
+        };
+        mods.append_all(gen);
+    }
+    mods
 }
 
 fn generate_pattern(pattern: &Pattern, ctx: &mut Context) {

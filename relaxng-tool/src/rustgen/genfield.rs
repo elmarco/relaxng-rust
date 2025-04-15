@@ -5,7 +5,7 @@ use syn::Ident;
 
 #[derive(Debug, Clone)]
 pub(crate) struct GenField {
-    // name of the rs field, ex "snake_case"
+    // name of the rs field/mod, ex "snake_case"
     pub(crate) name: String,
     // name of the xml element, ex "OriginalName"
     pub(crate) xml_name: String,
