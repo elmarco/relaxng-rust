@@ -1,3 +1,4 @@
+use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use syn::{Ident, Index};
@@ -35,6 +36,10 @@ impl GenEnum {
 
     pub(crate) fn push_variant(&mut self) {
         self.variants.push(Vec::new());
+    }
+
+    pub(crate) fn var_name(&self) -> Ident {
+        format_ident!("{}", self.name.to_snake_case())
     }
 }
 

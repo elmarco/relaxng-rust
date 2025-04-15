@@ -1,4 +1,4 @@
-use heck::ToUpperCamelCase;
+use heck::{ToSnakeCase, ToUpperCamelCase};
 use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::Ident;
@@ -7,7 +7,7 @@ use super::GenField;
 
 #[derive(Debug)]
 pub(crate) struct GenStruct {
-    pub(crate) name: String,
+    pub(crate) xml_name: String,
     pub(crate) fields: Vec<GenField>,
     pub(crate) is_top: bool,
 }
@@ -15,7 +15,7 @@ pub(crate) struct GenStruct {
 impl GenStruct {
     pub(crate) fn new(name: &str, is_top: bool) -> Self {
         Self {
-            name: name.to_string(),
+            xml_name: name.to_string(),
             fields: Vec::new(),
             is_top,
         }
@@ -25,20 +25,24 @@ impl GenStruct {
         self.fields.push(field);
     }
 
-    pub(crate) fn name_b(&self) -> Literal {
-        Literal::byte_string(self.name.as_bytes())
+    pub(crate) fn xml_name_b(&self) -> Literal {
+        Literal::byte_string(self.xml_name.as_bytes())
+    }
+
+    pub(crate) fn var_name(&self) -> Ident {
+        format_ident!("{}", self.xml_name.to_snake_case())
     }
 
     pub(crate) fn ident(&self) -> Ident {
-        format_ident!("{}", self.name.to_upper_camel_case())
+        format_ident!("{}", self.xml_name.to_upper_camel_case())
     }
 
     pub(crate) fn builder_ident(&self) -> Ident {
-        format_ident!("{}Builder", self.name.to_upper_camel_case())
+        format_ident!("{}Builder", self.ident())
     }
 
     fn gen_to_xml(&self) -> TokenStream {
-        let name = &self.name;
+        let name = &self.xml_name;
         let mut to_xml_attrs = quote! {};
         let mut to_xml_elems = quote! {};
 
@@ -117,8 +121,8 @@ impl GenStruct {
 
 impl ToTokens for GenStruct {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let name = &self.name;
-        let name_b = self.name_b();
+        let name = &self.xml_name;
+        let name_b = self.xml_name_b();
         let name_ident = self.ident();
         let builder_ident = self.builder_ident();
         let fields = &self.fields;

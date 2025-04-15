@@ -41,7 +41,20 @@ pub(crate) fn generate(schema: PathBuf, out: PathBuf, test: bool) {
 
     let mut ctx = Context::new(out.clone());
     generate_pattern(pattern, &mut ctx);
-    let stream = &ctx.stream;
+    generate_mod(&mut ctx);
+
+    if test {
+        generate_test(ctx, out);
+    }
+}
+
+fn generate_mod(ctx: &mut Context) {
+    let last = ctx.last_struct.as_ref().unwrap();
+    let modname = last.var_name();
+    let mods = quote! {
+        mod #modname;
+        pub use #modname::*;
+    };
 
     let tokens = quote! {
         #![allow(dead_code)]
@@ -50,6 +63,8 @@ pub(crate) fn generate(schema: PathBuf, out: PathBuf, test: bool) {
         #![allow(unused_imports)]
 
         use thiserror::Error;
+
+        #mods
 
         #[derive(Error, Debug)]
         pub enum Error {
@@ -86,22 +101,15 @@ pub(crate) fn generate(schema: PathBuf, out: PathBuf, test: bool) {
         }
 
         pub type Result<T, E = Error> = std::result::Result<T, E>;
-
-        #stream
     };
 
-    let file = syn::parse2(tokens).unwrap();
-    let generated = unparse(&file);
-    // println!("{generated}");
-
-    if test {
-        generate_test(ctx, out, generated);
-    }
+    let path = ctx.out.join("mod.rs");
+    write_rs(&path, &tokens);
 }
 
-fn generate_test(ctx: Context, out: PathBuf, generated: String) {
+fn generate_test(ctx: Context, out: PathBuf) {
     let src_dir = out.join("src");
-    std::fs::create_dir(&src_dir).expect("creating src directory");
+    let _ = std::fs::create_dir(&src_dir);
 
     let cargo_toml_path = out.join("Cargo.toml");
     let cargo_toml_content = r#"
@@ -116,11 +124,8 @@ thiserror = "2.0"
 "#;
     std::fs::write(&cargo_toml_path, cargo_toml_content).expect("writing Cargo.toml");
 
-    let gen_path = src_dir.join("gen.rs");
-    std::fs::write(&gen_path, generated).expect("writing gen.rs");
-
     let root = ctx.last_struct.unwrap();
-    let root = root.ident();
+    let root_elem = root.ident();
     let main_rs_path = src_dir.join("main.rs");
     let main_rs = quote! {
         use quick_xml::{Reader, Writer, events::*};
@@ -128,7 +133,7 @@ thiserror = "2.0"
         use std::path::Path; // Import logger implementation
         use std::{env::args, fs};
 
-        mod gen;
+        mod xml;
 
         fn main() {
             let path = args().nth(1).expect("No XML file path provided");
@@ -141,7 +146,7 @@ thiserror = "2.0"
                 _ => panic!("not xml?"),
             };
 
-            let res = gen::#root::from_xml(&mut reader, &e).unwrap();
+            let res = xml::#root_elem::from_xml(&mut reader, &e).unwrap();
             let mut writer = Writer::new_with_indent(Cursor::new(Vec::new()), b' ', 2);
             res.to_xml(&mut writer).unwrap();
             let res = writer.into_inner().into_inner();
@@ -166,15 +171,6 @@ enum State {
     Attribute(String),
 }
 
-impl State {
-    fn into_struct(self) -> GenStruct {
-        match self {
-            State::Struct(str) => str,
-            _ => panic!("Expected Struct state"),
-        }
-    }
-}
-
 struct Context {
     out: PathBuf,
     stream: TokenStream,
@@ -185,6 +181,8 @@ struct Context {
 
 impl Context {
     fn new(out: PathBuf) -> Self {
+        let out = out.join("src").join("xml");
+
         Self {
             out,
             stream: TokenStream::new(),
@@ -204,7 +202,33 @@ impl Context {
         true
     }
 
-    fn add_stream(&mut self, stream: TokenStream) {
+    fn output_path(&self) -> PathBuf {
+        let mut path = self.out.clone();
+
+        for state in self.state.iter() {
+            match state {
+                State::Choice(e) => {
+                    path = path.join(&e.var_name().to_string());
+                }
+                State::Struct(s) => {
+                    path = path.join(&s.var_name().to_string());
+                }
+                _ => continue,
+            }
+        }
+
+        let _ = std::fs::create_dir_all(path.parent().unwrap());
+        path.with_extension("rs")
+    }
+
+    fn add_stream(&mut self, stream: TokenStream, path: PathBuf) {
+        let stream = quote! {
+            use crate::xml::{Result, Error};
+
+            #stream
+        };
+
+        write_rs(&path, &stream);
         self.stream.extend(stream);
     }
 
@@ -216,14 +240,16 @@ impl Context {
     }
 
     fn pop_state(&mut self) {
-        match self.state.pop().unwrap() {
-            State::Choice(e) => self.pop_enum(e),
-            State::Group => {}
-            State::Optional => {}
-            State::OneOrMore => {}
-            State::ZeroOrMore => {}
-            State::Struct(str) => self.pop_element(str),
-            State::Attribute(_) => {}
+        match self.state.last().unwrap() {
+            State::Choice(_) => self.pop_choice(),
+            State::Struct(_) => self.pop_struct(),
+            State::Attribute(_)
+            | State::Group
+            | State::Optional
+            | State::OneOrMore
+            | State::ZeroOrMore => {
+                let _ = self.state.pop();
+            }
         }
     }
 
@@ -254,18 +280,26 @@ impl Context {
         }
     }
 
-    fn pop_element(&mut self, str: GenStruct) {
-        let name = &str.name;
-        self.add_stream(str.to_token_stream());
+    fn pop_struct(&mut self) {
+        let output = self.output_path();
+        let Some(State::Struct(str)) = self.state.pop() else {
+            panic!();
+        };
 
+        let name = &str.xml_name;
+        self.add_stream(str.to_token_stream(), output);
         self.add_field(name, &str.ident().to_string(), false);
         self.last_struct = Some(str);
     }
 
-    fn pop_enum(&mut self, e: GenEnum) {
-        let name = &e.name;
-        self.add_stream(e.to_token_stream());
+    fn pop_choice(&mut self) {
+        let output = self.output_path();
+        let Some(State::Choice(e)) = self.state.pop() else {
+            panic!();
+        };
 
+        let name = &e.name;
+        self.add_stream(e.to_token_stream(), output);
         self.add_field(&name.to_snake_case(), &e.ident().to_string(), false);
     }
 
@@ -423,4 +457,20 @@ fn datatype_to_ty(datatype: &Datatypes) -> String {
             xsd::XsdDatatypes::IdRef(pattern_facet) => todo!(),
         },
     }
+}
+
+fn write_rs(path: &PathBuf, stream: &TokenStream) {
+    let stream = quote! {
+        #![allow(dead_code)]
+        #![allow(unused_mut)]
+        #![allow(unused_variables)]
+        #![allow(unused_imports)]
+
+        #stream
+    };
+
+    let file = syn::parse2(stream).unwrap();
+    let generated = unparse(&file);
+
+    std::fs::write(path, generated).expect("writing rs code");
 }
