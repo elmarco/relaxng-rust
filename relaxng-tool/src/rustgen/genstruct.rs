@@ -9,13 +9,15 @@ use super::GenField;
 pub(crate) struct GenStruct {
     pub(crate) name: String,
     pub(crate) fields: Vec<GenField>,
+    pub(crate) is_top: bool,
 }
 
 impl GenStruct {
-    pub(crate) fn new(name: &str) -> Self {
+    pub(crate) fn new(name: &str, is_top: bool) -> Self {
         Self {
             name: name.to_string(),
             fields: Vec::new(),
+            is_top,
         }
     }
 
@@ -34,6 +36,83 @@ impl GenStruct {
     pub(crate) fn builder_ident(&self) -> Ident {
         format_ident!("{}Builder", self.name.to_upper_camel_case())
     }
+
+    fn gen_to_xml(&self) -> TokenStream {
+        let name = &self.name;
+        let mut to_xml_attrs = quote! {};
+        let mut to_xml_elems = quote! {};
+
+        for field in &self.fields {
+            let field_ident = field.ident();
+
+            let mut elem_to_xml = if field.attribute {
+                let name_b = field.name_b();
+                quote! {  start.push_attribute((&#name_b[..], quick_xml::escape::escape("foo").as_bytes())); }
+            } else if field.text {
+                quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string())))?; }
+            } else {
+                quote! { elem.to_xml(writer)?; }
+            };
+            if field.multiple {
+                elem_to_xml = quote! {
+                    for elem in elem {
+                        #elem_to_xml
+                    }
+                }
+            };
+            let elem = if field.optional && !field.multiple {
+                quote! {
+                    if let Some(elem) = &self.#field_ident {
+                        #elem_to_xml
+                    }
+                }
+            } else {
+                quote! {
+                    let elem = &self.#field_ident;
+                    #elem_to_xml
+                }
+            };
+            if field.attribute {
+                to_xml_attrs.extend(elem);
+            } else {
+                to_xml_elems.extend(elem);
+            }
+        }
+
+        let body_event = if to_xml_elems.is_empty() {
+            quote! {
+                writer.write_event(Event::Empty(start))?;
+            }
+        } else {
+            quote! {
+                writer.write_event(Event::Start(start))?;
+
+                #to_xml_elems
+
+                writer.write_event(Event::End(BytesEnd::new(#name)))?;
+            }
+        };
+
+        let body = quote! {
+            use quick_xml::events::{Event, BytesStart, BytesEnd};
+
+            let mut start = BytesStart::new(#name);
+
+            #to_xml_attrs
+
+            #body_event
+        };
+
+        quote! {
+            pub fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+            where
+                W: std::io::Write,
+            {
+                #body
+                Ok(())
+            }
+        }
+    }
 }
 
 impl ToTokens for GenStruct {
@@ -47,11 +126,10 @@ impl ToTokens for GenStruct {
         builder_fields.iter_mut().for_each(|f| f.optional = true);
         let field_names = fields.iter().map(|f| f.ident());
 
+        let to_xml = self.gen_to_xml();
         let mut xml_events = quote! {};
         let mut from_xml_attrs = quote! {};
         let mut from_xml_elems = quote! {};
-        let mut to_xml_attrs = quote! {};
-        let mut to_xml_elems = quote! {};
         let mut build_fields = quote! {};
         let mut builder_fns = quote! {};
         for field in &self.fields {
@@ -156,41 +234,13 @@ impl ToTokens for GenStruct {
                 let elem = quote! { #field_name_b => { #build_field } };
                 from_xml_elems.extend(elem);
             }
-
-            // to_xml
-            let mut elem_to_xml = if field.attribute {
-                let name_b = field.name_b();
-                quote! {  start.push_attribute((&#name_b[..], quick_xml::escape::escape("foo").as_bytes())); }
-            } else if field.text {
-                quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string())))?; }
-            } else {
-                quote! { elem.to_xml(writer)?; }
-            };
-            if field.multiple {
-                elem_to_xml = quote! {
-                    for elem in elem {
-                        #elem_to_xml
-                    }
-                }
-            };
-            let elem = if field.optional && !field.multiple {
-                quote! {
-                    if let Some(elem) = &self.#field_ident {
-                        #elem_to_xml
-                    }
-                }
-            } else {
-                quote! {
-                    let elem = &self.#field_ident;
-                    #elem_to_xml
-                }
-            };
-            if field.attribute {
-                to_xml_attrs.extend(elem);
-            } else {
-                to_xml_elems.extend(elem);
-            }
         }
+
+        let on_eof = if self.is_top {
+            quote! { break }
+        } else {
+            quote! { return Err(Error::UnexpectedEof) }
+        };
 
         let gen = quote! {
             #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -258,7 +308,7 @@ impl ToTokens for GenStruct {
                             }
                             #xml_events
                             Event::End(e) => break,
-                            Event::Eof => return Err(Error::UnexpectedEof),
+                            Event::Eof => #on_eof,
                             other => {
                                 //dbg!(other);
                             }
@@ -269,24 +319,7 @@ impl ToTokens for GenStruct {
                     builder.build()
                 }
 
-                pub fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
-                where
-                    W: std::io::Write,
-                {
-                    use quick_xml::events::{Event, BytesStart, BytesEnd};
-
-                    let mut start = BytesStart::new(#name);
-
-                    #to_xml_attrs
-
-                    writer.write_event(Event::Start(start))?;
-
-                    #to_xml_elems
-
-                    writer.write_event(Event::End(BytesEnd::new(#name)))?;
-                    Ok(())
-                }
-
+                #to_xml
             }
 
             impl #builder_ident {

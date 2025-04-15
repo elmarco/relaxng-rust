@@ -39,13 +39,16 @@ pub(crate) fn generate(schema: PathBuf, out: PathBuf, test: bool) {
     let define = model.as_ref().borrow();
     let pattern = define.as_ref().unwrap().pattern();
 
-    let mut ctx = Context::new();
+    let mut ctx = Context::new(out.clone());
     generate_pattern(pattern, &mut ctx);
     let stream = &ctx.stream;
 
     let tokens = quote! {
+        #![allow(dead_code)]
         #![allow(unused_mut)]
         #![allow(unused_variables)]
+        #![allow(unused_imports)]
+
         use thiserror::Error;
 
         #[derive(Error, Debug)]
@@ -133,9 +136,9 @@ thiserror = "2.0"
             let xml = fs::read_to_string(xml_path).expect("Failed to read test XML file");
 
             let mut reader = Reader::from_str(&xml);
-
-            let Event::Start(e) = reader.read_event().unwrap() else {
-                panic!("not xml?");
+            let e = match reader.read_event().unwrap() {
+                Event::Start(e) | Event::Empty(e) => e,
+                _ => panic!("not xml?"),
             };
 
             let res = gen::#root::from_xml(&mut reader, &e).unwrap();
@@ -173,6 +176,7 @@ impl State {
 }
 
 struct Context {
+    out: PathBuf,
     stream: TokenStream,
     state: Vec<State>,
     last_struct: Option<GenStruct>,
@@ -180,13 +184,24 @@ struct Context {
 }
 
 impl Context {
-    fn new() -> Self {
+    fn new(out: PathBuf) -> Self {
         Self {
+            out,
             stream: TokenStream::new(),
             state: Vec::new(),
             last_struct: None,
             choice_count: 0,
         }
+    }
+
+    fn is_top(&self) -> bool {
+        for state in self.state.iter().rev() {
+            if let State::Struct(_) = state {
+                return false;
+            }
+        }
+
+        true
     }
 
     fn add_stream(&mut self, stream: TokenStream) {
@@ -285,7 +300,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) {
         }
         Pattern::Mixed(_pattern) => panic!("Unimplemented: Mixed"),
         Pattern::Empty => {
-            panic!("Unimplemented: Empty")
+            // nothing
         }
         Pattern::Text => ctx.text(),
         Pattern::NotAllowed => panic!("Unimplemented: NotAllowed"),
@@ -341,7 +356,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) {
             else {
                 panic!("Unexpected name class");
             };
-            let str = GenStruct::new(name);
+            let str = GenStruct::new(name, ctx.is_top());
             ctx.push_state(State::Struct(str));
             generate_pattern(pattern, ctx);
             ctx.pop_state();
