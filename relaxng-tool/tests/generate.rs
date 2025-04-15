@@ -44,8 +44,12 @@ fn test(rng: PathBuf, xml: PathBuf) -> Result<String, Box<dyn std::error::Error>
         .arg("run")
         .arg(xml)
         .output()?;
+    if !output.status.success() {
+        let path = temp_dir.into_path();
+        eprintln!("Run failed: {}", path.display());
+        exit(1);
+    }
 
-    assert!(output.status.success(), "Command failed: {:?}", output);
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
@@ -64,6 +68,17 @@ fn tuto1() -> Result<(), Box<dyn std::error::Error>> {
 fn tuto1b() -> Result<(), Box<dyn std::error::Error>> {
     let rng = locate_test_file("tuto1b.rng")?;
     let xml = locate_test_file("tuto1.xml")?;
+
+    let output = test(rng, xml)?;
+    assert_snapshot!(output);
+
+    Ok(())
+}
+
+#[test]
+fn tuto1c() -> Result<(), Box<dyn std::error::Error>> {
+    let rng = locate_test_file("tuto1c.rnc")?;
+    let xml = locate_test_file("tuto1c.xml")?;
 
     let output = test(rng, xml)?;
     assert_snapshot!(output);
