@@ -144,11 +144,7 @@ thiserror = "2.0"
             let xml = fs::read_to_string(xml_path).expect("Failed to read test XML file");
 
             let mut reader = Reader::from_str(&xml);
-            let e = match reader.read_event().unwrap() {
-                Event::Start(e) | Event::Empty(e) => e,
-                _ => panic!("not xml?"),
-            };
-
+            let e = reader.read_event().unwrap();
             let res = xml::#root_elem::from_xml(&mut reader, &e).unwrap();
             let mut writer = Writer::new_with_indent(Cursor::new(Vec::new()), b' ', 2);
             res.to_xml(&mut writer).unwrap();

@@ -186,7 +186,7 @@ impl GenField {
         let field_name_b = self.name_b();
         let field_single = self.single_ident();
 
-        let mut val = quote! { #ty::from_xml(reader, &e)? };
+        let mut val = quote! { #ty::from_xml(reader, &event)? };
         if self.optional && !self.multiple {
             val = quote! { Some(#val) };
         }
@@ -248,7 +248,7 @@ impl GenField {
 
         let mut elem_to_xml = if self.attribute {
             let name_b = self.name_b();
-            quote! {  start.push_attribute((&#name_b[..], quick_xml::escape::escape("foo").as_bytes())); }
+            quote! {  start.push_attribute((&#name_b[..], quick_xml::escape::escape(&elem.to_string()).as_bytes())); }
         } else if self.is_text() {
             quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string())))?; }
         } else {

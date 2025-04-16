@@ -183,12 +183,17 @@ impl ToTokens for GenStruct {
                     Default::default()
                 }
 
-                pub fn from_xml<R>(reader: &mut quick_xml::Reader<R>, start_element: &quick_xml::events::BytesStart) -> Result<Self>
+                pub fn from_xml<R>(reader: &mut quick_xml::Reader<R>, start_element: &quick_xml::events::Event) -> Result<Self>
                 where
                     R: std::io::BufRead,
                 {
-                    use quick_xml::events::Event;
+                    let (start_element, is_empty) = match start_element {
+                        Event::Start(bytes_start) => (bytes_start, false),
+                        Event::Empty(bytes_start) => (bytes_start, true),
+                        _ => return Err(Error::UnexpectedEvent(format!("{:?}", start_element))),
+                    };
 
+                    use quick_xml::events::Event;
                     let mut builder = Self::builder();
                     #choice_builders
 
@@ -206,40 +211,42 @@ impl ToTokens for GenStruct {
                         }
                     }
 
-                    let mut buf = Vec::new();
-                    let mut end: Option<quick_xml::events::BytesEnd<'static>> = None;
-                    loop {
-                        if let Some(end) = end.take() {
-                            reader.read_to_end_into(end.name(), &mut buf)?;
-                            buf.clear();
-                        }
-                        match reader.read_event_into(&mut buf)? {
-                            event @ (Event::Start(_) | Event::Empty(_)) => {
-                                let (e, is_start) = match event {
-                                    Event::Start(e) => (e, true),
-                                    Event::Empty(e) => (e, false),
-                                    _ => continue,
-                                };
+                    if !is_empty {
+                        let mut buf = Vec::new();
+                        let mut end: Option<quick_xml::events::BytesEnd<'static>> = None;
+                        loop {
+                            if let Some(end) = end.take() {
+                                reader.read_to_end_into(end.name(), &mut buf)?;
+                                buf.clear();
+                            }
+                            match reader.read_event_into(&mut buf)? {
+                                event @ (quick_xml::events::Event::Start(_) | quick_xml::events::Event::Empty(_)) => {
+                                    let (e, is_start) = match &event {
+                                        quick_xml::events::Event::Start(e) => (e, true),
+                                        quick_xml::events::Event::Empty(e) => (e, false),
+                                        _ => continue,
+                                    };
 
-                                match e.name().as_ref() {
-                                    #from_xml_elems
-                                    other => {
-                                        //dbg!(std::str::from_utf8(other));
-                                        if is_start {
-                                            end = Some(e.to_end().into_owned());
-                                            continue;
+                                    match e.name().as_ref() {
+                                        #from_xml_elems
+                                        other => {
+                                            //dbg!(std::str::from_utf8(other));
+                                            if is_start {
+                                                end = Some(e.to_end().into_owned());
+                                                continue;
+                                            }
                                         }
                                     }
                                 }
+                                #xml_events
+                                quick_xml::events::Event::End(e) => break,
+                                quick_xml::events::Event::Eof => #on_eof,
+                                other => {
+                                    //dbg!(other);
+                                }
                             }
-                            #xml_events
-                            Event::End(e) => break,
-                            Event::Eof => #on_eof,
-                            other => {
-                                //dbg!(other);
-                            }
+                            buf.clear();
                         }
-                        buf.clear();
                     }
 
                     #choice_build
