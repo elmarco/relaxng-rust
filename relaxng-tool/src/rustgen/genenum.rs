@@ -1,7 +1,7 @@
 use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use syn::Ident;
+use syn::{parse_quote, Ident, Path};
 
 use super::GenField;
 
@@ -28,6 +28,12 @@ impl GenEnum {
         format_ident!("{}", self.name())
     }
 
+    pub(crate) fn path(&self) -> Path {
+        let ident = self.ident();
+
+        parse_quote! { #ident }
+    }
+
     pub(crate) fn builder_ident(&self) -> Ident {
         format_ident!("{}Builder", self.name())
     }
@@ -50,6 +56,14 @@ impl GenEnum {
         self.variants.iter().flatten()
     }
 
+    pub(crate) fn prefix_field_ty(&mut self) {
+        let prefix = self.var_name().to_string();
+
+        for v in self.variants.iter_mut().flatten() {
+            v.prefix_ty(&prefix);
+        }
+    }
+
     pub(crate) fn gen_from_xml(
         &self,
         builder: &Ident,
@@ -59,14 +73,6 @@ impl GenEnum {
     ) {
         for v in self.variants.iter().flatten() {
             v.gen_from_xml(builder, from_xml_attrs, from_xml_elems, xml_events);
-        }
-    }
-
-    pub(crate) fn prefix_field_ty(&mut self) {
-        let prefix = self.var_name().to_string();
-
-        for v in self.variants.iter_mut().flatten() {
-            v.prefix_ty(&prefix);
         }
     }
 }
@@ -90,7 +96,7 @@ impl ToTokens for GenEnum {
         let mut to_xml = Vec::new();
         for (n, v) in self.variants.iter().enumerate() {
             let name: Vec<_> = v.iter().map(|f| f.ident()).collect();
-            let ty = v.iter().map(|f| f.ty_ident());
+            let ty = v.iter().map(|f| f.ty_path());
             let variant = format_ident!("Variant{}", n);
             let gen = quote! {
                 #variant {

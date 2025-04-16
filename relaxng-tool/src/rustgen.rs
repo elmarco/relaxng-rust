@@ -1,5 +1,4 @@
 use genfield::FieldTy;
-use heck::ToSnakeCase;
 use prettyplease::unparse;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -297,7 +296,7 @@ impl Context {
         self.write_rs(gen, output);
 
         let name = &str.xml_name;
-        self.add_field(name, FieldTy::Ty(str.ident().to_string()));
+        self.add_field(name, FieldTy::Ty(str.path()));
         self.last_struct = Some(str);
     }
 
@@ -338,11 +337,11 @@ fn gen_mods(fields: std::slice::Iter<'_, GenField>) -> TokenStream {
         if field.is_text() {
             continue;
         }
-        let ty = field.ty_ident();
+        let ty = field.ty_path();
         let name = field.single_ident();
         let gen = quote! {
             pub mod #name;
-            use #name::#ty;
+            pub use #name::#ty;
         };
         mods.append_all(gen);
     }

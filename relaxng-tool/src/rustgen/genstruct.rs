@@ -1,7 +1,7 @@
 use heck::{ToSnakeCase, ToUpperCamelCase};
 use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
-use syn::Ident;
+use syn::{parse_quote, Ident};
 
 use super::GenField;
 
@@ -35,6 +35,12 @@ impl GenStruct {
 
     pub(crate) fn ident(&self) -> Ident {
         format_ident!("{}", self.xml_name.to_upper_camel_case())
+    }
+
+    pub(crate) fn path(&self) -> syn::Path {
+        let ident = self.ident();
+
+        parse_quote! { #ident }
     }
 
     pub(crate) fn builder_ident(&self) -> Ident {
@@ -142,7 +148,7 @@ impl ToTokens for GenStruct {
         for field in &self.fields {
             let field_name = field.name();
             let field_ident = field.ident();
-            let field_ty = field.ty_ident();
+            let field_ty = field.ty_path();
 
             // choice builders
             let builder = if field.is_choice() {
@@ -150,7 +156,7 @@ impl ToTokens for GenStruct {
                     let mut #field_ident = #field_ty::builder();
                 });
                 choice_build.extend(quote! {
-                    builder.#field_ident(#field_ident.build()?)?;
+                    builder = builder.#field_ident(#field_ident.build()?)?;
                 });
 
                 field_ident.clone()

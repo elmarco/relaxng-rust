@@ -1,13 +1,13 @@
 use heck::ToSnakeCase;
 use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
-use syn::Ident;
+use syn::{parse_quote, Ident, Path};
 
 use super::GenEnum;
 
 #[derive(Debug, Clone)]
 pub(crate) enum FieldTy {
-    Ty(String),
+    Ty(Path),
     Choice(GenEnum),
     Text,
 }
@@ -21,17 +21,20 @@ impl FieldTy {
         matches!(self, FieldTy::Choice(_))
     }
 
-    pub(crate) fn ident(&self) -> Ident {
+    pub(crate) fn path(&self) -> Path {
         match self {
-            FieldTy::Ty(ty) => format_ident!("{}", ty),
-            FieldTy::Choice(choice) => choice.ident(),
-            FieldTy::Text => format_ident!("String"),
+            FieldTy::Ty(path) => path.clone(),
+            FieldTy::Choice(e) => e.path(),
+            FieldTy::Text => {
+                parse_quote! { String }
+            }
         }
     }
 
     fn prefix(&mut self, prefix: &str) {
+        let prefix: Path = syn::parse_str(prefix).unwrap();
         match self {
-            FieldTy::Ty(ref mut ty) => *ty = format!("{}", ty),
+            FieldTy::Ty(ref mut ty) => *ty = parse_quote! { #prefix::#ty},
             FieldTy::Choice(_e) => todo!(),
             FieldTy::Text => {}
         }
@@ -96,8 +99,12 @@ impl GenField {
         format_ident!("{}", self.name)
     }
 
-    pub(crate) fn ty_ident(&self) -> Ident {
-        self.ty.ident()
+    // pub(crate) fn ty_ident(&self) -> Ident {
+    //     self.ty.ident()
+    // }
+
+    pub(crate) fn ty_path(&self) -> Path {
+        self.ty.path()
     }
 
     pub(crate) fn is_text(&self) -> bool {
@@ -110,7 +117,7 @@ impl GenField {
 
     pub(crate) fn gen_builder_fn(&self) -> TokenStream {
         let field_ident = self.ident();
-        let field_ty = self.ty_ident();
+        let field_ty = self.ty_path();
         let field_single = self.single_ident();
 
         let mut val = quote! { #field_single.try_into()? };
@@ -171,12 +178,11 @@ impl GenField {
     fn gen_from_ty(
         &self,
         builder: &Ident,
-        ty: &String,
+        ty: &Path,
         _from_xml_attrs: &mut TokenStream,
         from_xml_elems: &mut TokenStream,
         _xml_events: &mut TokenStream,
     ) {
-        let ty = format_ident!("{ty}");
         let field_name_b = self.name_b();
         let field_single = self.single_ident();
 
@@ -237,7 +243,7 @@ impl GenField {
 impl ToTokens for GenField {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name_ident = self.ident();
-        let mut ty = self.ty_ident().to_token_stream();
+        let mut ty = self.ty_path().to_token_stream();
 
         if self.multiple {
             ty = quote! { Vec<#ty> };
