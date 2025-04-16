@@ -164,40 +164,7 @@ impl ToTokens for GenStruct {
                 }
             };
             build_fields.extend(build_field);
-
-            let mut val = quote! { #field_single.try_into()? };
-            if field.optional && !field.multiple {
-                val = quote! {
-                    if let Some(#field_single) = #field_single {
-                        Some(#val)
-                    } else {
-                        None
-                    }
-                };
-            }
-            let body = if field.multiple {
-                quote! { self.#field_ident.push(#val); }
-            } else if field.optional {
-                quote! { self.#field_ident = #val; }
-            } else {
-                quote! { self.#field_ident = Some(#val); }
-            };
-            let t = if field.optional && !field.multiple {
-                quote! { Option<T> }
-            } else {
-                quote! { T }
-            };
-            let build_fn = quote! {
-                pub fn #field_single<T>(mut self, #field_single: #t) -> Result<Self>
-                where
-                    T: TryInto<#field_ty>,
-                    Error: From<<T as TryInto<#field_ty>>::Error>
-                {
-                    #body
-                    Ok(self)
-                }
-            };
-            builder_fns.extend(build_fn);
+            builder_fns.extend(field.gen_builder_fn());
 
             // from_xml
             if field.text {

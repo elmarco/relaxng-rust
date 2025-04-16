@@ -67,6 +67,46 @@ impl GenField {
     pub(crate) fn ty_ident(&self) -> Ident {
         format_ident!("{}", self.ty)
     }
+
+    pub(crate) fn gen_builder_fn(&self) -> TokenStream {
+        let field_ident = self.ident();
+        let field_ty = self.ty_ident();
+        let field_single = self.single_ident();
+
+        let mut val = quote! { #field_single.try_into()? };
+        if self.optional && !self.multiple {
+            val = quote! {
+                if let Some(#field_single) = #field_single {
+                    Some(#val)
+                } else {
+                    None
+                }
+            };
+        }
+        let body = if self.multiple {
+            quote! { self.#field_ident.push(#val); }
+        } else if self.optional {
+            quote! { self.#field_ident = #val; }
+        } else {
+            quote! { self.#field_ident = Some(#val); }
+        };
+        let t = if self.optional && !self.multiple {
+            quote! { Option<T> }
+        } else {
+            quote! { T }
+        };
+
+        quote! {
+            pub fn #field_single<T>(mut self, #field_single: #t) -> Result<Self>
+            where
+                T: TryInto<#field_ty>,
+                Error: From<<T as TryInto<#field_ty>>::Error>
+            {
+                #body
+                Ok(self)
+            }
+        }
+    }
 }
 
 impl ToTokens for GenField {

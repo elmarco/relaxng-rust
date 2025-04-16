@@ -28,6 +28,10 @@ impl GenEnum {
         format_ident!("{}", self.name())
     }
 
+    pub(crate) fn builder_ident(&self) -> Ident {
+        format_ident!("{}Builder", self.name())
+    }
+
     pub(crate) fn add_field(&mut self, field: GenField) {
         let variant = self.variants.last_mut().expect("an enum variant");
 
@@ -46,29 +50,24 @@ impl GenEnum {
 impl ToTokens for GenEnum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name_ident = self.ident();
+        let builder_ident = self.builder_ident();
         let mut variants = Vec::new();
         let mut to_xml = Vec::new();
         for (n, v) in self.variants.iter().enumerate() {
+            let name: Vec<_> = v.iter().map(|f| f.ident()).collect();
             let ty = v.iter().map(|f| f.ty_ident());
-            let ty = quote! {
-                (#(#ty),*)
-            };
             let variant = format_ident!("Variant{}", n);
             let gen = quote! {
-                #variant(#ty)
+                #variant {
+                    #(#name: #ty),*
+                }
             };
             variants.push(gen);
 
-            let mut to_xml_variant = quote! {};
-            for (n, _ty) in v.iter().enumerate() {
-                let n = Index::from(n);
-                let gen = quote! {
-                    v.#n.to_xml();
-                };
-                to_xml_variant.append_all(gen);
-            }
             let gen = quote! {
-                #variant(v) => { #to_xml_variant }
+                #variant { #(#name),* } => {
+                    #(#name.to_xml();)*
+                }
             };
             to_xml.push(gen);
         }
@@ -76,6 +75,13 @@ impl ToTokens for GenEnum {
             pub enum #name_ident {
                 #(#variants),*
             }
+
+            #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+            pub struct #builder_ident {
+                // #(#builder_fields),*
+            }
+
+            // impl #name_ident {
 
             impl #name_ident {
                 pub fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
