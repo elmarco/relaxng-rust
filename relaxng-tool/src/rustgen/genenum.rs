@@ -61,6 +61,14 @@ impl GenEnum {
             v.gen_from_xml(builder, from_xml_attrs, from_xml_elems, xml_events);
         }
     }
+
+    pub(crate) fn prefix_field_ty(&mut self) {
+        let prefix = self.var_name().to_string();
+
+        for v in self.variants.iter_mut().flatten() {
+            v.prefix_ty(&prefix);
+        }
+    }
 }
 
 impl ToTokens for GenEnum {

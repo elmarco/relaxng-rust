@@ -303,7 +303,7 @@ impl Context {
 
     fn pop_choice(&mut self) {
         let output = self.output_path();
-        let Some(State::Choice(e)) = self.state.pop() else {
+        let Some(State::Choice(mut e)) = self.state.pop() else {
             panic!();
         };
 
@@ -316,9 +316,9 @@ impl Context {
             #gen
         };
 
-        let name = &e.name;
         self.write_rs(gen, output);
-        self.add_field(&name.to_snake_case(), FieldTy::Choice(e));
+        e.prefix_field_ty();
+        self.add_field(&e.var_name().to_string(), FieldTy::Choice(e));
     }
 
     fn text(&mut self) {

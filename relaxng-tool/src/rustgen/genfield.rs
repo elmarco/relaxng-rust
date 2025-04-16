@@ -28,6 +28,14 @@ impl FieldTy {
             FieldTy::Text => format_ident!("String"),
         }
     }
+
+    fn prefix(&mut self, prefix: &str) {
+        match self {
+            FieldTy::Ty(ref mut ty) => *ty = format!("{}", ty),
+            FieldTy::Choice(_e) => todo!(),
+            FieldTy::Text => {}
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -219,6 +227,10 @@ impl GenField {
             };
             xml_events.extend(event);
         }
+    }
+
+    pub(crate) fn prefix_ty(&mut self, prefix: &str) {
+        self.ty.prefix(&prefix)
     }
 }
 
