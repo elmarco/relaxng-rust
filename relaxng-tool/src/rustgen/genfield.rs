@@ -139,6 +139,87 @@ impl GenField {
             }
         }
     }
+
+    pub(crate) fn gen_from_xml(
+        &self,
+        builder: &Ident,
+        from_xml_attrs: &mut TokenStream,
+        from_xml_elems: &mut TokenStream,
+        xml_events: &mut TokenStream,
+    ) {
+        match &self.ty {
+            FieldTy::Ty(ty) => {
+                self.gen_from_ty(builder, ty, from_xml_attrs, from_xml_elems, xml_events);
+            }
+            FieldTy::Choice(e) => {
+                e.gen_from_xml(builder, from_xml_attrs, from_xml_elems, xml_events);
+            }
+            FieldTy::Text => {
+                self.gen_from_xml_text(builder, from_xml_attrs, xml_events);
+            }
+        }
+    }
+
+    fn gen_from_ty(
+        &self,
+        builder: &Ident,
+        ty: &String,
+        _from_xml_attrs: &mut TokenStream,
+        from_xml_elems: &mut TokenStream,
+        _xml_events: &mut TokenStream,
+    ) {
+        let ty = format_ident!("{ty}");
+        let field_name_b = self.name_b();
+        let field_single = self.single_ident();
+
+        let mut val = quote! { #ty::from_xml(reader, &e)? };
+        if self.optional && !self.multiple {
+            val = quote! { Some(#val) };
+        }
+
+        from_xml_elems.extend(quote! {
+            #field_name_b => { #builder = #builder.#field_single(#val)?; }
+        });
+    }
+
+    fn gen_from_xml_text(
+        &self,
+        builder: &Ident,
+        from_xml_attrs: &mut TokenStream,
+        xml_events: &mut TokenStream,
+    ) {
+        let field_name_b = self.name_b();
+        let field_single = self.single_ident();
+
+        let mut val = if self.attribute {
+            quote! {
+                attr.unescape_value()?
+            }
+        } else {
+            quote! {
+                e.unescape()?
+            }
+        };
+        if self.optional && !self.multiple {
+            val = quote! { Some(#val) };
+        };
+        let build_field = quote! { #builder = #builder.#field_single(#val)?; };
+        if self.attribute {
+            let pat = quote! {
+                #field_name_b => {
+                    #build_field
+                }
+            };
+            from_xml_attrs.extend(pat)
+        } else {
+            let event = quote! {
+                Event::Text(e) => {
+                    #build_field
+                }
+            };
+            xml_events.extend(event);
+        }
+    }
 }
 
 impl ToTokens for GenField {

@@ -3,7 +3,7 @@ use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::Ident;
 
-use super::{FieldTy, GenField};
+use super::GenField;
 
 #[derive(Debug)]
 pub(crate) struct GenStruct {
@@ -141,20 +141,22 @@ impl ToTokens for GenStruct {
 
         for field in &self.fields {
             let field_name = field.name();
-            let field_name_b = field.name_b();
             let field_ident = field.ident();
-            let field_single = field.single_ident();
             let field_ty = field.ty_ident();
 
             // choice builders
-            if field.is_choice() {
+            let builder = if field.is_choice() {
                 choice_builders.extend(quote! {
                     let mut #field_ident = #field_ty::builder();
                 });
                 choice_build.extend(quote! {
                     builder.#field_ident(#field_ident.build()?)?;
-                })
-            }
+                });
+
+                field_ident.clone()
+            } else {
+                format_ident!("builder")
+            };
 
             // builder
             let build_field = if field.optional {
@@ -178,46 +180,12 @@ impl ToTokens for GenStruct {
             };
             build_fields.extend(build_field);
 
-            // from_xml
-            if let FieldTy::Choice(e) = &field.ty {
-            } else if field.is_text() {
-                let mut val = if field.attribute {
-                    quote! {
-                        attr.unescape_value()?
-                    }
-                } else {
-                    quote! {
-                        e.unescape()?
-                    }
-                };
-                if field.optional && !field.multiple {
-                    val = quote! { Some(#val) };
-                };
-                let build_field = quote! { builder = builder.#field_single(#val)?; };
-                if field.attribute {
-                    let pat = quote! {
-                        #field_name_b => {
-                            #build_field
-                        }
-                    };
-                    from_xml_attrs.extend(pat)
-                } else {
-                    let event = quote! {
-                        Event::Text(e) => {
-                            #build_field
-                        }
-                    };
-                    xml_events.extend(event);
-                }
-            } else {
-                let mut val = quote! { #field_ty::from_xml(reader, &e)? };
-                if field.optional && !field.multiple {
-                    val = quote! { Some(#val) };
-                }
-                let build_field = quote! { builder = builder.#field_single(#val)?; };
-                let elem = quote! { #field_name_b => { #build_field } };
-                from_xml_elems.extend(elem);
-            }
+            field.gen_from_xml(
+                &builder,
+                &mut from_xml_attrs,
+                &mut from_xml_elems,
+                &mut xml_events,
+            );
         }
 
         let on_eof = if self.is_top {

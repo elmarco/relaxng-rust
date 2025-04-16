@@ -49,6 +49,18 @@ impl GenEnum {
     pub(crate) fn all_fields(&self) -> impl Iterator<Item = &GenField> {
         self.variants.iter().flatten()
     }
+
+    pub(crate) fn gen_from_xml(
+        &self,
+        builder: &Ident,
+        from_xml_attrs: &mut TokenStream,
+        from_xml_elems: &mut TokenStream,
+        xml_events: &mut TokenStream,
+    ) {
+        for v in self.variants.iter().flatten() {
+            v.gen_from_xml(builder, from_xml_attrs, from_xml_elems, xml_events);
+        }
+    }
 }
 
 impl ToTokens for GenEnum {
