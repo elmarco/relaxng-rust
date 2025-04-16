@@ -238,6 +238,47 @@ impl GenField {
     pub(crate) fn prefix_ty(&mut self, prefix: &str) {
         self.ty.prefix(&prefix)
     }
+
+    pub(crate) fn gen_to_xml(
+        &self,
+        to_xml_attrs: &mut TokenStream,
+        to_xml_elems: &mut TokenStream,
+    ) {
+        let field_ident = self.ident();
+
+        let mut elem_to_xml = if self.attribute {
+            let name_b = self.name_b();
+            quote! {  start.push_attribute((&#name_b[..], quick_xml::escape::escape("foo").as_bytes())); }
+        } else if self.is_text() {
+            quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string())))?; }
+        } else {
+            quote! { elem.to_xml(writer)?; }
+        };
+        if self.multiple {
+            elem_to_xml = quote! {
+                for elem in elem {
+                    #elem_to_xml
+                }
+            }
+        };
+        let elem = if self.optional && !self.multiple {
+            quote! {
+                if let Some(elem) = &self.#field_ident {
+                    #elem_to_xml
+                }
+            }
+        } else {
+            quote! {
+                let elem = &self.#field_ident;
+                #elem_to_xml
+            }
+        };
+        if self.attribute {
+            to_xml_attrs.extend(elem);
+        } else {
+            to_xml_elems.extend(elem);
+        }
+    }
 }
 
 impl ToTokens for GenField {

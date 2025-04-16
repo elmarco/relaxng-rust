@@ -53,40 +53,7 @@ impl GenStruct {
         let mut to_xml_elems = quote! {};
 
         for field in &self.fields {
-            let field_ident = field.ident();
-
-            let mut elem_to_xml = if field.attribute {
-                let name_b = field.name_b();
-                quote! {  start.push_attribute((&#name_b[..], quick_xml::escape::escape("foo").as_bytes())); }
-            } else if field.is_text() {
-                quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string())))?; }
-            } else {
-                quote! { elem.to_xml(writer)?; }
-            };
-            if field.multiple {
-                elem_to_xml = quote! {
-                    for elem in elem {
-                        #elem_to_xml
-                    }
-                }
-            };
-            let elem = if field.optional && !field.multiple {
-                quote! {
-                    if let Some(elem) = &self.#field_ident {
-                        #elem_to_xml
-                    }
-                }
-            } else {
-                quote! {
-                    let elem = &self.#field_ident;
-                    #elem_to_xml
-                }
-            };
-            if field.attribute {
-                to_xml_attrs.extend(elem);
-            } else {
-                to_xml_elems.extend(elem);
-            }
+            field.gen_to_xml(&mut to_xml_attrs, &mut to_xml_elems);
         }
 
         let body_event = if to_xml_elems.is_empty() {
