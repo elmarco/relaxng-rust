@@ -136,6 +136,9 @@ impl ToTokens for GenStruct {
         let mut from_xml_elems = quote! {};
         let mut build_fields = quote! {};
         let builder_fns: TokenStream = self.fields.iter().map(GenField::gen_builder_fn).collect();
+        let mut choice_builders = quote! {};
+        let mut choice_build = quote! {};
+
         for field in &self.fields {
             let field_name = field.name();
             let field_name_b = field.name_b();
@@ -235,6 +238,7 @@ impl ToTokens for GenStruct {
                     use quick_xml::events::Event;
 
                     let mut builder = Self::builder();
+                    #choice_builders
 
                     if start_element.name().local_name().as_ref() != #name_b {
                         return Err(Error::UnexpectedEvent(format!("{:?}", start_element)));
@@ -286,6 +290,7 @@ impl ToTokens for GenStruct {
                         buf.clear();
                     }
 
+                    #choice_build
                     builder.build()
                 }
 

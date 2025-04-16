@@ -57,9 +57,13 @@ impl ToTokens for GenEnum {
         let name_ident = self.ident();
         let builder_ident = self.builder_ident();
 
-        let builder_fns: TokenStream = self.all_fields().map(GenField::gen_builder_fn).collect();
-        let mut builder_fields: Vec<_> = self.all_fields().cloned().collect();
-        builder_fields.iter_mut().for_each(|f| f.optional = true);
+        let all_fields: Vec<_> = self.all_fields().cloned().collect();
+        let all_fields_names = all_fields.iter().map(|f| f.ident());
+        let builder_fns: TokenStream = all_fields.iter().map(GenField::gen_builder_fn).collect();
+        let builder_fields = all_fields.iter().cloned().map(|mut f| {
+            f.set_optional(true);
+            f
+        });
 
         let mut build = quote! {};
         let mut variants = Vec::new();
@@ -76,19 +80,25 @@ impl ToTokens for GenEnum {
             variants.push(gen);
 
             let gen = quote! {
-                #variant { #(#name),* } => {
-                    #(#name.to_xml();)*
+                Self::#variant { #(#name),* } => {
+                    #(#name.to_xml(writer)?;)*
                 }
             };
             to_xml.push(gen);
 
             let gen = quote! {
-                // todo: if all fields of v are set, then build the #variant with it
+                // FIXME: check other fields are None
+                if #(#name.is_some())&&* {
+                    return Ok(#name_ident::#variant {
+                        #(#name: #name.unwrap()),*
+                    })
+                }
             };
             build.append_all(gen);
         }
 
         let gen = quote! {
+            #[derive(Debug, Clone, PartialEq, Eq, Hash)]
             pub enum #name_ident {
                 #(#variants),*
             }
@@ -98,6 +108,7 @@ impl ToTokens for GenEnum {
                     Default::default()
                 }
 
+                // FIXME: add ByteStart
                 pub fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
                 where
                     W: std::io::Write,
@@ -105,6 +116,7 @@ impl ToTokens for GenEnum {
                     match self {
                         #(#to_xml),*
                     }
+                    Ok(())
                 }
             }
 
@@ -117,11 +129,13 @@ impl ToTokens for GenEnum {
                 #builder_fns
 
                 pub fn build(self) -> Result<#name_ident> {
+                    let Self { #(#all_fields_names),* } = self;
+
                     #build
-                    Err(Error::BuiderVariant(#name))
+
+                    Err(Error::BuilderVariant(#name))
                 }
             }
-
         };
 
         tokens.extend(gen);
