@@ -3,6 +3,33 @@ use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::Ident;
 
+use super::GenEnum;
+
+#[derive(Debug, Clone)]
+pub(crate) enum FieldTy {
+    Ty(String),
+    Choice(GenEnum),
+    Text,
+}
+
+impl FieldTy {
+    pub(crate) fn is_text(&self) -> bool {
+        matches!(self, FieldTy::Text)
+    }
+
+    pub(crate) fn is_choice(&self) -> bool {
+        matches!(self, FieldTy::Choice(_))
+    }
+
+    pub(crate) fn ident(&self) -> Ident {
+        match self {
+            FieldTy::Ty(ty) => format_ident!("{}", ty),
+            FieldTy::Choice(choice) => choice.ident(),
+            FieldTy::Text => format_ident!("String"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct GenField {
     // name of the rs field/mod, ex "snake_case"
@@ -10,21 +37,18 @@ pub(crate) struct GenField {
     // name of the xml element, ex "OriginalName"
     pub(crate) xml_name: String,
     // associate rs type, ex "String"
-    pub(crate) ty: String,
-    // whether this is a text/body
-    pub(crate) text: bool,
+    pub(crate) ty: FieldTy,
     pub(crate) optional: bool,
     pub(crate) multiple: bool,
     pub(crate) attribute: bool,
 }
 
 impl GenField {
-    pub(crate) fn new(name: &str, ty: &str, text: bool) -> Self {
+    pub(crate) fn new(name: &str, ty: FieldTy) -> Self {
         Self {
             xml_name: name.to_string(),
             name: name.to_snake_case(),
-            ty: ty.to_string(),
-            text,
+            ty,
             optional: false,
             multiple: false,
             attribute: false,
@@ -65,7 +89,15 @@ impl GenField {
     }
 
     pub(crate) fn ty_ident(&self) -> Ident {
-        format_ident!("{}", self.ty)
+        self.ty.ident()
+    }
+
+    pub(crate) fn is_text(&self) -> bool {
+        self.ty.is_text()
+    }
+
+    pub(crate) fn is_choice(&self) -> bool {
+        self.ty.is_choice()
     }
 
     pub(crate) fn gen_builder_fn(&self) -> TokenStream {

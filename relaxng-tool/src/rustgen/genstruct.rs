@@ -3,7 +3,7 @@ use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::Ident;
 
-use super::GenField;
+use super::{FieldTy, GenField};
 
 #[derive(Debug)]
 pub(crate) struct GenStruct {
@@ -52,7 +52,7 @@ impl GenStruct {
             let mut elem_to_xml = if field.attribute {
                 let name_b = field.name_b();
                 quote! {  start.push_attribute((&#name_b[..], quick_xml::escape::escape("foo").as_bytes())); }
-            } else if field.text {
+            } else if field.is_text() {
                 quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string())))?; }
             } else {
                 quote! { elem.to_xml(writer)?; }
@@ -146,6 +146,16 @@ impl ToTokens for GenStruct {
             let field_single = field.single_ident();
             let field_ty = field.ty_ident();
 
+            // choice builders
+            if field.is_choice() {
+                choice_builders.extend(quote! {
+                    let mut #field_ident = #field_ty::builder();
+                });
+                choice_build.extend(quote! {
+                    builder.#field_ident(#field_ident.build()?)?;
+                })
+            }
+
             // builder
             let build_field = if field.optional {
                 quote! {
@@ -169,7 +179,8 @@ impl ToTokens for GenStruct {
             build_fields.extend(build_field);
 
             // from_xml
-            if field.text {
+            if let FieldTy::Choice(e) = &field.ty {
+            } else if field.is_text() {
                 let mut val = if field.attribute {
                     quote! {
                         attr.unescape_value()?

@@ -1,11 +1,11 @@
 use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use syn::{Ident, Index};
+use syn::Ident;
 
 use super::GenField;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct GenEnum {
     // rs type name
     pub(crate) name: String,

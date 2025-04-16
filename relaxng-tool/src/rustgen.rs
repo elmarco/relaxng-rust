@@ -1,5 +1,5 @@
+use genfield::FieldTy;
 use heck::ToSnakeCase;
-use heck::ToUpperCamelCase;
 use prettyplease::unparse;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -254,8 +254,8 @@ impl Context {
         }
     }
 
-    fn add_field(&mut self, name: &str, ty: &str, text: bool) {
-        let mut field = GenField::new(name, ty, text);
+    fn add_field(&mut self, name: &str, ty: FieldTy) {
+        let mut field = GenField::new(name, ty);
         for state in &mut self.state.iter_mut().rev() {
             match state {
                 State::Attribute(name) => {
@@ -297,7 +297,7 @@ impl Context {
         self.write_rs(gen, output);
 
         let name = &str.xml_name;
-        self.add_field(name, &str.ident().to_string(), false);
+        self.add_field(name, FieldTy::Ty(str.ident().to_string()));
         self.last_struct = Some(str);
     }
 
@@ -318,11 +318,11 @@ impl Context {
 
         let name = &e.name;
         self.write_rs(gen, output);
-        self.add_field(&name.to_snake_case(), &e.ident().to_string(), false);
+        self.add_field(&name.to_snake_case(), FieldTy::Choice(e));
     }
 
     fn text(&mut self) {
-        self.add_field("value", "String", true);
+        self.add_field("value", FieldTy::Text);
     }
 
     fn new_choice(&mut self) -> GenEnum {
@@ -335,7 +335,7 @@ impl Context {
 fn gen_mods(fields: std::slice::Iter<'_, GenField>) -> TokenStream {
     let mut mods = quote! {};
     for field in fields {
-        if field.text {
+        if field.is_text() {
             continue;
         }
         let ty = field.ty_ident();
@@ -397,7 +397,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) {
                 panic!("Unexpected name class for attribute");
             };
 
-            let field_ty = name.to_upper_camel_case();
+            // let field_ty = name.to_upper_camel_case();
             // Pattern::Choice(vec) => {
             //     let mut e = GenEnum::new(&field_ty);
             //     for p in vec {
@@ -430,7 +430,7 @@ fn generate_pattern(pattern: &Pattern, ctx: &mut Context) {
             generate_pattern(pattern, ctx);
             ctx.pop_state();
         }
-        Pattern::Ref(_span, name, pat_ref) => {
+        Pattern::Ref(_span, _name, _pat_ref) => {
             // if ctx.ref_seen.insert(name.clone()) {
             //     let rule = pat_ref.0.borrow();
             //     let rule = rule.as_ref().unwrap();
@@ -456,40 +456,40 @@ fn datatype_to_ty(datatype: &Datatypes) -> String {
     use relaxng_model::datatype::*;
 
     match datatype {
-        Datatypes::Relax(builtin_datatype) => todo!(),
+        Datatypes::Relax(_builtin_datatype) => todo!(),
         Datatypes::Xsd(xsd_datatypes) => match xsd_datatypes {
-            xsd::XsdDatatypes::NormalizedString(string_facets) => todo!(),
-            xsd::XsdDatatypes::String(string_facets) => todo!(),
-            xsd::XsdDatatypes::Short(min_max_facet, pattern_facet) => todo!(),
-            xsd::XsdDatatypes::UnsignedShort(min_max_facet, pattern_facet) => todo!(),
-            xsd::XsdDatatypes::Long(min_max_facet, pattern_facet) => todo!(),
-            xsd::XsdDatatypes::Int(min_max_facet, pattern_facet) => "i32".to_string(),
-            xsd::XsdDatatypes::Integer(min_max_facet, pattern_facet) => {
+            xsd::XsdDatatypes::NormalizedString(_string_facets) => todo!(),
+            xsd::XsdDatatypes::String(_string_facets) => todo!(),
+            xsd::XsdDatatypes::Short(_min_max_facet, _pattern_facet) => todo!(),
+            xsd::XsdDatatypes::UnsignedShort(_min_max_facet, _pattern_facet) => todo!(),
+            xsd::XsdDatatypes::Long(_min_max_facet, _pattern_facet) => todo!(),
+            xsd::XsdDatatypes::Int(_min_max_facet, _pattern_facet) => "i32".to_string(),
+            xsd::XsdDatatypes::Integer(_min_max_facet, _pattern_facet) => {
                 // should be some bigint
                 "isize".to_string()
             }
-            xsd::XsdDatatypes::PositiveInteger(min_max_facet, pattern_facet) => todo!(),
-            xsd::XsdDatatypes::UnsignedInt(min_max_facet, pattern_facet) => todo!(),
-            xsd::XsdDatatypes::UnsignedLong(min_max_facet, pattern_facet) => todo!(),
+            xsd::XsdDatatypes::PositiveInteger(_min_max_facet, _pattern_facet) => todo!(),
+            xsd::XsdDatatypes::UnsignedInt(_min_max_facet, _pattern_facet) => todo!(),
+            xsd::XsdDatatypes::UnsignedLong(_min_max_facet, _pattern_facet) => todo!(),
             xsd::XsdDatatypes::Decimal {
-                min_max,
-                pattern,
-                fraction_digits,
-                total_digits,
+                min_max: _,
+                pattern: _,
+                fraction_digits: _,
+                total_digits: _,
             } => todo!(),
-            xsd::XsdDatatypes::Double(pattern_facet) => todo!(),
-            xsd::XsdDatatypes::NmTokens(length_facet) => todo!(),
-            xsd::XsdDatatypes::NmToken(length_facet) => todo!(),
-            xsd::XsdDatatypes::NcName(length_facet) => todo!(),
-            xsd::XsdDatatypes::Token(length_facet) => todo!(),
-            xsd::XsdDatatypes::Duration(pattern_facet) => todo!(),
-            xsd::XsdDatatypes::Date(pattern_facet) => todo!(),
-            xsd::XsdDatatypes::Datetime(pattern_facet) => todo!(),
-            xsd::XsdDatatypes::AnyURI(pattern_facet) => todo!(),
-            xsd::XsdDatatypes::Language(pattern_facet) => todo!(),
-            xsd::XsdDatatypes::Boolean(pattern_facet) => todo!(),
-            xsd::XsdDatatypes::Id(pattern_facet) => todo!(),
-            xsd::XsdDatatypes::IdRef(pattern_facet) => todo!(),
+            xsd::XsdDatatypes::Double(_pattern_facet) => todo!(),
+            xsd::XsdDatatypes::NmTokens(_length_facet) => todo!(),
+            xsd::XsdDatatypes::NmToken(_length_facet) => todo!(),
+            xsd::XsdDatatypes::NcName(_length_facet) => todo!(),
+            xsd::XsdDatatypes::Token(_length_facet) => todo!(),
+            xsd::XsdDatatypes::Duration(_pattern_facet) => todo!(),
+            xsd::XsdDatatypes::Date(_pattern_facet) => todo!(),
+            xsd::XsdDatatypes::Datetime(_pattern_facet) => todo!(),
+            xsd::XsdDatatypes::AnyURI(_pattern_facet) => todo!(),
+            xsd::XsdDatatypes::Language(_pattern_facet) => todo!(),
+            xsd::XsdDatatypes::Boolean(_pattern_facet) => todo!(),
+            xsd::XsdDatatypes::Id(_pattern_facet) => todo!(),
+            xsd::XsdDatatypes::IdRef(_pattern_facet) => todo!(),
         },
     }
 }
