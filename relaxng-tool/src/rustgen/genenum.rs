@@ -95,14 +95,12 @@ impl ToTokens for GenEnum {
         let mut variants = Vec::new();
         let mut to_xml_attr = Vec::new();
         let mut to_xml = Vec::new();
-        for (n, v) in self.variants.iter().enumerate() {
-            let (f_attr, f_elem): (Vec<_>, Vec<_>) = v.iter().partition(|f| f.attribute);
-            let name_attr: Vec<_> = f_attr.iter().map(|f| f.ident()).collect();
-            // let attr_to_xml: Vec<_> = f_attr.iter().map(|f| f.gen_to_xml()).collect();
-            let name_elem: Vec<_> = f_elem.iter().map(|f| f.ident()).collect();
-            let name: Vec<_> = v.iter().map(|f| f.ident()).collect();
-            let ty = v.iter().map(|f| f.ty_path());
-            // let to_xml_fields = v.iter().map(|f| f.gen_to_xml(to_xml_attrs, to_xml_elems));
+        for (n, fields) in self.variants.iter().enumerate() {
+            // all field names
+            let name: Vec<_> = fields.iter().map(|f| f.ident()).collect();
+
+            // variant enum
+            let ty = fields.iter().map(|f| f.ty_path());
             let variant = format_ident!("Variant{}", n);
             let gen = quote! {
                 #variant {
@@ -111,20 +109,27 @@ impl ToTokens for GenEnum {
             };
             variants.push(gen);
 
+            // to_xml*()
+            let mut to_xml_attrs = quote! {};
+            let mut to_xml_elems = quote! {};
+            for field in fields {
+                field.gen_to_xml(false, &mut to_xml_attrs, &mut to_xml_elems);
+            }
             let gen = quote! {
                 Self::#variant { #(#name),* } => {
-                    #(let elem = #name_attr;)*
+                    #to_xml_attrs
                 }
             };
             to_xml_attr.push(gen);
 
             let gen = quote! {
                 Self::#variant { #(#name),* } => {
-                    #(let elem = #name_elem;)*
+                    #to_xml_elems
                 }
             };
             to_xml.push(gen);
 
+            // build()
             let gen = quote! {
                 // FIXME: check other fields are None
                 if #(#name.is_some())&&* {

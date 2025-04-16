@@ -53,19 +53,24 @@ impl GenStruct {
         let mut to_xml_elems = quote! {};
 
         for field in &self.fields {
-            field.gen_to_xml(&mut to_xml_attrs, &mut to_xml_elems);
+            field.gen_to_xml(true, &mut to_xml_attrs, &mut to_xml_elems);
         }
 
-        let body_event = if to_xml_elems.is_empty() {
-            quote! {
-                writer.write_event(Event::Empty(start))?;
-            }
-        } else {
-            quote! {
-                writer.write_event(Event::Start(start))?;
-
+        let body_event = quote! {
+            // TODO: improve efficiency.. this is n2
+            let empty = {
+                let inspect_sink = crate::xml::InspectSink::default();
+                let mut inspect = quick_xml::writer::Writer::new(inspect_sink);
+                let writer = &mut inspect;
                 #to_xml_elems
+                !inspect.into_inner().written
+            };
 
+            if empty {
+                writer.write_event(Event::Empty(start))?;
+            } else {
+                writer.write_event(Event::Start(start))?;
+                #to_xml_elems
                 writer.write_event(Event::End(BytesEnd::new(#name)))?;
             }
         };

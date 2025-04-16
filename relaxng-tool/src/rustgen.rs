@@ -97,9 +97,28 @@ fn generate_mod(ctx: &mut Context) {
             BuilderVariant(&'static str),
         }
 
+        // remove it?
         impl From<std::convert::Infallible> for Error {
             fn from(_: std::convert::Infallible) -> Self {
                 unreachable!("Infallible error should not occur")
+            }
+        }
+
+        #[derive(Debug, Default)]
+        pub(crate) struct InspectSink {
+            written: bool,
+        }
+
+        impl std::io::Write for InspectSink {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                if !buf.is_empty() {
+                    self.written = true;
+                }
+                Ok(buf.len())
+            }
+
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
             }
         }
 

@@ -241,19 +241,40 @@ impl GenField {
 
     pub(crate) fn gen_to_xml(
         &self,
+        for_self: bool,
         to_xml_attrs: &mut TokenStream,
         to_xml_elems: &mut TokenStream,
     ) {
-        let field_ident = self.ident();
+        if self.ty.is_choice() {
+            let elem_to_xml = quote! { elem.to_xml_attr(&mut start)?; };
+            let elem = self.to_xml_elem_wrap(for_self, elem_to_xml);
+            to_xml_attrs.extend(elem);
+        }
 
-        let mut elem_to_xml = if self.attribute {
+        let elem_to_xml = if self.attribute {
             let name_b = self.name_b();
-            quote! {  start.push_attribute((&#name_b[..], quick_xml::escape::escape(&elem.to_string()).as_bytes())); }
+            quote! { start.push_attribute((&#name_b[..], quick_xml::escape::escape(&elem.to_string()).as_bytes())); }
         } else if self.is_text() {
             quote! { writer.write_event(quick_xml::events::Event::Text(quick_xml::events::BytesText::new(&elem.to_string())))?; }
         } else {
             quote! { elem.to_xml(writer)?; }
         };
+        let elem = self.to_xml_elem_wrap(for_self, elem_to_xml);
+        if self.attribute {
+            to_xml_attrs.extend(elem);
+        } else {
+            to_xml_elems.extend(elem);
+        }
+    }
+
+    fn to_xml_elem_wrap(&self, for_self: bool, mut elem_to_xml: TokenStream) -> TokenStream {
+        let field_ident = self.ident();
+        let this = if for_self {
+            quote! { &self. }
+        } else {
+            quote! {}
+        };
+
         if self.multiple {
             elem_to_xml = quote! {
                 for elem in elem {
@@ -261,22 +282,18 @@ impl GenField {
                 }
             }
         };
-        let elem = if self.optional && !self.multiple {
+
+        if self.optional && !self.multiple {
             quote! {
-                if let Some(elem) = &self.#field_ident {
+                if let Some(elem) = #this #field_ident {
                     #elem_to_xml
                 }
             }
         } else {
             quote! {
-                let elem = &self.#field_ident;
+                let elem = #this #field_ident;
                 #elem_to_xml
             }
-        };
-        if self.attribute {
-            to_xml_attrs.extend(elem);
-        } else {
-            to_xml_elems.extend(elem);
         }
     }
 }
