@@ -19,7 +19,11 @@ quote = "1.0.40"
 prettyplease = "0.2.32"
 syn = "2.0.100"
 proc-macro2 = "1.0.94"
-indexmap = "2.9.0"
+#indexmap = "2.9.0"
+#chrono = "0.4"
+#rust_decimal = "1.35"
+#url = "2.5"
+#num-bigint = "0.4"
 
 [[bin]]
 name = "rng"
