@@ -93,10 +93,16 @@ impl ToTokens for GenEnum {
 
         let mut build = quote! {};
         let mut variants = Vec::new();
+        let mut to_xml_attr = Vec::new();
         let mut to_xml = Vec::new();
         for (n, v) in self.variants.iter().enumerate() {
+            let (f_attr, f_elem): (Vec<_>, Vec<_>) = v.iter().partition(|f| f.attribute);
+            let name_attr: Vec<_> = f_attr.iter().map(|f| f.ident()).collect();
+            // let attr_to_xml: Vec<_> = f_attr.iter().map(|f| f.gen_to_xml()).collect();
+            let name_elem: Vec<_> = f_elem.iter().map(|f| f.ident()).collect();
             let name: Vec<_> = v.iter().map(|f| f.ident()).collect();
             let ty = v.iter().map(|f| f.ty_path());
+            // let to_xml_fields = v.iter().map(|f| f.gen_to_xml(to_xml_attrs, to_xml_elems));
             let variant = format_ident!("Variant{}", n);
             let gen = quote! {
                 #variant {
@@ -107,7 +113,14 @@ impl ToTokens for GenEnum {
 
             let gen = quote! {
                 Self::#variant { #(#name),* } => {
-                    #(#name.to_xml(writer)?;)*
+                    #(let elem = #name_attr;)*
+                }
+            };
+            to_xml_attr.push(gen);
+
+            let gen = quote! {
+                Self::#variant { #(#name),* } => {
+                    #(let elem = #name_elem;)*
                 }
             };
             to_xml.push(gen);
@@ -134,7 +147,13 @@ impl ToTokens for GenEnum {
                     Default::default()
                 }
 
-                // FIXME: add ByteStart
+                pub fn to_xml_attr(&self, start: &mut quick_xml::events::BytesStart<'_>) -> Result<()> {
+                    match self {
+                        #(#to_xml_attr),*
+                    }
+                    Ok(())
+                }
+
                 pub fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
                 where
                     W: std::io::Write,

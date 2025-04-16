@@ -131,7 +131,7 @@ thiserror = "2.0"
     let root_elem = root.ident();
     let main_rs_path = src_dir.join("main.rs");
     let main_rs = quote! {
-        use quick_xml::{Reader, Writer, events::*};
+        use quick_xml::{Reader, Writer};
         use std::io::Cursor;
         use std::path::Path; // Import logger implementation
         use std::{env::args, fs};

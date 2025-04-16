@@ -69,6 +69,17 @@ fn tuto3() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[test]
+fn tuto3b() -> Result<(), Box<dyn std::error::Error>> {
+    let rng = locate_test_file("tuto3b.rnc")?;
+    let xml = locate_test_file("tuto3b.xml")?;
+
+    let output = test(rng, xml)?;
+    assert_snapshot!(output);
+
+    Ok(())
+}
+
 fn test(rng: PathBuf, xml: PathBuf) -> Result<String, Box<dyn std::error::Error>> {
     let temp_dir = tempfile::tempdir()?;
     let out_path = temp_dir.path();
