@@ -45,12 +45,23 @@ impl GenEnum {
     pub(crate) fn var_name(&self) -> Ident {
         format_ident!("{}", self.name.to_snake_case())
     }
+
+    pub(crate) fn all_fields(&self) -> impl Iterator<Item = &GenField> {
+        self.variants.iter().flatten()
+    }
 }
 
 impl ToTokens for GenEnum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+        let name = self.name();
         let name_ident = self.ident();
         let builder_ident = self.builder_ident();
+
+        let builder_fns: TokenStream = self.all_fields().map(GenField::gen_builder_fn).collect();
+        let mut builder_fields: Vec<_> = self.all_fields().cloned().collect();
+        builder_fields.iter_mut().for_each(|f| f.optional = true);
+        let mut build = quote! {};
+
         let mut variants = Vec::new();
         let mut to_xml = Vec::new();
         for (n, v) in self.variants.iter().enumerate() {
@@ -71,19 +82,17 @@ impl ToTokens for GenEnum {
             };
             to_xml.push(gen);
         }
+
         let gen = quote! {
             pub enum #name_ident {
                 #(#variants),*
             }
 
-            #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
-            pub struct #builder_ident {
-                // #(#builder_fields),*
-            }
-
-            // impl #name_ident {
-
             impl #name_ident {
+                pub fn builder() -> #builder_ident {
+                    Default::default()
+                }
+
                 pub fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
                 where
                     W: std::io::Write,
@@ -93,6 +102,21 @@ impl ToTokens for GenEnum {
                     }
                 }
             }
+
+            #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+            pub struct #builder_ident {
+                #(#builder_fields),*
+            }
+
+            impl #builder_ident {
+                #builder_fns
+
+                pub fn build(self) -> Result<#name_ident> {
+                    #build
+                    Err(Error::BuiderVariant(#name))
+                }
+            }
+
         };
 
         tokens.extend(gen);

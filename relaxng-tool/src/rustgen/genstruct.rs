@@ -135,7 +135,7 @@ impl ToTokens for GenStruct {
         let mut from_xml_attrs = quote! {};
         let mut from_xml_elems = quote! {};
         let mut build_fields = quote! {};
-        let mut builder_fns = quote! {};
+        let builder_fns: TokenStream = self.fields.iter().map(GenField::gen_builder_fn).collect();
         for field in &self.fields {
             let field_name = field.name();
             let field_name_b = field.name_b();
@@ -164,7 +164,6 @@ impl ToTokens for GenStruct {
                 }
             };
             build_fields.extend(build_field);
-            builder_fns.extend(field.gen_builder_fn());
 
             // from_xml
             if field.text {

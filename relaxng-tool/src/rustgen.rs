@@ -91,8 +91,11 @@ fn generate_mod(ctx: &mut Context) {
             #[error("Invalid value for element <{0}>: {1}")]
             InvalidElementValue(&'static str, String),
 
-            #[error("Builder {0} missing mandatory field: {0}")]
+            #[error("{0} builder is missing mandatory field: {1}")]
             BuilderMissingField(&'static str, &'static str),
+
+            #[error("{0} builder cannot build a variant")]
+            BuilderVariant(&'static str),
         }
 
         impl From<std::convert::Infallible> for Error {
