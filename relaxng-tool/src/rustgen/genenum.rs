@@ -60,8 +60,8 @@ impl ToTokens for GenEnum {
         let builder_fns: TokenStream = self.all_fields().map(GenField::gen_builder_fn).collect();
         let mut builder_fields: Vec<_> = self.all_fields().cloned().collect();
         builder_fields.iter_mut().for_each(|f| f.optional = true);
-        let mut build = quote! {};
 
+        let mut build = quote! {};
         let mut variants = Vec::new();
         let mut to_xml = Vec::new();
         for (n, v) in self.variants.iter().enumerate() {
@@ -81,6 +81,11 @@ impl ToTokens for GenEnum {
                 }
             };
             to_xml.push(gen);
+
+            let gen = quote! {
+                // todo: if all fields of v are set, then build the #variant with it
+            };
+            build.append_all(gen);
         }
 
         let gen = quote! {
