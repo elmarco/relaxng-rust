@@ -1,0 +1,4 @@
+<addressBook>
+    <card name="John Doe" email="john.doe@example.com" />
+    <card givenName="Fred" familyName="Smith" email="fred.smith@example.com" />
+</addressBook>

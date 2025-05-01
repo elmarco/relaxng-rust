@@ -1,0 +1,6 @@
+---
+source: relaxng-tool/tests/generate.rs
+assertion_line: 12
+expression: output
+---
+<addressBook/>

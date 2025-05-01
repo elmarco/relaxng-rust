@@ -1,0 +1,16 @@
+<html>
+  <head>
+    <title>Example Address Book</title>
+  </head>
+  <body>
+    <table class="addressBook">
+      <tr class="card">
+        <td class="name">
+          <span class="givenName">John</span>
+          <span class="familyName">Smith</span>
+        </td>
+        <td class="email">js@example.com</td>
+      </tr>
+    </table>
+  </body>
+</html>

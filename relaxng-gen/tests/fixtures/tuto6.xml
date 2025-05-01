@@ -1,0 +1,5 @@
+<card bool="some text">
+	<preferredFormat>
+		<ff>fftext</ff>
+	</preferredFormat>
+</card>
