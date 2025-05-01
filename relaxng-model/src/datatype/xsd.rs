@@ -1,5 +1,5 @@
-use crate::datatype::relax::normalize_whitespace;
 use crate::Context;
+use crate::datatype::relax::normalize_whitespace;
 use lazy_static::lazy_static;
 use relaxng_syntax::types;
 use relaxng_syntax::types::DatatypeName;
@@ -39,8 +39,13 @@ lazy_static! {
 pub enum XsdDatatypes {
     NormalizedString(StringFacets),
     String(StringFacets),
+    Short(MinMaxFacet<i16>, Option<PatternFacet>),
+    UnsignedShort(MinMaxFacet<u16>, Option<PatternFacet>),
+    Long(MinMaxFacet<i64>, Option<PatternFacet>),
+    Int(MinMaxFacet<i32>, Option<PatternFacet>),
     Integer(MinMaxFacet<num_bigint::BigInt>, Option<PatternFacet>),
-    UnsignedInt(MinMaxFacet<num_bigint::BigUint>, Option<PatternFacet>),
+    PositiveInteger(MinMaxFacet<num_bigint::BigUint>, Option<PatternFacet>),
+    UnsignedInt(MinMaxFacet<u32>, Option<PatternFacet>),
     UnsignedLong(MinMaxFacet<u64>, Option<PatternFacet>),
     Decimal {
         min_max: MinMaxFacet<bigdecimal::BigDecimal>,
@@ -70,6 +75,58 @@ impl super::Datatype for XsdDatatypes {
                 str_facets.is_valid(&normal_val)
             }
             XsdDatatypes::String(str_facets) => str_facets.is_valid(value),
+            XsdDatatypes::Short(min_max, pat) => {
+                let pat_valid = if let Some(p) = pat {
+                    p.is_valid(value)
+                } else {
+                    true
+                };
+                pat_valid
+                    && if let Ok(v) = i16::from_str(value) {
+                        min_max.is_valid(&v)
+                    } else {
+                        false
+                    }
+            }
+            XsdDatatypes::UnsignedShort(min_max, pat) => {
+                let pat_valid = if let Some(p) = pat {
+                    p.is_valid(value)
+                } else {
+                    true
+                };
+                pat_valid
+                    && if let Ok(v) = u16::from_str(value) {
+                        min_max.is_valid(&v)
+                    } else {
+                        false
+                    }
+            }
+            XsdDatatypes::Long(min_max, pat) => {
+                let pat_valid = if let Some(p) = pat {
+                    p.is_valid(value)
+                } else {
+                    true
+                };
+                pat_valid
+                    && if let Ok(v) = i64::from_str(value) {
+                        min_max.is_valid(&v)
+                    } else {
+                        false
+                    }
+            }
+            XsdDatatypes::Int(min_max, pat) => {
+                let pat_valid = if let Some(p) = pat {
+                    p.is_valid(value)
+                } else {
+                    true
+                };
+                pat_valid
+                    && if let Ok(v) = i32::from_str(value) {
+                        min_max.is_valid(&v)
+                    } else {
+                        false
+                    }
+            }
             XsdDatatypes::Integer(min_max, pat) => {
                 let pat_valid = if let Some(p) = pat {
                     p.is_valid(value)
@@ -78,6 +135,19 @@ impl super::Datatype for XsdDatatypes {
                 };
                 pat_valid
                     && if let Ok(v) = num_bigint::BigInt::from_str(value) {
+                        min_max.is_valid(&v)
+                    } else {
+                        false
+                    }
+            }
+            XsdDatatypes::PositiveInteger(min_max, pat) => {
+                let pat_valid = if let Some(p) = pat {
+                    p.is_valid(value)
+                } else {
+                    true
+                };
+                pat_valid
+                    && if let Ok(v) = num_bigint::BigUint::from_str(value) {
                         min_max.is_valid(&v)
                     } else {
                         false
@@ -133,7 +203,7 @@ impl super::Datatype for XsdDatatypes {
                     && patt.as_ref().map(|p| p.1.is_match(value)).unwrap_or(true)
             }
             XsdDatatypes::UnsignedInt(min_max, patt) => {
-                num_bigint::BigUint::from_str(value)
+                u32::from_str(value)
                     .map(|v| min_max.is_valid(&v))
                     .unwrap_or(false)
                     && patt.as_ref().map(|p| p.1.is_match(value)).unwrap_or(true)
@@ -223,7 +293,7 @@ impl LengthFacet {
             LengthFacet::MinLength(min) => match other {
                 LengthFacet::Unbounded | LengthFacet::MinMaxLength(_, _) => unreachable!(),
                 LengthFacet::MinLength(_min) => {
-                    return Err(FacetError::ConflictingFacet("minLength"))
+                    return Err(FacetError::ConflictingFacet("minLength"));
                 }
                 LengthFacet::MaxLength(max) => {
                     if *min > max {
@@ -320,7 +390,7 @@ where
             Min::Exclusive(_) => {
                 return Err(FacetError::ConflictingFacet(
                     "minInclusive conflicts with minExclusive",
-                ))
+                ));
             }
         };
         Ok(())
@@ -348,7 +418,7 @@ where
             Min::Inclusive(_) => {
                 return Err(FacetError::ConflictingFacet(
                     "minExclusive conflicts with minInclusive",
-                ))
+                ));
             }
             Min::Exclusive(_) => unreachable!(),
         };
@@ -378,7 +448,7 @@ where
             Max::Exclusive(_) => {
                 return Err(FacetError::ConflictingFacet(
                     "maxInclusive conflicts with maxExclusive",
-                ))
+                ));
             }
         };
         Ok(())
@@ -406,7 +476,7 @@ where
             Max::Inclusive(_) => {
                 return Err(FacetError::ConflictingFacet(
                     "maxExclusive conflicts with maxInclusive",
-                ))
+                ));
             }
             Max::Exclusive(_) => unreachable!(),
         };
@@ -503,12 +573,44 @@ impl Compiler {
                     type_name: "string",
                     facet,
                 }),
+            "short" => self
+                .short(ctx, params)
+                .map_err(|facet| XsdDatatypeError::Facet {
+                    type_name: "short",
+                    facet,
+                }),
+            "unsignedShort" => {
+                self.unsigned_short(ctx, params)
+                    .map_err(|facet| XsdDatatypeError::Facet {
+                        type_name: "unsignedShort",
+                        facet,
+                    })
+            }
+            "long" => self
+                .long(ctx, params)
+                .map_err(|facet| XsdDatatypeError::Facet {
+                    type_name: "long",
+                    facet,
+                }),
+            "int" => self
+                .int(ctx, params)
+                .map_err(|facet| XsdDatatypeError::Facet {
+                    type_name: "int",
+                    facet,
+                }),
             "integer" => self
                 .integer(ctx, params)
                 .map_err(|facet| XsdDatatypeError::Facet {
                     type_name: "integer",
                     facet,
                 }),
+            "positiveInteger" => {
+                self.positive_integer(ctx, params)
+                    .map_err(|facet| XsdDatatypeError::Facet {
+                        type_name: "positiveInteger",
+                        facet,
+                    })
+            }
             "decimal" => self
                 .decimal(ctx, params)
                 .map_err(|facet| XsdDatatypeError::Facet {
@@ -654,7 +756,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -664,6 +766,7 @@ impl Compiler {
             pattern,
         }))
     }
+
     fn string(&self, ctx: &Context, params: &[types::Param]) -> Result<XsdDatatypes, FacetError> {
         let mut len = LengthFacet::Unbounded;
         let mut pattern = None;
@@ -678,12 +781,107 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
 
         Ok(XsdDatatypes::String(StringFacets { len, pattern }))
+    }
+
+    fn short(&self, ctx: &Context, params: &[types::Param]) -> Result<XsdDatatypes, FacetError> {
+        let mut min_max = MinMaxFacet::default();
+        let mut pattern = None;
+
+        for param in params {
+            match &param.2.to_string()[..] {
+                "minInclusive" => min_max.min_inclusive(Self::i16(ctx, param)?)?,
+                "minExclusive" => min_max.min_exclusive(Self::i16(ctx, param)?)?,
+                "maxInclusive" => min_max.max_inclusive(Self::i16(ctx, param)?)?,
+                "maxExclusive" => min_max.max_exclusive(Self::i16(ctx, param)?)?,
+                "pattern" => pattern = Some(self.pattern(ctx, param)?),
+                _ => {
+                    return Err(FacetError::InvalidFacet(
+                        ctx.convert_span(&param.0),
+                        param.2.to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(XsdDatatypes::Short(min_max, pattern))
+    }
+
+    fn unsigned_short(
+        &self,
+        ctx: &Context,
+        params: &[types::Param],
+    ) -> Result<XsdDatatypes, FacetError> {
+        let mut min_max = MinMaxFacet::default();
+        let mut pattern = None;
+
+        for param in params {
+            match &param.2.to_string()[..] {
+                "minInclusive" => min_max.min_inclusive(Self::u16(ctx, param)?)?,
+                "minExclusive" => min_max.min_exclusive(Self::u16(ctx, param)?)?,
+                "maxInclusive" => min_max.max_inclusive(Self::u16(ctx, param)?)?,
+                "maxExclusive" => min_max.max_exclusive(Self::u16(ctx, param)?)?,
+                "pattern" => pattern = Some(self.pattern(ctx, param)?),
+                _ => {
+                    return Err(FacetError::InvalidFacet(
+                        ctx.convert_span(&param.0),
+                        param.2.to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(XsdDatatypes::UnsignedShort(min_max, pattern))
+    }
+
+    fn long(&self, ctx: &Context, params: &[types::Param]) -> Result<XsdDatatypes, FacetError> {
+        let mut min_max = MinMaxFacet::default();
+        let mut pattern = None;
+
+        for param in params {
+            match &param.2.to_string()[..] {
+                "minInclusive" => min_max.min_inclusive(Self::i64(ctx, param)?)?,
+                "minExclusive" => min_max.min_exclusive(Self::i64(ctx, param)?)?,
+                "maxInclusive" => min_max.max_inclusive(Self::i64(ctx, param)?)?,
+                "maxExclusive" => min_max.max_exclusive(Self::i64(ctx, param)?)?,
+                "pattern" => pattern = Some(self.pattern(ctx, param)?),
+                _ => {
+                    return Err(FacetError::InvalidFacet(
+                        ctx.convert_span(&param.0),
+                        param.2.to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(XsdDatatypes::Long(min_max, pattern))
+    }
+    fn int(&self, ctx: &Context, params: &[types::Param]) -> Result<XsdDatatypes, FacetError> {
+        let mut min_max = MinMaxFacet::default();
+        let mut pattern = None;
+
+        for param in params {
+            match &param.2.to_string()[..] {
+                "minInclusive" => min_max.min_inclusive(Self::i32(ctx, param)?)?,
+                "minExclusive" => min_max.min_exclusive(Self::i32(ctx, param)?)?,
+                "maxInclusive" => min_max.max_inclusive(Self::i32(ctx, param)?)?,
+                "maxExclusive" => min_max.max_exclusive(Self::i32(ctx, param)?)?,
+                "pattern" => pattern = Some(self.pattern(ctx, param)?),
+                _ => {
+                    return Err(FacetError::InvalidFacet(
+                        ctx.convert_span(&param.0),
+                        param.2.to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(XsdDatatypes::Int(min_max, pattern))
     }
     fn integer(&self, ctx: &Context, params: &[types::Param]) -> Result<XsdDatatypes, FacetError> {
         let mut min_max = MinMaxFacet::default();
@@ -700,12 +898,38 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
 
         Ok(XsdDatatypes::Integer(min_max, pattern))
+    }
+    fn positive_integer(
+        &self,
+        ctx: &Context,
+        params: &[types::Param],
+    ) -> Result<XsdDatatypes, FacetError> {
+        let mut min_max = MinMaxFacet::default();
+        let mut pattern = None;
+
+        for param in params {
+            match &param.2.to_string()[..] {
+                "minInclusive" => min_max.min_inclusive(Self::biguint(ctx, param)?)?,
+                "minExclusive" => min_max.min_exclusive(Self::biguint(ctx, param)?)?,
+                "maxInclusive" => min_max.max_inclusive(Self::biguint(ctx, param)?)?,
+                "maxExclusive" => min_max.max_exclusive(Self::biguint(ctx, param)?)?,
+                "pattern" => pattern = Some(self.pattern(ctx, param)?),
+                _ => {
+                    return Err(FacetError::InvalidFacet(
+                        ctx.convert_span(&param.0),
+                        param.2.to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(XsdDatatypes::PositiveInteger(min_max, pattern))
     }
     fn decimal(&self, ctx: &Context, params: &[types::Param]) -> Result<XsdDatatypes, FacetError> {
         let mut min_max = MinMaxFacet::default();
@@ -726,7 +950,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -753,7 +977,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -773,7 +997,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -793,7 +1017,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -813,7 +1037,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -833,7 +1057,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -851,7 +1075,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -869,7 +1093,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -887,7 +1111,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -905,7 +1129,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -923,7 +1147,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -941,7 +1165,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -959,16 +1183,16 @@ impl Compiler {
 
         for param in params {
             match &param.2.to_string()[..] {
-                "minInclusive" => min_max.min_inclusive(Self::biguint(ctx, param)?)?,
-                "minExclusive" => min_max.min_exclusive(Self::biguint(ctx, param)?)?,
-                "maxInclusive" => min_max.max_inclusive(Self::biguint(ctx, param)?)?,
-                "maxExclusive" => min_max.max_exclusive(Self::biguint(ctx, param)?)?,
+                "minInclusive" => min_max.min_inclusive(Self::u32(ctx, param)?)?,
+                "minExclusive" => min_max.min_exclusive(Self::u32(ctx, param)?)?,
+                "maxInclusive" => min_max.max_inclusive(Self::u32(ctx, param)?)?,
+                "maxExclusive" => min_max.max_exclusive(Self::u32(ctx, param)?)?,
                 "pattern" => pattern = Some(self.pattern(ctx, param)?),
                 _ => {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -995,7 +1219,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -1013,7 +1237,7 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -1031,12 +1255,52 @@ impl Compiler {
                     return Err(FacetError::InvalidFacet(
                         ctx.convert_span(&param.0),
                         param.2.to_string(),
-                    ))
+                    ));
                 }
             }
         }
 
         Ok(XsdDatatypes::IdRef(pattern))
+    }
+
+    fn i16(ctx: &Context, param: &types::Param) -> Result<i16, FacetError> {
+        param
+            .3
+            .as_string_value()
+            .parse()
+            .map_err(|e: std::num::ParseIntError| {
+                FacetError::InvalidInt(ctx.convert_span(&param.0), e.to_string())
+            })
+    }
+
+    fn i32(ctx: &Context, param: &types::Param) -> Result<i32, FacetError> {
+        param
+            .3
+            .as_string_value()
+            .parse()
+            .map_err(|e: std::num::ParseIntError| {
+                FacetError::InvalidInt(ctx.convert_span(&param.0), e.to_string())
+            })
+    }
+
+    fn i64(ctx: &Context, param: &types::Param) -> Result<i64, FacetError> {
+        param
+            .3
+            .as_string_value()
+            .parse()
+            .map_err(|e: std::num::ParseIntError| {
+                FacetError::InvalidInt(ctx.convert_span(&param.0), e.to_string())
+            })
+    }
+
+    fn u32(ctx: &Context, param: &types::Param) -> Result<u32, FacetError> {
+        param
+            .3
+            .as_string_value()
+            .parse()
+            .map_err(|e: std::num::ParseIntError| {
+                FacetError::InvalidInt(ctx.convert_span(&param.0), e.to_string())
+            })
     }
 
     fn u64(ctx: &Context, param: &types::Param) -> Result<u64, FacetError> {
