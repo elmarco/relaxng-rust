@@ -1,0 +1,35 @@
+[rule."/ref[@name='UUID']/choice[1]"]
+name = "UUID"
+
+[rule."/ref[@name='network']/element[@name='network']/group[1]/interleave[1]/optional/element[@name='options']/zeroOrMore/element[@name='option']"]
+name = "NetworkOption"
+
+[rule."/ref[@name='network']/element[@name='network']/group[1]/interleave[1]/optional/element[@name='forward']/group[1]/interleave[1]/choice[1]"]
+name = "IfaceOrAddr"
+
+[rule."/ref[@name='network']/element[@name='network']/group[1]/interleave[1]/zeroOrMore/element[@name='ip']/group[1]/optional/choice[1]"]
+name = "NetmaskOrPrefix"
+
+[rule."/ref[@name='network']/element[@name='network']/group[1]/interleave[1]/zeroOrMore/element[@name='ip']/group[1]/interleave[1]/optional/element[@name='dhcp']/interleave[1]/zeroOrMore/element[@name='host']/group[1]/choice[1]/group[1]/choice[1]"]
+name = "MacOrId"
+
+[rule."/ref[@name='network']/element[@name='network']/group[1]/interleave[1]/zeroOrMore/element[@name='ip']/group[1]/interleave[1]/optional/element[@name='dhcp']/interleave[1]/zeroOrMore/element[@name='host']/group[1]/choice[1]/group[1]"]
+name = "NameOrId"
+
+[rule."/ref[@name='network']/element[@name='network']/group[1]/interleave[1]/zeroOrMore/element[@name='ip']/group[1]/interleave[1]/optional/element[@name='dhcp']/interleave[1]/zeroOrMore/element[@name='host']/group[1]/choice[1]"]
+name = "Unnamed"
+
+[rule."/ref[@name='virtualPortProfile']/choice[1]/element[@name='virtualport'][1]//element[@name='parameters']"]
+name = "8021QbgParameters"
+
+[rule."/ref[@name='virtualPortProfile']/choice[1]/element[@name='virtualport'][2]//element[@name='parameters']"]
+name = "8021QbhParameters"
+
+[rule."/ref[@name='virtualPortProfile']/choice[1]/element[@name='virtualport'][3]//element[@name='parameters']"]
+name = "OpenvswitchParameters"
+
+[rule."/ref[@name='virtualPortProfile']/choice[1]/element[@name='virtualport'][4]//element[@name='parameters']"]
+name = "MidonetParameters"
+
+[rule."/ref[@name='virtualPortProfile']/choice[1]/element[@name='virtualport'][5]//element[@name='parameters']"]
+ame = "AllParameters"

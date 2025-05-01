@@ -1,0 +1,8 @@
+## Represents an
+## address book.
+element addressBook {
+  element card {
+    element name { text },
+    element email { text }
+  }*
+}

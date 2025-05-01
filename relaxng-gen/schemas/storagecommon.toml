@@ -1,0 +1,2 @@
+[rule."/ref[@name='secret']/element[@name='secret'][1]/group[1]/choice[1]"]
+name = "SecretUsage"

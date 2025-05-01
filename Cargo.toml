@@ -1,11 +1,13 @@
 [workspace]
 resolver = "3"
+
 members = [
     "relaxng-syntax",
     "relaxng-model",
     "relaxng-validator",
     "relaxng-tool",
     "relaxng-dump",
+    "relaxng-gen",
 ]
 
 [profile.release]

@@ -1,0 +1,5 @@
+[rule."/element[@name='addressBook']/zeroOrMore/element[@name='card']/group[1]/choice[1]/group[1]"]
+name = "FullName"
+
+[rule."/element[@name='addressBook']/zeroOrMore/element[@name='card']/group[1]/choice[1]"]
+name = "Identity"

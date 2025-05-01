@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <start>
+
+  <element name="root">
+  <mixed>
+    <choice>
+	<element name="foo"><empty/></element>
+	<element name="bar"><empty/></element>
+	<element name="baz"><empty/></element>
+    </choice>
+    <optional>
+    <ref name="n"/>
+    </optional>
+  </mixed>
+  </element>
+
+  </start>
+
+  <define name="n" combine="choice">
+  <element name="n1"><empty/></element>
+  </define>
+  <define name="n">
+  <element name="n2"><empty/></element>
+  </define>
+
+
+</grammar>

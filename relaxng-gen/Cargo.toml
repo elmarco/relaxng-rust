@@ -1,0 +1,40 @@
+[package]
+name = "relaxng-gen"
+version = "0.1.0"
+authors = ["Marc-André Lureau <marcandre.lureau@gmail.com>"]
+edition = "2024"
+
+[dependencies]
+structopt = "0.3.21"
+structopt-derive = "0.4.14"
+relaxng-model = { path = "../relaxng-model" }
+heck = "0.5"
+quote = "1.0.40"
+prettyplease = "0.2.32"
+syn = { version = "2.0.100", features = ["extra-traits"] }
+proc-macro2 = "1.0.94"
+check_keyword = "0.3.1"
+pluralizer = "0.5.0"
+indexmap = "2.9.0"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+toml = "0.8.22"
+serde = { version = "1.0.219", features = ["derive"] }
+nom = "8.0.0"
+pretty_assertions = "1.4.1"
+#chrono = "0.4"
+#rust_decimal = "1.35"
+#url = "2.5"
+#num-bigint = "0.4"
+
+[[bin]]
+name = "gen"
+path = "src/main.rs"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+glob = "0.3.2"
+insta = "1.42.2"
+tempfile = "3.19"
+test-case = "3.3.1"
+test-log = { version = "0.2.17", features = ["trace"] }

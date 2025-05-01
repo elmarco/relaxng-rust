@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <ref name="root"/>
+  </start>
+
+<define name="root">
+<element name="cpu">
+    <interleave>
+        <element name="arch">
+            <text/>
+        </element>
+        <zeroOrMore>
+          <ref name="cpuFeature"/>
+        </zeroOrMore>
+        <optional>
+          <element name="features">
+            <optional>
+              <element name="pae"><empty/></element>
+            </optional>
+            <optional>
+              <element name="nonpae"><empty/></element>
+            </optional>
+            <optional>
+              <element name="vmx"><empty/></element>
+            </optional>
+            <optional>
+              <element name="svm"><empty/></element>
+            </optional>
+          </element>
+        </optional>
+    </interleave>
+</element>
+</define>
+
+  <define name="cpuFeature">
+    <element name="feature">
+      <attribute name="policy">
+        <choice>
+          <value>force</value>
+          <value>require</value>
+          <value>optional</value>
+          <value>disable</value>
+          <value>forbid</value>
+        </choice>
+      </attribute>
+      <empty/>
+    </element>
+  </define>
+
+</grammar>

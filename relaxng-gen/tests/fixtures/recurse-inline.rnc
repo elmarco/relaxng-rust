@@ -1,0 +1,8 @@
+start = top
+top = element top { inline }
+inline =
+  (text
+   | element code { inline }
+   | element em { inline }
+     # etc
+     )*

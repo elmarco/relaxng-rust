@@ -1,0 +1,6 @@
+[rule."/ref[@name='cpuFeature']/element[@name='feature'][1]"]
+name = "CpuFeature"
+field_name = "cpu_feature"
+
+#[field."Cpu.feature"]
+#name = "cpu_features"

@@ -1,0 +1,10 @@
+---
+source: relaxng-gen/tests/generate.rs
+expression: output
+---
+<doc>
+	<bold>
+    <italic>bold-italic</italic>
+  </bold>
+	<italic>italic</italic>
+</doc>
