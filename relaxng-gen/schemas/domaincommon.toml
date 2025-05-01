@@ -1,0 +1,12 @@
+[rule."/ref[@name='devSeclabel']/element[@name='seclabel'][1]/group[1]/choice[1]/group[1]"]
+name = "NameThis"
+
+[rule."/ref[@name='devSeclabel']/element[@name='seclabel'][1]/group[1]/choice[1]"]
+name = "SecLabelChoice"
+
+[rule."/ref[@name='devSeclabel']/element[@name='seclabel'][1]/group[1]/choice[1]/attribute[@name='relabel']/value[text()='no']"]
+name = "NoRelabel"
+
+[rule."/ref[@name='devSeclabel']/element[@name='seclabel'][1]/group[1]/choice[1]/attribute[@name='labelskip']/value[text()='yes']"]
+name = "LabelSkip"
+

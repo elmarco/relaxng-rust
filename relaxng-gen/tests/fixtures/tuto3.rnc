@@ -1,0 +1,6 @@
+element addressBook {
+  element card {
+    attribute name { text },
+    attribute email { text }
+  }*
+}

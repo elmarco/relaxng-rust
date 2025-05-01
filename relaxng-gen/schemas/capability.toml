@@ -1,0 +1,33 @@
+[relaxng-gen]
+doc = '''
+# Driver capabilities XML format
+
+As new virtualization engine support gets added to libvirt, and to handle cases like QEMU supporting a variety of emulations, a query interface has been added in 0.2.1 allowing to list the set of supported virtualization capabilities on the host:
+
+```c
+char* virConnectGetCapabilities (virConnectPtr conn);
+````
+
+The value returned is an XML document listing the virtualization capabilities of the host and virtualization engine to which `conn` is connected. One can test it using virsh command line tool command 'capabilities', it dumps the XML associated to the current connection.
+
+As can be seen in the [Examples], the capabilities XML consists of the capabilities element which have exactly one host child element to report information on host capabilities, and zero or more guest element to express the set of architectures the host can run at the moment.
+
+[Examples]: https://libvirt.org/formatcaps.html#examples
+'''
+[rule."/ref[@name='capabilities']/element[@name='capabilities'][1]"]
+doc = "The `<capabilities>` element has exactly one `<host>` child element to report information on host capabilities, and zero or more `<guest>` element to express the set of architectures the host can run at the moment."
+
+[rule."/ref[@name='guestcaps']/element[@name='guest'][1]"]
+doc = "Capabilities available to a guest using a given hypervisor."
+
+[rule."/ref[@name='hostcaps']/element[@name='host'][1]"]
+doc = "Host capabilities."
+
+[rule."/ref[@name='ostype']/element[@name='os_type'][1]/choice[1]"]
+parent_is_this = true
+
+[rule."/ref[@name='wordsize']/element[@name='wordsize'][1]/choice[1]"]
+parent_is_this = true
+
+[rule."/ref[@name='migration']/element[@name='migration_features'][1]/group[1]/optional/element[@name='uri_transports'][1]/oneOrMore/element[@name='uri_transport'][1]/choice[1]"]
+parent_is_this = true

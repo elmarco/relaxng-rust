@@ -1,0 +1,11 @@
+<element name="conflictName" xmlns="http://relaxng.org/ns/structure/1.0">
+                        <choice>
+                          <group>
+			    <element name="other"><text/></element>
+                            <optional>
+                              <attribute name="name"><text/></attribute>
+                            </optional>
+                          </group>
+                          <attribute name="name"><text/></attribute>
+                        </choice>
+</element>

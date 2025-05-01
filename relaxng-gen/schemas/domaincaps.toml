@@ -1,0 +1,285 @@
+[relaxng-gen]
+doc = '''
+# Domain capabilities XML format
+
+Sometimes, when a new domain is to be created it may come handy to know the capabilities of the hypervisor so the correct combination of devices and drivers is used. For example, when management application is considering the mode for a host device's passthrough there are several options depending not only on host, but on hypervisor in question too. If the hypervisor is qemu then it needs to be more recent to support VFIO, while legacy KVM is achievable just fine with older qemus.
+
+The main difference between `virConnectGetCapabilities` and the emulator capabilities API is, the former one aims more on the host capabilities (e.g. NUMA topology, security models in effect, etc.) while the latter one specializes on the hypervisor capabilities.
+
+While the Driver Capabilities provides the host capabilities (e.g NUMA topology, security models in effect, etc.), the Domain Capabilities provides the hypervisor specific capabilities for Management Applications to query and make decisions regarding what to utilize.
+
+The Domain Capabilities can provide information such as the correct combination of devices and drivers that are supported. Knowing which host and hypervisor specific options are available or supported would allow the management application to choose an appropriate mode for a pass-through host device as well as which adapter to utilize.
+
+Some XML elements may be entirely omitted from the domaincapabilities XML, depending on what the libvirt driver has filled in. Applications should only act on what is explicitly reported in the domaincapabilities XML. For example, if `<disk supported='yes'/>` is present, you can safely assume the driver supports `<disk>` devices. If `<disk supported='no'/>` is present, you can safely assume the driver does NOT support `<disk>` devices. If the `<disk>` block is omitted entirely, the driver is not indicating one way or the other whether it supports `<disk>` devices, and applications should not interpret the missing block to mean any thing in particular.
+'''
+
+[rule."/ref[@name='domainCapabilities']/element[@name='domainCapabilities'][1]"]
+doc = '''
+The root element that emulator capability XML document starts with has name `domainCapabilities`. 
+
+It contains at least four direct child elements:
+```xml
+<domainCapabilities>
+  <path>/usr/bin/qemu-system-x86_64</path>
+  <domain>kvm</domain>
+  <machine>pc-i440fx-2.1</machine>
+  <arch>x86_64</arch>
+  ...
+</domainCapabilities>
+```
+'''
+
+[rule."/ref[@name='domainCapabilities']/element[@name='domainCapabilities'][1]/interleave[1]/optional/element[@name='path'][1]"]
+doc = "The full path to the emulator binary. Since not every hypervisor has a notion of emulator binary this element might be omitted in such drivers."
+
+[rule."/ref[@name='domainCapabilities']/element[@name='domainCapabilities'][1]/interleave[1]/element[@name='domain'][1]"]
+doc = "Describes the virtualization type (or so called domain type)."
+
+[rule."/ref[@name='domainCapabilities']/element[@name='domainCapabilities'][1]/interleave[1]/optional/element[@name='machine'][1]"]
+doc = "The domain's machine type. Since not every hypervisor has a sense of machine types this element might be omitted in such drivers."
+
+[rule."/ref[@name='domainCapabilities']/element[@name='domainCapabilities'][1]/interleave[1]/element[@name='arch'][1]"]
+doc = "The domain's architecture."
+
+[rule."/ref[@name='cpuModel']/element[@name='model'][1]/group[1]/optional/attribute[@name='fallback']/choice[1]"]
+doc = "The hypervisor specifics (such as unsupported CPU models or features, machine type, etc.) may be accounted for in this guest CPU specification and thus the CPU can be different from the one shown in host capabilities XML. This is indicated by the fallback attribute of the model sub element."
+
+[rule."/ref[@name='cpuModel']/element[@name='model'][1]/group[1]/optional/attribute[@name='fallback']/choice[1]/value[text()='allow']"]
+doc = "Means not all specifics were accounted for and thus the CPU a guest will see may be different."
+
+[rule."/ref[@name='cpuModel']/element[@name='model'][1]/group[1]/optional/attribute[@name='fallback']/choice[1]/value[text()='forbid']"]
+doc = "Indicates that the CPU a guest will see should match this CPU definition."
+
+[rule."/ref[@name='async-teardown']/element[@name='async-teardown'][1]"]
+doc = "Reports whether the asynchronous teardown feature can be enabled."
+
+[rule."/ref[@name='backingStoreInput']/element[@name='backingStoreInput'][1]"]
+doc = "Reports whether the hypervisor will obey the `<backingStore>` elements configured for a `<disk>` when booting the guest, hotplugging the disk to a running guest, or similar."
+
+[rule."/ref[@name='backup']/element[@name='backup'][1]"]
+doc = "Reports whether the hypervisor supports the backup, checkpoint, and related features. (`virDomainBackupBegin`, `virDomainCheckpointCreateXML` etc). The presence of the `backup` element even if `supported='no'` implies that the `VIR_DOMAIN_UNDEFINE_CHECKPOINTS_METADATA` flag for `virDomainUndefine` is supported."
+
+[rule."/ref[@name='channel']/element[@name='channel'][1]"]
+doc = "Channel device capabilities are exposed under the `channel` element."
+
+[rule."/ref[@name='cpu']/element[@name='cpu'][1]"]
+doc = "The `cpu` element exposes options usable for configuring guest CPUs."
+
+[rule."/ref[@name='cpuCustom']/element[@name='mode'][1]"]
+doc = "The `mode` element contains a list of supported CPU models, each described by a dedicated `model` element."
+name = "Custom"
+
+[rule."/ref[@name='cpuCustom']/element[@name='mode'][1]/group[1]/attribute[@name='name']/value[text()='custom']"]
+doc = ""
+
+[rule."/ref[@name='cpuCustom']/element[@name='mode'][1]/group[1]/zeroOrMore/group[1]/element[@name='model'][1]"]
+doc = "A supported CPU model."
+
+[rule."/ref[@name='cpuCustom']/element[@name='mode'][1]/group[1]/zeroOrMore/group[1]/element[@name='model'][1]/group[1]/attribute[@name='usable']/choice[1]"]
+doc = "Specifies whether the model can be used directly on the host."
+
+[rule."/ref[@name='cpuCustom']/element[@name='mode'][1]/group[1]/zeroOrMore/group[1]/element[@name='model'][1]/group[1]/attribute[@name='usable']/choice[1]/value[text()='no']"]
+doc = "When `usable='no'` the corresponding model cannot be used without disabling some features that the CPU of such model is expected to have. Since 10.9.0 each CPU model with `usable='no'` is followed by a corresponding `blockers` element containing a list of features blocking usability of the CPU model."
+
+[rule."/ref[@name='cpuCustom']/element[@name='mode'][1]/group[1]/zeroOrMore/group[1]/element[@name='model'][1]/group[1]/attribute[@name='usable']/choice[1]/value[text()='unknown']"]
+doc = "Indicates libvirt does not have enough information to provide the usability data."
+
+[rule."/ref[@name='cpuCustom']/element[@name='mode'][1]/group[1]/zeroOrMore/group[1]/element[@name='model'][1]/group[1]/attribute[@name='usable']/choice[1]/value[text()='yes']"]
+doc = "Models marked as usable (`usable='yes'`) can be safely used in domain XMLs with `check='none'` as the hypervisor guarantees the model can be used on the current host and additional checks done by libvirt are redundant. Since 10.2.0 libvirt automatically detects this situation and avoids the redundant checks even when `check='partial'` is used, with older releases disabling libvirt checks via `check='none'` for such models is recommended to avoid needless issues with starting domains when libvirt's definition of a particular model differs from hypervisor's definition."
+
+[rule."/ref[@name='cpuCustom']/element[@name='mode'][1]/group[1]/zeroOrMore/group[1]/optional/element[@name='blockers'][1]"]
+doc = "Since 10.9.0 each CPU model with `usable='no'` is followed by a corresponding `blockers` element containing a list of features blocking usability of the CPU model."
+
+[rule."/ref[@name='cpuCustom']/element[@name='mode'][1]/group[1]/zeroOrMore/group[1]/optional/element[@name='blockers'][1]/group[1]/oneOrMore/element[@name='feature'][1]"]
+doc = "A feature blocking usability of the CPU model."
+
+[rule."/ref[@name='cpuFeature']/element[@name='feature'][1]"]
+doc = ""
+
+[rule."/ref[@name='cpuFeature']/element[@name='feature'][1]/group[1]/attribute[@name='policy']/choice[1]"]
+doc = ""
+
+[rule."/ref[@name='cpuFeature']/element[@name='feature'][1]/group[1]/attribute[@name='policy']/choice[1]/value[text()='disable']"]
+doc = ""
+
+[rule."/ref[@name='cpuFeature']/element[@name='feature'][1]/group[1]/attribute[@name='policy']/choice[1]/value[text()='forbid']"]
+doc = ""
+
+[rule."/ref[@name='cpuFeature']/element[@name='feature'][1]/group[1]/attribute[@name='policy']/choice[1]/value[text()='force']"]
+doc = ""
+
+[rule."/ref[@name='cpuFeature']/element[@name='feature'][1]/group[1]/attribute[@name='policy']/choice[1]/value[text()='optional']"]
+doc = ""
+
+[rule."/ref[@name='cpuFeature']/element[@name='feature'][1]/group[1]/attribute[@name='policy']/choice[1]/value[text()='require']"]
+doc = ""
+
+[rule."/ref[@name='cpuHost']/element[@name='mode'][1]"]
+name = "HostPassthrough"
+doc = "The `hostPassthroughMigratable` enum shows possible values of the `migratable` attribute for the `<cpu>` element with `mode='host-passthrough'` in the domain XML."
+
+[rule."/ref[@name='cpuHost']/element[@name='mode'][1]/group[1]/attribute[@name='name']/value[text()='host-passthrough']"]
+doc = ""
+
+[rule."/ref[@name='cpuHostModel']/element[@name='mode'][1]"]
+doc = "If `host-model` is supported by the hypervisor, the `mode` describes the guest CPU which will be used when starting a domain with `host-model` CPU."
+name = "HostModel"
+
+[rule."/ref[@name='cpuHostModel']/element[@name='mode'][1]/group[1]/attribute[@name='name']/value[text()='host-model']"]
+doc = ""
+
+[rule."/ref[@name='cpuMax']/element[@name='mode'][1]"]
+doc = ""
+name = "Maximum"
+
+[rule."/ref[@name='cpuMax']/element[@name='mode'][1]/group[1]/attribute[@name='name']/value[text()='maximum']"]
+doc = ""
+
+[rule."/ref[@name='cpuMaxPhysAddr']/element[@name='maxphysaddr'][1]"]
+doc = "The optional `maxphysaddr` element reports physical address size of the host CPU if this value is available and applicable for the requested domain type. This is useful for computing baseline CPU definition which should be compatible with several hosts."
+
+[rule."/ref[@name='cpuMaxPhysAddr']/element[@name='maxphysaddr'][1]/group[1]/attribute[@name='mode']/choice[1]"]
+doc = ""
+
+[rule."/ref[@name='cpuMaxPhysAddr']/element[@name='maxphysaddr'][1]/group[1]/attribute[@name='mode']/choice[1]/value[text()='emulate']"]
+doc = ""
+
+[rule."/ref[@name='cpuMaxPhysAddr']/element[@name='maxphysaddr'][1]/group[1]/attribute[@name='mode']/choice[1]/value[text()='passthrough']"]
+doc = ""
+
+[rule."/ref[@name='cpuModel']/element[@name='model'][1]"]
+doc = "Describes the guest CPU which will be used when starting a domain with `host-model` CPU."
+
+[rule."/ref[@name='cpuModel']/element[@name='model'][1]/group[1]/choice[1]"]
+doc = ""
+
+[rule."/ref[@name='cpuVendor']/element[@name='vendor'][1]"]
+doc = "The vendor of the CPU model."
+
+[rule."/ref[@name='crypto']/element[@name='crypto'][1]"]
+doc = "Crypto device capabilities are exposed under the `crypto` element."
+
+[rule."/ref[@name='devices']/element[@name='devices'][1]"]
+doc = "Another set of XML elements describe the supported devices and their capabilities. All devices occur as children of the main `devices` element."
+
+[rule."/ref[@name='disk']/element[@name='disk'][1]"]
+doc = "Disk capabilities are exposed under the `disk` element."
+
+[rule."/ref[@name='enum']/zeroOrMore/element[@name='enum'][1]"]
+doc = "Reported capabilities are expressed as an enumerated list of available options for each of the element or attribute."
+
+[rule."/ref[@name='features']/element[@name='features'][1]"]
+doc = "One more set of XML elements describe the supported features and their capabilities. All features occur as children of the main `features` element."
+
+[rule."/ref[@name='filesystem']/element[@name='filesystem'][1]"]
+doc = "Filesystem device capabilities are exposed under the `filesystem` element."
+
+[rule."/ref[@name='gic']/element[@name='gic'][1]"]
+doc = "GIC capabilities are exposed under the `gic` element."
+
+[rule."/ref[@name='graphics']/element[@name='graphics'][1]"]
+doc = "Graphics device capabilities are exposed under the `graphics` element."
+
+[rule."/ref[@name='hostdev']/element[@name='hostdev'][1]"]
+doc = "Host device assignment capabilities."
+
+[rule."/ref[@name='hyperv']/element[@name='hyperv'][1]"]
+doc = "Report which features improving behavior of guests running Microsoft Windows are supported."
+
+[rule."/ref[@name='interface']/element[@name='interface'][1]"]
+doc = "Interface device corresponds to network interface (`<interface/>`) in domain XML."
+
+[rule."/ref[@name='iothreads']/element[@name='iothreads'][1]"]
+doc = "The `iothreads` element indicates whether or not I/O threads are supported."
+
+[rule."/ref[@name='launchSecurity']/element[@name='launchSecurity'][1]"]
+doc = "The `launchSecurity` element exposes supported aspects of encrypted guests."
+
+[rule."/ref[@name='loader']/element[@name='loader'][1]"]
+doc = "Exposes options for boot loader."
+
+[rule."/ref[@name='memoryBacking']/element[@name='memoryBacking'][1]"]
+doc = "The `memoryBacking` element indicates whether or not memory backing is supported."
+
+[rule."/ref[@name='os']/element[@name='os'][1]"]
+doc = "Sometimes users might want to tweak some BIOS knobs or use UEFI. For cases like that, `os` element exposes what values can be passed to its children."
+
+[rule."/ref[@name='panic']/element[@name='panic'][1]"]
+doc = "Corresponds to `panic device` (`<panic/>`) in domain XML."
+
+[rule."/ref[@name='ps2']/element[@name='ps2'][1]"]
+doc = "Reports whether it is possible to disable the machine's built-in PS/2 controller."
+
+[rule."/ref[@name='redirdev']/element[@name='redirdev'][1]"]
+doc = "USB redirdev device capabilities are exposed under the `redirdev` element."
+
+[rule."/ref[@name='rng']/element[@name='rng'][1]"]
+doc = "RNG device capabilities are exposed under the `rng` element."
+
+[rule."/ref[@name='s390-pv']/element[@name='s390-pv'][1]"]
+doc = "Reports whether the hypervisor supports Protected Virtualization."
+
+[rule."/ref[@name='sev']/element[@name='sev'][1]"]
+doc = "AMD Secure Encrypted Virtualization (SEV) capabilities are exposed under the `sev` element. SEV is an extension to the AMD-V architecture which supports running virtual machines (VMs) under the control of a hypervisor. When supported, guest owner can create a VM whose memory contents will be transparently encrypted with a key unique to that VM."
+
+[rule."/ref[@name='sev']/element[@name='sev'][1]/group[1]/optional/element[@name='cpu0Id'][1]"]
+doc = ""
+
+[rule."/ref[@name='sev']/element[@name='sev'][1]/group[1]/optional/group[1]/element[@name='cbitpos'][1]"]
+doc = "When memory encryption is enabled, one of the physical address bits (aka the C-bit) is utilized to mark if a memory page is protected. The C-bit position is Hypervisor dependent."
+
+[rule."/ref[@name='sev']/element[@name='sev'][1]/group[1]/optional/group[1]/element[@name='maxESGuests'][1]"]
+doc = "The maximum number of SEV-ES guests that can be launched on the host. This value may be configurable in the firmware for some hosts."
+
+[rule."/ref[@name='sev']/element[@name='sev'][1]/group[1]/optional/group[1]/element[@name='maxGuests'][1]"]
+doc = "The maximum number of SEV guests that can be launched on the host. This value may be configurable in the firmware for some hosts."
+
+[rule."/ref[@name='sev']/element[@name='sev'][1]/group[1]/optional/group[1]/element[@name='reducedPhysBits'][1]"]
+doc = "When memory encryption is enabled, we lose certain bits in physical address space. The number of bits we lose is hypervisor dependent."
+
+[rule."/ref[@name='sgx']/element[@name='sgx'][1]"]
+doc = "Intel Software Guard Extensions (Intel SGX) capabilities are exposed under the `sgx` element."
+
+[rule."/ref[@name='sgx']/element[@name='sgx'][1]/group[1]/optional/group[1]/element[@name='flc'][1]"]
+doc = "FLC (Flexible Launch Control), not strictly part of SGX2, but was not part of original SGX hardware either."
+
+[rule."/ref[@name='sgx']/element[@name='sgx'][1]/group[1]/optional/group[1]/element[@name='section_size'][1]"]
+doc = "The size of the SGX enclave page cache (called EPC)."
+
+[rule."/ref[@name='sgx']/element[@name='sgx'][1]/group[1]/optional/group[1]/element[@name='section_size'][1]/group[1]/attribute[@name='unit']/value[text()='KiB']"]
+doc = ""
+
+[rule."/ref[@name='sgx']/element[@name='sgx'][1]/group[1]/optional/group[1]/element[@name='sgx1'][1]"]
+doc = "the sgx version 1."
+
+[rule."/ref[@name='sgx']/element[@name='sgx'][1]/group[1]/optional/group[1]/element[@name='sgx2'][1]"]
+doc = "The sgx version 2."
+
+[rule."/ref[@name='sgx']/element[@name='sgx'][1]/group[1]/optional/group[1]/optional/element[@name='sections'][1]"]
+doc = "The sections of the SGX enclave page cache (called EPC)."
+
+[rule."/ref[@name='sgx']/element[@name='sgx'][1]/group[1]/optional/group[1]/optional/element[@name='sections'][1]/zeroOrMore/element[@name='section'][1]"]
+doc = ""
+
+[rule."/ref[@name='sgx']/element[@name='sgx'][1]/group[1]/optional/group[1]/optional/element[@name='sections'][1]/zeroOrMore/element[@name='section'][1]/group[1]/attribute[@name='unit']/value[text()='KiB']"]
+doc = ""
+
+[rule."/ref[@name='tpm']/element[@name='tpm'][1]"]
+doc = "TPM device capabilities are exposed under the `tpm` element."
+
+[rule."/ref[@name='value']/zeroOrMore/element[@name='value'][1]"]
+doc = "Represents a possible value for an attribute or element."
+
+[rule."/ref[@name='vcpu']/element[@name='vcpu'][1]"]
+doc = "The maximum number of supported virtual CPUs"
+
+[rule."/ref[@name='video']/element[@name='video'][1]"]
+doc = "Video device capabilities are exposed under the `video` element."
+
+[rule."/ref[@name='vmcoreinfo']/element[@name='vmcoreinfo'][1]"]
+doc = "Reports whether the vmcoreinfo feature can be enabled."
+
+[rule."/ref[@name='vmgenid']/element[@name='genid'][1]"]
+doc = "Reports whether the genid feature can be used by the domain."
+
+

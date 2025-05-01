@@ -1,0 +1,9 @@
+---
+source: relaxng-gen/tests/generate.rs
+expression: output
+---
+<addressBook>
+  <card name="1John Smith" email="js@example.com"/>
+  <card name="2John Smith" email="js@example.com"/>
+  <card name="3John Smith" email="js@example.com"/>
+</addressBook>

@@ -1,0 +1,26 @@
+<element name="root" xmlns="http://relaxng.org/ns/structure/1.0">
+<choice>
+      <element name="source">
+<empty/>
+<!--
+        <attribute name="type">
+         <value>usb</value>
+        </attribute>
+-->
+      </element>
+      <element name="source">
+<text/>
+<!--
+	<choice>
+  	  <attribute name="protocol"><value>adapter</value></attribute>
+  	  <attribute name="protocol"><value>iscsi</value></attribute>
+	</choice>
+-->
+      </element>
+<!--      <element name="source">
+	<choice>
+  	  <attribute name="protocol"><value>vhost</value></attribute>
+	</choice>
+      </element> -->
+</choice>
+</element>

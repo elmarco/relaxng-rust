@@ -1,0 +1,23 @@
+[rule."/ref[@name='cpuModel']/element[@name='model'][1]/group[1]/choice[1]"]
+name = "OptionalText"
+
+[rule."/ref[@name='guestcpu']/element[@name='cpu']"]
+name = "GuestCPU"
+
+[rule."/ref[@name='hostcpu']/element[@name='cpu']"]
+name = "HostCPU"
+
+[rule."/ref[@name='numaCache']/element[@name='cache']"]
+name = "NumaCache"
+
+[rule."/ref[@name='hostcpu']/element[@name='cpu'][1]/interleave[1]/optional/element[@name='features'][1]"]
+field_name = "cpu_features"
+
+[rule."/ref[@name='hostcpu']/element[@name='cpu'][1]/interleave[1]/element[@name='arch'][1]/choice[1]"]
+parent_is_this = true
+
+[rule."/ref[@name='cpuTopology']/element[@name='topology'][1]"]
+name = "CpuTopology"
+
+[rule."/ref[@name='hostcpu']/element[@name='cpu'][1]/interleave[1]/element[@name='arch'][1]"]
+allow_structure_is_enum = true

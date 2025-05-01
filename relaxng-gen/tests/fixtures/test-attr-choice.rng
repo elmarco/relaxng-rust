@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+<start>
+    <element name="root">
+        <choice>
+            <ref name="refone"/>
+            <ref name="reftwo"/>
+        </choice>
+        <empty/>
+    </element>
+</start>
+
+<define name="refone">
+  <attribute name="type">
+    <value>one</value>
+  </attribute>
+  <attribute name="model">
+    <choice>
+      <value>one-foo</value>
+      <value>one-bar</value>
+    </choice>
+  </attribute>
+</define>
+
+<define name="reftwo">
+  <attribute name="type">
+    <value>two</value>
+  </attribute>
+  <attribute name="model">
+    <choice>
+      <value>two-foo</value>
+      <value>two-bar</value>
+    </choice>
+  </attribute>
+</define>
+
+</grammar>

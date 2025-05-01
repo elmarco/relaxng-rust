@@ -1,0 +1,2 @@
+[rule."/element[@name='html']/group[1]/element[@name='body']/element[@name='table']/group[1]/oneOrMore/element[@name='tr']/group[1]/element[@name='td']"]
+name = "TdEmail"

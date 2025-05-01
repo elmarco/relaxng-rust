@@ -1,0 +1,14 @@
+namespace a = "http://relaxng.org/ns/compatibility/annotations/1.0"
+
+[
+  a:documentation [
+    "Represents an\x{A}" ~
+    "address book.
+  ]
+]
+element addressBook {
+  element card {
+    element name { text },
+    element email { text }
+  }*
+}

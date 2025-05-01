@@ -1,0 +1,15 @@
+[rule."/ref[@name='virYesNo']/choice[1]"]
+doc = "`yes` or `no`"
+name = "YesNo"
+
+[rule."/ref[@name='virYesNo']/choice[1]/value[text()='no']"]
+doc = "No"
+
+[rule."/ref[@name='virYesNo']/choice[1]/value[text()='yes']"]
+doc = "Yes"
+
+[rule."/ref[@name='virOnOff']/choice[1]"]
+name = "OnOff"
+
+[rule."/ref[@name='UUID']/choice[1]"]
+replace_with_text = true
