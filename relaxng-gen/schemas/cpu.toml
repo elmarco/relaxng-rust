@@ -1,0 +1,11 @@
+[rule."/choice[1]"]
+name = "CPU"
+
+[rule."/ref[@name='guestcpu']/element[@name='cpu']"]
+name="GuestCPU"
+
+[rule."/ref[@name='hostcpu']/element[@name='cpu']"]
+name="HostCPU"
+
+[rule."/ref[@name='numaCache']/element[@name='cache']"]
+name="NumaCache"

@@ -1,0 +1,3 @@
+element vector {
+  list { xsd:float, xsd:float }
+}

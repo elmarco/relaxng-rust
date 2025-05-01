@@ -1,0 +1,6 @@
+datatypes xs = "http://www.w3.org/2001/XMLSchema-datatypes"
+
+element email {
+  attribute type { xs:integer },
+  xsd:string { minLength = "6" maxLength = "127" }
+}

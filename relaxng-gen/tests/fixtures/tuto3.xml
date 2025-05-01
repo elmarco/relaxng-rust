@@ -1,0 +1,6 @@
+<addressBook>
+  <card name="1John Smith" email="js@example.com"/>
+  
+  <card email="js@example.com" name="2John Smith"/>
+  <card email="js@example.com" name="3John Smith"/>
+</addressBook>

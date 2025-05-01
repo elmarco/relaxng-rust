@@ -682,6 +682,11 @@ impl<FS: Files> Compiler<FS> {
             datatype_compiler: datatype::Compiler::default(),
         }
     }
+
+    pub fn set_syntax(&mut self, syntax: Syntax) {
+        self.syntax = syntax;
+    }
+
     // TODO: provide a simpler return-type
     // TODO: does this need to support URLs?
     pub fn compile(

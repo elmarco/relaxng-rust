@@ -1,0 +1,11 @@
+---
+source: relaxng-gen/tests/generate.rs
+expression: output
+---
+<card>
+  <preferredFormat>html</preferredFormat>
+  <preferredFormat>html</preferredFormat>
+  <preferredFormat>
+    <ff>something</ff>
+  </preferredFormat>
+</card>
