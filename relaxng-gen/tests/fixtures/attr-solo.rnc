@@ -1,0 +1,5 @@
+element tr {
+  attribute class { "card" },
+  attribute bool { "true" | "false" }
+}
+
