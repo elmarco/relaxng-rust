@@ -50,6 +50,7 @@ impl GenUnit {
 pub(crate) struct GenTree {
     pub(crate) unit: Option<GenUnit>,
     pub(crate) children: HashMap<String, GenTree>,
+    pub(crate) moved_children: Vec<GenTree>,
 }
 
 impl GenTree {
@@ -75,6 +76,15 @@ impl GenTree {
                 path.push(unit.mod_name());
             };
             child.write_rs_xpath(&path, &format!("{}/{}", xpath, p));
+            if child.unit.is_some() {
+                path.pop();
+            }
+        }
+        for child in self.moved_children.iter() {
+            if let Some(ref unit) = child.unit {
+                path.push(unit.mod_name());
+            };
+            child.write_rs_xpath(&path, xpath);
             if child.unit.is_some() {
                 path.pop();
             }
@@ -139,5 +149,13 @@ impl GenTree {
         let loc = self.lookup_mut(xpath);
         assert!(loc.unit.is_none());
         loc.unit = Some(unit);
+    }
+
+    pub(crate) fn move_children(&mut self, xpath: &str, new_parent: &str) {
+        let loc = self.lookup_mut(xpath);
+        let children = std::mem::take(&mut loc.children);
+        self.lookup_mut(new_parent)
+            .moved_children
+            .extend(children.into_values());
     }
 }
