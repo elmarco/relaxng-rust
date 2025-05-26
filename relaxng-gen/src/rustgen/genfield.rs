@@ -488,8 +488,12 @@ impl GenField {
         mut other: GenField,
         reconcile_multiple: bool,
     ) -> Result<Option<GenUnit>> {
+        if *self == other {
+            return Ok(None);
+        }
+
         warn!(
-            "Reconciling fields: {:?} and {:?} {}",
+            "Reconciling fields: {:#?} and {:#?} {}",
             self,
             other,
             if reconcile_multiple { "multi" } else { "" }
@@ -555,6 +559,10 @@ impl GenField {
             | (FieldTy::Value(val), FieldTy::Choice(choice)) => {
                 choice.borrow_mut().add_field(GenField::new_value(val))?;
                 self.ty = FieldTy::Choice(choice.clone());
+            }
+            (FieldTy::Choice(gen_enum), FieldTy::Choice(other)) => {
+                let mut gen_enum = gen_enum.borrow_mut();
+                gen_enum.reconcile(other.take())?;
             }
             _ => {
                 return Err(Error::Reconcile(self.ty.clone(), other.ty));

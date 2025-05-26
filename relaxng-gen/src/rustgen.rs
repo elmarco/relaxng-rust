@@ -328,7 +328,6 @@ impl Context {
         let mut field = GenField::new(xml_name, ty);
         let mut to_add = None;
         for state in self.state.iter_mut().rev() {
-            debug!(?state);
             match state {
                 State::Element { .. } => {
                     // field.set_serialize_as(SerializeAs::Element);
@@ -501,6 +500,7 @@ impl Context {
             new_units = conflict(unit, exist)?;
         } else if let Some((exist, path)) = self.units.file_conflict_at(&xpath, &unit.name()) {
             new_units = conflict(unit, exist)?;
+            self.units.move_children(&xpath, &path);
             xpath = path;
         } else {
             self.units.insert_unit(&xpath, unit);

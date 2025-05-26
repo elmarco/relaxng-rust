@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 use crate::utils::safe_var_name;
 
@@ -64,6 +64,7 @@ impl GenTree {
                     path, xpath,
                 );
             } else {
+                debug!("Writing file {:?} {}", path, xpath);
                 crate::utils::write_rs(&path, ts);
             }
         }
