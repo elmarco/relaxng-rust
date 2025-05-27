@@ -136,6 +136,10 @@ impl GenStruct {
     pub(crate) fn set_not_allowed(&mut self, not_allowed: bool) {
         self.not_allowed = not_allowed;
     }
+
+    pub(crate) fn mod_name(&self) -> String {
+        self.var_name().to_string()
+    }
 }
 
 impl ToTokens for GenStruct {

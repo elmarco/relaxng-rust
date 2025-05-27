@@ -421,8 +421,10 @@ impl Context {
     fn pop_struct(&mut self, mut gen_struct: GenStruct, config: &ConfigRule, xpath: &str) {
         let mut xpath = xpath.to_string();
         if let Some(ref name) = config.name {
+            let parent_name = gen_struct.mod_name();
             gen_struct.set_name(name);
             if config.as_child {
+                self.add_unit(GenUnit::PlaceHolder(parent_name), &xpath);
                 xpath.push_str(&format!("/{}", name));
             }
         }
@@ -506,8 +508,6 @@ impl Context {
 
         let mut new_units = Vec::new();
         let mut xpath = xpath.to_string();
-        // let xpath = XPath::from_str(xpath).expect("valid xpath");
-        // let mut xpath = xpath.to_string(false);
         if let Some(exist) = self.units.lookup_unit_mut(&xpath) {
             new_units = conflict(unit, exist)?;
         } else if let Some((exist, path)) = self.units.file_conflict_at(&xpath, &unit.name()) {

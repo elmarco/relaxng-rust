@@ -14,6 +14,7 @@ pub(crate) enum GenUnit {
     Mod(GenMod),
     Enum(GenEnumRef),
     Struct(GenStruct),
+    PlaceHolder(String),
 }
 
 impl GenUnit {
@@ -22,6 +23,7 @@ impl GenUnit {
             GenUnit::Mod(m) => m.name().to_string(),
             GenUnit::Enum(e) => e.borrow().name().to_string(),
             GenUnit::Struct(s) => s.name().to_string(),
+            GenUnit::PlaceHolder(n) => n.clone(),
         }
     }
 
@@ -30,6 +32,7 @@ impl GenUnit {
             GenUnit::Mod(m) => m.name().to_snake_case(),
             GenUnit::Enum(e) => e.borrow().var_name().to_string(),
             GenUnit::Struct(s) => s.var_name().to_string(),
+            GenUnit::PlaceHolder(n) => n.clone(),
         };
 
         mod_name
@@ -40,6 +43,7 @@ impl GenUnit {
             GenUnit::Mod(m) => m.to_token_stream(),
             GenUnit::Struct(st) => st.to_token_stream(),
             GenUnit::Enum(en) => en.borrow().to_token_stream(),
+            GenUnit::PlaceHolder(_) => TokenStream::new(),
         }
     }
 
@@ -64,15 +68,17 @@ impl GenTree {
         let mut path = src.to_path_buf();
         if let Some(unit) = &self.unit {
             let ts = unit.token_stream();
-            path.set_extension("rs");
-            if path.exists() {
-                error!(
-                    "File already exists at {:?}, rename with xpath config \"{}\"?",
-                    path, xpath,
-                );
-            } else {
-                debug!("Writing file {:?} {}", path, xpath);
-                crate::utils::write_rs(&path, ts);
+            if !ts.is_empty() {
+                path.set_extension("rs");
+                if path.exists() {
+                    error!(
+                        "File already exists at {:?}, rename with xpath config \"{}\"?",
+                        path, xpath,
+                    );
+                } else {
+                    debug!("Writing file {:?} {}", path, xpath);
+                    crate::utils::write_rs(&path, ts);
+                }
             }
         }
 
