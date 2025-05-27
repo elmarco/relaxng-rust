@@ -756,6 +756,12 @@ impl GenFields {
     pub(crate) fn reconcile(&mut self, other: GenFields) -> Result<Vec<GenUnit>> {
         let mut ret = Vec::new();
 
+        for (key, value) in self.fields.iter_mut() {
+            if !other.fields.contains_key(key) {
+                value.set_optional(true);
+            }
+        }
+
         for (key, value) in other.fields {
             if let Some(existing) = self.fields.get_mut(&key) {
                 if let Some(new) = existing.reconcile(value, false)? {
