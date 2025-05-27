@@ -142,7 +142,7 @@ fn test(rng: PathBuf, xml: PathBuf) -> Result<String, Box<dyn std::error::Error>
     cmd.arg(rng).arg(out_path).arg("--test").assert().success();
 
     let mut cargo_cmd = Command::new("cargo");
-    let output = cargo_cmd.current_dir(out_path).arg("build").output()?;
+    let output = cargo_cmd.current_dir(out_path).arg("build").arg("--offline").output()?;
     eprint!("{}", String::from_utf8_lossy(&output.stderr));
     if !output.status.success() {
         let path = temp_dir.into_path();

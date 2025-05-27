@@ -493,6 +493,9 @@ impl GenField {
         reconcile_multiple: bool,
     ) -> Result<Option<GenUnit>> {
         if *self == other {
+            if reconcile_multiple {
+                self.multiple |= true;
+            }
             return Ok(None);
         }
 
