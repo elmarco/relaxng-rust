@@ -48,12 +48,17 @@ pub(crate) struct Config {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConfigRule {
     pub name: Option<String>,
+    #[serde(default)]
+    pub as_child: bool,
 }
+
 impl ConfigRule {
     fn merge(&mut self, c: &ConfigRule) {
         if c.name.is_some() {
             self.name = c.name.clone();
         }
+
+        self.as_child |= c.as_child;
     }
 }
 
@@ -413,12 +418,16 @@ impl Context {
     }
 
     fn pop_struct(&mut self, mut gen_struct: GenStruct, config: &ConfigRule, xpath: &str) {
+        let mut xpath = xpath.to_string();
         if let Some(ref name) = config.name {
             gen_struct.set_name(name);
+            if config.as_child {
+                xpath.push_str(&format!("/{}", name));
+            }
         }
         let name = &gen_struct.xml_name;
         self.add_field(name, FieldTy::Xml(gen_struct.path()));
-        self.add_unit(GenUnit::Struct(gen_struct), xpath);
+        self.add_unit(GenUnit::Struct(gen_struct), &xpath);
     }
 
     fn name_from_state(&self) -> Option<String> {
