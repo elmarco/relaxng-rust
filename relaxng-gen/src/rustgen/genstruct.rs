@@ -4,7 +4,7 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::{Ident, parse_quote};
 
-use crate::utils::{has_default_match_arm, safe_ty_name};
+use crate::utils::{has_default_match_arm, safe_ty_name, safe_var_name};
 
 use super::{
     GenField, GenUnit, Result,
@@ -55,6 +55,10 @@ impl GenStruct {
 
     pub(crate) fn name(&self) -> &str {
         &self.name
+    }
+
+    pub(crate) fn var_name(&self) -> Ident {
+        format_ident!("{}", safe_var_name(self.name()))
     }
 
     pub(crate) fn ident(&self) -> Ident {

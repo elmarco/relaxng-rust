@@ -5,8 +5,6 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use tracing::{debug, error, warn};
 
-use crate::utils::safe_var_name;
-
 use super::{Result, genenum::GenEnumRef, genmod::GenMod, genstruct::GenStruct};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,7 +24,13 @@ impl GenUnit {
     }
 
     pub(crate) fn mod_name(&self) -> String {
-        self.name().to_snake_case()
+        let mod_name = match self {
+            GenUnit::Mod(m) => m.name().to_snake_case(),
+            GenUnit::Enum(e) => e.borrow().var_name().to_string(),
+            GenUnit::Struct(s) => s.var_name().to_string(),
+        };
+
+        mod_name
     }
 
     pub(crate) fn token_stream(&self) -> TokenStream {
@@ -73,7 +77,7 @@ impl GenTree {
         path.set_extension("");
         for (p, child) in self.children.iter() {
             if let Some(ref unit) = child.unit {
-                path.push(unit.mod_name());
+                path.push(drop_r(unit.mod_name()));
             };
             child.write_rs_xpath(&path, &format!("{}/{}", xpath, p));
             if child.unit.is_some() {
@@ -82,7 +86,7 @@ impl GenTree {
         }
         for child in self.moved_children.iter() {
             if let Some(ref unit) = child.unit {
-                path.push(unit.mod_name());
+                path.push(drop_r(unit.mod_name()));
             };
             child.write_rs_xpath(&path, xpath);
             if child.unit.is_some() {
@@ -101,7 +105,7 @@ impl GenTree {
                 .values()
                 .flat_map(|child| {
                     if let Some(ref unit) = child.unit {
-                        vec![safe_var_name(&unit.mod_name())]
+                        vec![unit.mod_name()]
                     } else {
                         collect_root_mods(child)
                     }
@@ -158,4 +162,8 @@ impl GenTree {
             .moved_children
             .extend(children.into_values());
     }
+}
+
+fn drop_r(input: String) -> String {
+    input.strip_prefix("r#").unwrap_or(&input).to_string()
 }

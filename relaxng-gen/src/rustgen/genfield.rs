@@ -68,7 +68,11 @@ impl GenField {
     }
 
     pub(crate) fn name(&self) -> String {
-        let name = pluralize(&self.name, if self.multiple { 2 } else { 1 }, false);
+        let name = if self.multiple {
+            pluralize(&self.name, 2, false)
+        } else {
+            self.name.clone()
+        };
         safe_var_name(&name)
     }
 
