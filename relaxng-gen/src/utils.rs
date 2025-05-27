@@ -67,3 +67,7 @@ pub(crate) fn safe_ty_name(name: &str) -> String {
 
     name.into_safe()
 }
+
+pub(crate) fn strip_r_prefix(input: &str) -> String {
+    input.strip_prefix("r#").unwrap_or(&input).to_string()
+}

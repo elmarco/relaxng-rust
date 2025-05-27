@@ -29,6 +29,32 @@ impl FromStr for XPath {
 }
 
 impl XPath {
+    pub(crate) fn matches(&self, xpath: &XPath) -> bool {
+        matches_recurse(&self.0, &xpath.0)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn to_string(&self, with_index: bool) -> String {
+        let mut res = String::new();
+        for e in self.0.iter() {
+            match e {
+                XPathExpr::Sep => res.push_str("/"),
+                XPathExpr::Descendant => res.push_str("//"),
+                XPathExpr::Node(n) => res.push_str(&n),
+                XPathExpr::Predicate(xpath_predicate) => match xpath_predicate {
+                    XPathPredicate::Index(n) => {
+                        if with_index {
+                            res = format!("{res}[{n}]")
+                        }
+                    }
+                    XPathPredicate::Equal(name, value) => res = format!("{res}[{name}='{value}']"),
+                },
+            }
+        }
+
+        res
+    }
+
     #[cfg(test)]
     pub(crate) fn matches_str(&self, path: &str) -> bool {
         let Ok(path) = Self::from_str(path) else {
@@ -36,10 +62,6 @@ impl XPath {
         };
 
         self.matches(&path)
-    }
-
-    pub(crate) fn matches(&self, xpath: &XPath) -> bool {
-        matches_recurse(&self.0, &xpath.0)
     }
 }
 
@@ -224,7 +246,8 @@ mod tests {
         let _p = XPath::from_str("book").unwrap();
         let _p = XPath::from_str("/book").unwrap();
         let _p = XPath::from_str("/book//title").unwrap();
-        let _p = XPath::from_str("//library/book[@lang='en']//title").unwrap();
+        let p = XPath::from_str("//library/book[@lang='en']//title").unwrap();
+        assert_eq!(p.to_string(true), "//library/book[@lang='en']//title");
     }
 
     #[test]

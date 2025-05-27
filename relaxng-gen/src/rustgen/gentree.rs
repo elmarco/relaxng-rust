@@ -5,6 +5,8 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use tracing::{debug, error, warn};
 
+use crate::utils::strip_r_prefix;
+
 use super::{Result, genenum::GenEnumRef, genmod::GenMod, genstruct::GenStruct};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,7 +79,7 @@ impl GenTree {
         path.set_extension("");
         for (p, child) in self.children.iter() {
             if let Some(ref unit) = child.unit {
-                path.push(drop_r(unit.mod_name()));
+                path.push(strip_r_prefix(&unit.mod_name()));
             };
             child.write_rs_xpath(&path, &format!("{}/{}", xpath, p));
             if child.unit.is_some() {
@@ -86,7 +88,7 @@ impl GenTree {
         }
         for child in self.moved_children.iter() {
             if let Some(ref unit) = child.unit {
-                path.push(drop_r(unit.mod_name()));
+                path.push(strip_r_prefix(&unit.mod_name()));
             };
             child.write_rs_xpath(&path, xpath);
             if child.unit.is_some() {
@@ -162,8 +164,4 @@ impl GenTree {
             .moved_children
             .extend(children.into_values());
     }
-}
-
-fn drop_r(input: String) -> String {
-    input.strip_prefix("r#").unwrap_or(&input).to_string()
 }

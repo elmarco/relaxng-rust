@@ -35,6 +35,7 @@ use gentest::generate_test;
 mod gentree;
 use gentree::{GenTree, GenUnit};
 
+use crate::utils::strip_r_prefix;
 // sort of xpath
 use crate::xpath::XPath;
 mod datatypes;
@@ -505,6 +506,8 @@ impl Context {
 
         let mut new_units = Vec::new();
         let mut xpath = xpath.to_string();
+        // let xpath = XPath::from_str(xpath).expect("valid xpath");
+        // let mut xpath = xpath.to_string(false);
         if let Some(exist) = self.units.lookup_unit_mut(&xpath) {
             new_units = conflict(unit, exist)?;
         } else if let Some((exist, path)) = self.units.file_conflict_at(&xpath, &unit.name()) {
@@ -516,7 +519,7 @@ impl Context {
         }
 
         for new_unit in new_units {
-            let xpath = format!("{}/{}", xpath, new_unit.mod_name());
+            let xpath = format!("{}/{}", xpath, strip_r_prefix(&new_unit.mod_name()));
             debug!(?xpath, "New unit");
             self.add_unit_err(new_unit, &xpath)?;
         }
@@ -552,7 +555,7 @@ impl Context {
 
     fn xpath_from_last_ref(&self) -> String {
         let iter = self.state.iter_with_counter(true);
-        xpath_from_iter(iter)
+        xpath_from_iter(iter, true)
     }
 }
 
@@ -689,33 +692,51 @@ fn name_class_to_name(name_class: &NameClass) -> &String {
 }
 
 // sort of xpath
-fn xpath_from_iter<'a>(iter: impl Iterator<Item = &'a StateCounter>) -> String {
+fn xpath_from_iter<'a>(iter: impl Iterator<Item = &'a StateCounter>, with_count: bool) -> String {
     let mut path = String::new();
     let mut last: Option<&StateCounter> = None;
     for c in iter {
         match &c.state {
             State::Element { name, .. } => {
-                let count = last
-                    .and_then(|last| last.elem_count.get(name))
-                    .copied()
-                    .unwrap_or(1);
-                path.push_str(&format!("/element[@name='{}'][{}]", name, count));
+                path.push_str(&format!("/element[@name='{}']", name));
+                if with_count {
+                    let count = last
+                        .and_then(|last| last.elem_count.get(name))
+                        .copied()
+                        .unwrap_or(1);
+                    path.push_str(&format!("[{count}]"));
+                }
             }
             State::Attribute(attribute) => {
                 path.push_str(&format!("/attribute[@name='{}']", attribute.name))
             }
-            State::Choice { .. } => path.push_str(&format!(
-                "/choice[{}]",
-                last.map(|last| last.choice_count).unwrap_or(1)
-            )),
-            State::Group { interleave: true } => path.push_str(&format!(
-                "/interleave[{}]",
-                last.map(|last| last.interleave_count).unwrap_or(1)
-            )),
-            State::Group { interleave: false } => path.push_str(&format!(
-                "/group[{}]",
-                last.map(|last| last.group_count).unwrap_or(1)
-            )),
+            State::Choice { .. } => {
+                path.push_str("/choice");
+                if with_count {
+                    path.push_str(&format!(
+                        "[{}]",
+                        last.map(|last| last.choice_count).unwrap_or(1)
+                    ));
+                }
+            }
+            State::Group { interleave: true } => {
+                path.push_str("/interleave");
+                if with_count {
+                    path.push_str(&format!(
+                        "[{}]",
+                        last.map(|last| last.interleave_count).unwrap_or(1)
+                    ));
+                }
+            }
+            State::Group { interleave: false } => {
+                path.push_str("/group");
+                if with_count {
+                    path.push_str(&format!(
+                        "[{}]",
+                        last.map(|last| last.group_count).unwrap_or(1)
+                    ))
+                }
+            }
             State::Optional => path.push_str("/optional"),
             State::OneOrMore => path.push_str("/oneOrMore"),
             State::ZeroOrMore => path.push_str("/zeroOrMore"),
