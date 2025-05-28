@@ -4,7 +4,10 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::{Ident, parse_quote};
 
-use crate::utils::{has_default_match_arm, safe_ty_name, safe_var_name};
+use crate::{
+    rustgen::genfield::FieldTy,
+    utils::{has_default_match_arm, safe_ty_name, safe_var_name},
+};
 
 use super::{
     GenField, GenUnit, Result,
@@ -133,6 +136,13 @@ impl GenStruct {
         self.fields.into_iter()
     }
 
+    fn iter_fields_skip_self(&self) -> impl Iterator<Item = &GenField> {
+        // as long as we don't have more complicated or conflicting paths..
+        self.fields
+            .into_iter()
+            .filter(|f| !matches!(&f.ty, FieldTy::Xml(path) if *path == self.path()))
+    }
+
     pub(crate) fn set_not_allowed(&mut self, not_allowed: bool) {
         self.not_allowed = not_allowed;
     }
@@ -204,7 +214,7 @@ impl ToTokens for GenStruct {
             &from_xml_other,
         );
 
-        let mods = gen_mods_from_fields(self.iter_fields());
+        let mods = gen_mods_from_fields(self.iter_fields_skip_self());
         let rgen = quote! {
             #mods
 

@@ -138,6 +138,9 @@ impl GenField {
         } else {
             quote! { () }
         };
+        if self.recursive && !self.multiple {
+            val = quote! { Box::new(#val) };
+        }
         if self.optional && !self.multiple {
             val = quote! { Some(#val) };
             if !self.is_value() {
@@ -333,15 +336,30 @@ impl GenField {
                 self.gen_from_ty_xml(ty, from_xml_elems);
             }
             SerializeAs::Inline => {
-                let field_ident = self.single_ident();
-
-                let mut val = quote! { #ty::from_xml(node, child)? };
-                if self.optional && !self.multiple {
-                    val = quote! { Some(#val) };
-                }
-
                 from_xml_other.push(quote! {
                     let child = &mut node.first_child();
+                });
+
+                let field_ident = self.single_ident();
+
+                let mut val = quote! { #ty::from_xml(node, child) };
+                if self.multiple {
+                    from_xml_other.push(quote! {
+                        loop {
+                            if let Ok(elem) = #val {
+                                builder.#field_ident(elem)?;
+                            } else {
+                                break;
+                            }
+                        }
+                    });
+                    return;
+                }
+
+                if self.optional {
+                    val = quote! { Some(#val) };
+                }
+                from_xml_other.push(quote! {
                     builder.#field_ident(#val)?;
                 });
             }
@@ -608,10 +626,11 @@ impl ToTokens for GenField {
 
         if self.multiple {
             ty = quote! { Vec<#ty> };
-        } else if self.optional {
-            if self.recursive {
-                ty = quote! { Box<#ty> };
-            }
+        } else if self.recursive {
+            ty = quote! { Box<#ty> };
+        }
+
+        if self.optional && !self.multiple {
             ty = quote! { Option<#ty> };
         };
 

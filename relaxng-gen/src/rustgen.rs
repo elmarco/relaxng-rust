@@ -557,6 +557,11 @@ impl Context {
         let iter = self.state.iter_with_counter(true);
         xpath_from_iter(iter, true)
     }
+
+    fn xpath(&self) -> String {
+        let iter = self.state.iter_with_counter(false);
+        xpath_from_iter(iter, true)
+    }
 }
 
 fn visit_pattern(pattern: &Pattern, ctx: &mut Context) {
@@ -629,10 +634,14 @@ fn visit_pattern(pattern: &Pattern, ctx: &mut Context) {
             ctx.pop_state();
         }
         Pattern::Ref(_span, name, pat_ref) => {
-            let xpath = ctx.xpath_from_last_ref();
-            let recursively = if let Some(rec) = ctx.refs.get_mut(name) {
+            let xpath = ctx.xpath();
+            let recursively = if let Some(_ref) = ctx.refs.get_mut(name) {
                 debug!("Reference loop: {} at {}", name, xpath);
-                rec.set_recursive(true);
+                if _ref.recursive() {
+                    debug!("recursive reference");
+                    return;
+                }
+                _ref.set_recursive(true);
                 true
             } else {
                 ctx.refs.insert(name.clone(), Ref::new());
@@ -649,7 +658,12 @@ fn visit_pattern(pattern: &Pattern, ctx: &mut Context) {
             });
             visit_pattern(rule.pattern(), ctx);
             ctx.pop_state();
-            ctx.refs.remove(name);
+
+            if recursively {
+                ctx.refs.get_mut(name).unwrap().set_recursive(false);
+            } else {
+                ctx.refs.remove(name);
+            }
         }
         Pattern::DatatypeValue { datatype } => {
             use relaxng_model::datatype::*;
@@ -755,6 +769,10 @@ struct Ref {
 impl Ref {
     fn new() -> Self {
         Self::default()
+    }
+
+    fn recursive(&self) -> bool {
+        self.recursive
     }
 
     fn set_recursive(&mut self, recursive: bool) {

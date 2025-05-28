@@ -467,10 +467,10 @@ fn gen_from_xml_fn(
                     }
                     _ => {}
                 }
+                *from_child = child.next_sibling();
                 if let Ok(build) = builder.build() {
                     return Ok(build);
                 }
-                *from_child = child.next_sibling();
             }
 
             builder.build()
