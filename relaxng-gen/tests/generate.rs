@@ -92,6 +92,17 @@ fn tuto4() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn tuto4b() -> Result<(), Box<dyn std::error::Error>> {
+    let rng = locate_test_file("tuto4b.rnc")?;
+    let xml = locate_test_file("tuto4b.xml")?;
+
+    let output = test(rng, xml)?;
+    assert_snapshot!(output);
+
+    Ok(())
+}
+
+#[test]
 fn tuto5() -> Result<(), Box<dyn std::error::Error>> {
     let rng = locate_test_file("tuto5.rnc")?;
     let xml = locate_test_file("tuto5.xml")?;
@@ -142,7 +153,11 @@ fn test(rng: PathBuf, xml: PathBuf) -> Result<String, Box<dyn std::error::Error>
     cmd.arg(rng).arg(out_path).arg("--test").assert().success();
 
     let mut cargo_cmd = Command::new("cargo");
-    let output = cargo_cmd.current_dir(out_path).arg("build").arg("--offline").output()?;
+    let output = cargo_cmd
+        .current_dir(out_path)
+        .arg("build")
+        .arg("--offline")
+        .output()?;
     eprint!("{}", String::from_utf8_lossy(&output.stderr));
     if !output.status.success() {
         let path = temp_dir.into_path();

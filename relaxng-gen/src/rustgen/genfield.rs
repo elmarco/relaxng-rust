@@ -342,7 +342,7 @@ impl GenField {
 
                 let field_ident = self.single_ident();
 
-                let mut val = quote! { #ty::from_xml(node, child) };
+                let val = quote! { #ty::from_xml(node, child) };
                 if self.multiple {
                     from_xml_other.push(quote! {
                         loop {
@@ -356,6 +356,7 @@ impl GenField {
                     return;
                 }
 
+                let mut val = quote! { #val? };
                 if self.optional {
                     val = quote! { Some(#val) };
                 }
