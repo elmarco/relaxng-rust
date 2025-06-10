@@ -466,7 +466,10 @@ impl Context {
         let gen_enum = GenEnumRef::from(gen_enum);
         self.add_field(&field_name, FieldTy::Choice(gen_enum.clone()));
 
-        self.add_unit(GenUnit::Enum(gen_enum), xpath);
+        if !gen_enum.borrow().is_none() {
+            let unit = GenUnit::Enum(gen_enum);
+            self.add_unit(unit, xpath);
+        }
     }
 
     fn text(&mut self) {

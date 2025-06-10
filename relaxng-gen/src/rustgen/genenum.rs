@@ -35,6 +35,10 @@ impl GenEnum {
         Self::default()
     }
 
+    pub(crate) fn is_none(&self) -> bool {
+        self.name.is_none()
+    }
+
     pub(crate) fn name(&self) -> &str {
         self.name.as_ref().expect("missing enum name")
     }

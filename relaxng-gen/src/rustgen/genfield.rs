@@ -589,6 +589,7 @@ impl GenField {
             (FieldTy::Choice(gen_enum), FieldTy::Choice(other)) => {
                 let mut gen_enum = gen_enum.borrow_mut();
                 gen_enum.reconcile(other.take())?;
+                other.borrow_mut().set_name("FOOBAR".to_string());
             }
             _ => {
                 return Err(Error::Reconcile(self.ty.clone(), other.ty));
