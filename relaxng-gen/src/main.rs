@@ -16,7 +16,7 @@ struct Cli {
 
     /// Optional config path
     #[structopt(long = "config")]
-    config_path: Option<PathBuf>,
+    config_path: Vec<PathBuf>,
 
     /// Generate a test main.rs
     #[structopt(long, takes_value = false)]
@@ -35,9 +35,10 @@ fn main() {
 
     {
         let mut config = Config::default();
-        if let Some(config_path) = config_path {
-            let config_str = fs::read_to_string(config_path).expect("failed to read config");
-            config = toml::from_str(&config_str).expect("failed to parse config");
+        for path in config_path {
+            let config_str = fs::read_to_string(path).expect("failed to read config");
+            let c = toml::from_str(&config_str).expect("failed to parse config");
+            config.merge(c);
         }
         rustgen::generate(schema, out, test, config);
     }

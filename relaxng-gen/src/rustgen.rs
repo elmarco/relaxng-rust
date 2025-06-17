@@ -46,6 +46,11 @@ pub(crate) struct Config {
     #[serde(default)]
     pub rule: HashMap<XPath, ConfigRule>,
 }
+impl Config {
+    pub(crate) fn merge(&mut self, c: Config) {
+        self.rule.extend(c.rule);
+    }
+}
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConfigRule {

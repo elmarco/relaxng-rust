@@ -1,0 +1,5 @@
+[rule."/ref[@name='virYesNo']/choice[1]"]
+name = "YesNo"
+
+[rule."/ref[@name='virOnOff']/choice[1]"]
+name = "OnOff"

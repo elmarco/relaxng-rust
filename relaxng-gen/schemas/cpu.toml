@@ -15,9 +15,3 @@ name="NumaCache"
 
 [rule."/ref[@name='hostcpu']/element[@name='cpu'][1]/interleave[1]/optional/element[@name='features'][1]"]
 field_name = "cpu_features"
-
-[rule."/ref[@name='virYesNo']/choice[1]"]
-name = "YesNo"
-
-[rule."/ref[@name='virOnOff']/choice[1]"]
-name = "OnOff"
