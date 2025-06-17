@@ -45,26 +45,23 @@ mod datatypes;
 pub(crate) struct Config {
     #[serde(default)]
     pub rule: HashMap<XPath, ConfigRule>,
-    #[serde(default)]
-    pub field: HashMap<String, ConfigField>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConfigRule {
     pub name: Option<String>,
+    pub field_name: Option<String>,
     #[serde(default)]
     pub as_child: bool,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct ConfigField {
-    pub name: Option<String>,
 }
 
 impl ConfigRule {
     fn merge(&mut self, c: &ConfigRule) {
         if c.name.is_some() {
             self.name = c.name.clone();
+        }
+        if c.field_name.is_some() {
+            self.field_name = c.field_name.clone();
         }
 
         self.as_child |= c.as_child;
@@ -338,7 +335,7 @@ impl Context {
         }
     }
 
-    fn add_field_err(&mut self, xml_name: &str, ty: FieldTy) -> Result<()> {
+    fn add_field_err(&mut self, xml_name: &str, name: Option<&str>, ty: FieldTy) -> Result<()> {
         let mut field = GenField::new(xml_name, ty);
         let mut to_add = None;
         for state in self.state.iter_mut().rev() {
@@ -377,15 +374,20 @@ impl Context {
             }
         }
 
-        let name = match to_add {
+        if let Some(name) = name {
+            field.name = name.to_string();
+        }
+
+        let parent_name = match to_add {
             Some(State::Element { gen_struct, .. }) => format!("{}", gen_struct),
             Some(State::Choice { gen_enum, .. }) => format!("{}", gen_enum),
             _ => String::new(),
         };
-        let qfield = format!("{}.{}", name, field.name);
+
+        let field_name = format!("{}.{}", parent_name, field.name);
         debug!(
             "Adding field: {}{}{} {}",
-            qfield,
+            field_name,
             if field.multiple {
                 "[]"
             } else if field.optional {
@@ -396,12 +398,6 @@ impl Context {
             if field.in_ref { "+" } else { "" },
             field.serialize_as
         );
-
-        if let Some(config) = self.config.field.get(&qfield) {
-            if let Some(name) = &config.name {
-                field.name = name.clone();
-            }
-        }
 
         let new_unit = match to_add {
             Some(State::Element { gen_struct, .. }) => gen_struct.add_field(field)?,
@@ -422,8 +418,8 @@ impl Context {
         Ok(())
     }
 
-    fn add_field(&mut self, xml_name: &str, ty: FieldTy) {
-        if let Err(err) = self.add_field_err(xml_name, ty) {
+    fn add_field(&mut self, xml_name: &str, name: Option<&str>, ty: FieldTy) {
+        if let Err(err) = self.add_field_err(xml_name, name, ty) {
             panic!(
                 "Failed to add field: {} {}",
                 err,
@@ -443,7 +439,11 @@ impl Context {
             }
         }
         let name = &gen_struct.xml_name;
-        self.add_field(name, FieldTy::Xml(gen_struct.path()));
+        self.add_field(
+            name,
+            config.field_name.as_deref(),
+            FieldTy::Xml(gen_struct.path()),
+        );
         self.add_unit(GenUnit::Struct(gen_struct), &xpath);
     }
 
@@ -478,7 +478,11 @@ impl Context {
         gen_enum.set_name(name);
         let field_name = gen_enum.var_name().to_string();
         let gen_enum = GenEnumRef::from(gen_enum);
-        self.add_field(&field_name, FieldTy::Choice(gen_enum.clone()));
+        self.add_field(
+            &field_name,
+            config.field_name.as_deref(),
+            FieldTy::Choice(gen_enum.clone()),
+        );
 
         if !gen_enum.borrow().is_none() {
             let unit = GenUnit::Enum(gen_enum);
@@ -487,21 +491,25 @@ impl Context {
     }
 
     fn text(&mut self) {
-        self.add_field("value", FieldTy::Text);
+        // todo config rename
+        let name = None;
+        self.add_field("value", name, FieldTy::Text);
     }
 
     fn empty(&mut self) {
-        self.add_field("empty", FieldTy::Empty);
+        self.add_field("empty", None, FieldTy::Empty);
     }
 
     fn datatype_name(&mut self, ty: String) {
         let ty = syn::parse_str(&ty).unwrap();
 
-        self.add_field("value", FieldTy::Parse(ty));
+        // todo config rename
+        let name = None;
+        self.add_field("value", name, FieldTy::Parse(ty));
     }
 
     fn value(&mut self, val: &str) {
-        self.add_field(val, FieldTy::Value(val.to_string()));
+        self.add_field(val, None, FieldTy::Value(val.to_string()));
     }
 
     fn write_rs(&self, outdir: &Path) {
