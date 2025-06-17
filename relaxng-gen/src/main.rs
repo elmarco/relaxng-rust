@@ -30,16 +30,20 @@ fn main() {
         schema,
         out,
         test,
-        config_path,
+        mut config_path,
     } = Cli::from_args();
 
-    {
-        let mut config = Config::default();
-        for path in config_path {
-            let config_str = fs::read_to_string(path).expect("failed to read config");
-            let c = toml::from_str(&config_str).expect("failed to parse config");
-            config.merge(c);
-        }
-        rustgen::generate(schema, out, test, config);
+    let mut config = Config::default();
+    // TODO: make the compiler return the list of included files?
+    let schema_config = schema.with_extension("toml");
+    if schema_config.exists() {
+        config_path.push(schema_config);
     }
+    for path in config_path {
+        let config_str = fs::read_to_string(path).expect("failed to read config");
+        let c = toml::from_str(&config_str).expect("failed to parse config");
+        config.merge(c);
+    }
+
+    rustgen::generate(schema, out, test, config);
 }

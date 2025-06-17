@@ -54,25 +54,36 @@ impl Config {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConfigRule {
-    pub name: Option<String>,
-    pub field_name: Option<String>,
-    #[serde(default)]
-    pub as_child: bool,
+    // skip this element
     #[serde(default)]
     pub skip: bool,
+
+    // rename the associated Rust type
+    pub name: Option<String>,
+
+    // rename the associated field
+    pub field_name: Option<String>,
+
+    #[serde(default)]
+    pub as_child: bool,
+
+    // used to indicate that the parent type is this
+    // For cases like: <element><choice>...</choice></element> -> choice
+    #[serde(default)]
+    pub parent_is_this: bool,
 }
 
 impl ConfigRule {
     fn merge(&mut self, c: &ConfigRule) {
+        self.skip |= c.skip;
         if c.name.is_some() {
             self.name = c.name.clone();
         }
         if c.field_name.is_some() {
             self.field_name = c.field_name.clone();
         }
-
         self.as_child |= c.as_child;
-        self.skip |= c.skip;
+        self.parent_is_this |= c.parent_is_this;
     }
 }
 
@@ -480,6 +491,9 @@ impl Context {
     }
 
     fn pop_choice(&mut self, mut gen_enum: GenEnum, config: &ConfigRule, xpath: &str) {
+        if config.parent_is_this {
+            panic!();
+        }
         let name = if let Some(ref name) = config.name {
             name.clone()
         } else {
