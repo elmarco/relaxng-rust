@@ -6,7 +6,7 @@ use pluralizer::pluralize;
 use proc_macro2::{Literal, TokenStream};
 use quote::{ToTokens, TokenStreamExt, format_ident, quote};
 use syn::{Ident, Path, parse_quote};
-use tracing::{debug, warn};
+use tracing::{debug, trace};
 
 use crate::{
     rustgen::{Error, genenum::GenEnum},
@@ -518,7 +518,7 @@ impl GenField {
             return Ok(None);
         }
 
-        warn!(
+        trace!(
             "Reconciling fields: {:#?} and {:#?} {}",
             self,
             other,

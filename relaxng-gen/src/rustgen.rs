@@ -16,6 +16,7 @@ use std::path::PathBuf;
 use std::process::exit;
 use std::str::FromStr;
 use tracing::debug;
+use tracing::trace;
 use tracing::warn;
 
 use relaxng_model::model::NameClass;
@@ -44,6 +45,8 @@ mod datatypes;
 pub(crate) struct Config {
     #[serde(default)]
     pub rule: HashMap<XPath, ConfigRule>,
+    #[serde(default)]
+    pub field: HashMap<String, ConfigField>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -51,6 +54,11 @@ pub struct ConfigRule {
     pub name: Option<String>,
     #[serde(default)]
     pub as_child: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConfigField {
+    pub name: Option<String>,
 }
 
 impl ConfigRule {
@@ -374,10 +382,10 @@ impl Context {
             Some(State::Choice { gen_enum, .. }) => format!("{}", gen_enum),
             _ => String::new(),
         };
+        let qfield = format!("{}.{}", name, field.name);
         debug!(
-            "Adding field: {}.{}{}{} {}",
-            name,
-            field.name,
+            "Adding field: {}{}{} {}",
+            qfield,
             if field.multiple {
                 "[]"
             } else if field.optional {
@@ -388,6 +396,12 @@ impl Context {
             if field.in_ref { "+" } else { "" },
             field.serialize_as
         );
+
+        if let Some(config) = self.config.field.get(&qfield) {
+            if let Some(name) = &config.name {
+                field.name = name.clone();
+            }
+        }
 
         let new_unit = match to_add {
             Some(State::Element { gen_struct, .. }) => gen_struct.add_field(field)?,
@@ -500,10 +514,10 @@ impl Context {
         fn conflict(unit: GenUnit, exist: &mut GenUnit) -> Result<Vec<GenUnit>> {
             let mut new_units = Vec::new();
             if unit != *exist {
-                debug!("Conflicting unit: {}", Comparison::new(exist, &unit));
+                trace!("Conflicting unit: {}", Comparison::new(exist, &unit));
                 let old = exist.clone();
                 new_units = exist.reconcile(unit)?;
-                debug!("Resulting unit: {}", Comparison::new(&old, exist));
+                trace!("Resulting unit: {}", Comparison::new(&old, exist));
             }
 
             Ok(new_units)
