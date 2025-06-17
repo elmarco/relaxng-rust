@@ -194,10 +194,11 @@ impl GenField {
         from_xml_elems: &mut Vec<TokenStream>,
         from_xml_text: &mut Vec<TokenStream>,
         from_xml_other: &mut Vec<TokenStream>,
+        for_enum: bool,
     ) {
         match &self.ty {
             FieldTy::Xml(ty) => {
-                self.gen_from_ty_xml(ty, from_xml_elems);
+                self.gen_from_ty_xml(ty, from_xml_elems, for_enum);
             }
             FieldTy::Value(value) => {
                 self.gen_from_value(value, from_xml_attrs, from_xml_text);
@@ -216,17 +217,23 @@ impl GenField {
         }
     }
 
-    fn gen_from_ty_xml(&self, ty: &Path, from_xml_elems: &mut Vec<TokenStream>) {
-        let field_xml_name = &self.xml_name;
+    fn gen_from_ty_xml(&self, ty: &Path, from_xml_elems: &mut Vec<TokenStream>, for_enum: bool) {
+        let mut arm = self.xml_name.to_token_stream();
         let field_ident = self.single_ident();
 
-        let mut val = quote! { #ty::from_xml(&child)? };
-        if self.optional && !self.multiple {
-            val = quote! { Some(#val) };
-        }
+        let from_xml = quote! { #ty::from_xml(&child) };
+        let val = if self.optional && !self.multiple {
+            quote! { Some(#from_xml?) }
+        } else {
+            quote! { #from_xml? }
+        };
 
+        if for_enum {
+            // fixme: use if_let_guard when stabilized
+            arm = quote! { #arm if #from_xml.is_ok() };
+        };
         from_xml_elems.push(quote! {
-            #field_xml_name => { builder.#field_ident(#val)?; }
+            #arm => { builder.#field_ident(#val)?; }
         });
     }
 
@@ -333,7 +340,7 @@ impl GenField {
                 from_xml_attrs.push(attr);
             }
             SerializeAs::Element => {
-                self.gen_from_ty_xml(ty, from_xml_elems);
+                self.gen_from_ty_xml(ty, from_xml_elems, false);
             }
             SerializeAs::Inline => {
                 from_xml_other.push(quote! {

@@ -53,6 +53,8 @@ pub struct ConfigRule {
     pub field_name: Option<String>,
     #[serde(default)]
     pub as_child: bool,
+    #[serde(default)]
+    pub skip: bool,
 }
 
 impl ConfigRule {
@@ -65,6 +67,7 @@ impl ConfigRule {
         }
 
         self.as_child |= c.as_child;
+        self.skip |= c.skip;
     }
 }
 
@@ -430,6 +433,9 @@ impl Context {
 
     fn pop_struct(&mut self, mut gen_struct: GenStruct, config: &ConfigRule, xpath: &str) {
         let mut xpath = xpath.to_string();
+        if config.skip {
+            return;
+        }
         if let Some(ref name) = config.name {
             let parent_name = gen_struct.mod_name();
             gen_struct.set_name(name);
@@ -438,10 +444,14 @@ impl Context {
                 xpath.push_str(&format!("/{}", name));
             }
         }
-        let name = &gen_struct.xml_name;
+        let mut field_name = gen_struct.var_name().to_string();
+        if let Some(config_field_name) = &config.field_name {
+            field_name = config_field_name.to_string();
+        }
+
         self.add_field(
-            name,
-            config.field_name.as_deref(),
+            &gen_struct.xml_name,
+            Some(&field_name),
             FieldTy::Xml(gen_struct.path()),
         );
         self.add_unit(GenUnit::Struct(gen_struct), &xpath);

@@ -200,6 +200,7 @@ impl ToTokens for GenStruct {
                 &mut from_xml_elems,
                 &mut from_xml_text,
                 &mut from_xml_other,
+                false,
             );
         }
 

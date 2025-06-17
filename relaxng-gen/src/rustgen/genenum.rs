@@ -119,12 +119,15 @@ impl GenEnum {
         let mut from_xml_text = Vec::new();
         let mut from_xml_other = Vec::new();
 
-        for field in self.all_unique_fields() {
+        let fields = self.all_unique_fields();
+
+        for field in fields {
             field.gen_from_xml(
                 &mut from_xml_attrs,
                 &mut from_xml_elems,
                 &mut from_xml_text,
                 &mut from_xml_other,
+                true,
             );
         }
 
@@ -393,7 +396,7 @@ impl ToTokens for GenEnum {
                 where
                     W: std::io::Write,
                 {
-                    use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+                    use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 
                     match self {
                         #(#to_xml),*

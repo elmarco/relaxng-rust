@@ -1,6 +1,9 @@
 [rule."/choice[1]"]
 name = "CPU"
 
+[rule."/ref[@name='cpuModel']/element[@name='model'][1]/group[1]/choice[1]"]
+name = "OptionalText"
+
 [rule."/ref[@name='guestcpu']/element[@name='cpu']"]
 name="GuestCPU"
 
@@ -9,3 +12,6 @@ name="HostCPU"
 
 [rule."/ref[@name='numaCache']/element[@name='cache']"]
 name="NumaCache"
+
+[rule."/ref[@name='hostcpu']/element[@name='cpu'][1]/interleave[1]/optional/element[@name='features'][1]"]
+field_name = "cpu_features"
