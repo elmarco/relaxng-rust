@@ -67,10 +67,10 @@ impl GenTree {
     pub(crate) fn write_rs_xpath(&self, src: &std::path::Path, xpath: &str) {
         let mut path = src.to_path_buf();
         if let Some(unit) = &self.unit {
-            debug!("Writing file {:?} {}", path, xpath);
             let ts = unit.token_stream();
             if !ts.is_empty() {
                 path.set_extension("rs");
+                debug!("Writing file {:?} for {}", path, xpath);
                 if path.exists() {
                     error!(
                         "File already exists at {:?}, rename with xpath config \"{}\"?",
