@@ -3,3 +3,6 @@ name = "YesNo"
 
 [rule."/ref[@name='virOnOff']/choice[1]"]
 name = "OnOff"
+
+[rule."/ref[@name='UUID']/choice[1]"]
+skip = true

@@ -452,6 +452,9 @@ impl Context {
         if config.skip {
             return;
         }
+        if gen_struct.fields.is_enum() {
+            warn!("Structure is an enum {}", xpath);
+        }
         if let Some(ref name) = config.name {
             let parent_name = gen_struct.mod_name();
             gen_struct.set_name(name);
@@ -492,19 +495,32 @@ impl Context {
 
     fn pop_choice(&mut self, mut gen_enum: GenEnum, config: &ConfigRule, xpath: &str) {
         if config.parent_is_this {
-            panic!();
+            match self.state.pop().unwrap() {
+                State::Element { gen_struct, .. } => {
+                    gen_enum.set_name(gen_struct.name);
+                }
+                _ => panic!("Unexpected state"),
+            }
+            self.push_state(State::Choice { gen_enum });
+            return;
         }
+
         let name = if let Some(ref name) = config.name {
-            name.clone()
-        } else {
-            self.name_from_state().unwrap_or_else(|| {
+            Some(name.clone())
+        } else if gen_enum.name.is_none() {
+            Some(self.name_from_state().unwrap_or_else(|| {
                 self.choice_count += 1;
                 warn!("Unnamed enum at {}", xpath);
                 format!("Choice{}", self.choice_count)
-            })
+            }))
+        } else {
+            None
         };
 
-        gen_enum.set_name(name);
+        if let Some(name) = name {
+            gen_enum.set_name(name);
+        }
+
         let field_name = gen_enum.var_name().to_string();
         let gen_enum = GenEnumRef::from(gen_enum);
         self.add_field(

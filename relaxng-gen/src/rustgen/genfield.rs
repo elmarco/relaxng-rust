@@ -802,6 +802,18 @@ impl GenFields {
 
         Ok(ret)
     }
+
+    pub(crate) fn is_enum(&self) -> bool {
+        if self.fields.values().len() == 1 {
+            if let Some(field) = self.fields.values().next() {
+                field.ty.is_choice()
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
 }
 
 pub(crate) fn gen_mods_from_fields<'a>(fields: impl Iterator<Item = &'a GenField>) -> TokenStream {
