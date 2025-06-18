@@ -300,6 +300,14 @@ impl StateStack {
         self.states.iter()
     }
 
+    fn iter_with_counter_to(
+        &self,
+        to_add: &State,
+    ) -> impl DoubleEndedIterator<Item = &StateCounter> {
+        let end = self.states.iter().rfind(|x| x.state == to_add);
+        self.states[begin..end].iter()
+    }
+
     fn iter(&self) -> impl DoubleEndedIterator<Item = &State> {
         self.states.iter().map(|s| &s.state)
     }
@@ -457,9 +465,14 @@ impl Context {
             }
         };
 
-        if let Some(_unit) = new_unit {
-            todo!()
-            // self.add_unit_err(unit, None)?;
+        if let Some(unit) = new_unit {
+            let xpath = if let Some(to_add) = to_add {
+                self.xpath_from_last_ref_to(to_add)
+            } else {
+                format!("")
+            };
+            debug!(?xpath, "new unit");
+            self.add_unit_err(unit, &xpath)?;
         }
 
         Ok(())
@@ -666,6 +679,11 @@ impl Context {
 
     fn xpath(&self) -> String {
         let iter = self.state.iter_with_counter(false);
+        xpath_from_iter(iter, true)
+    }
+
+    fn xpath_from_last_ref_to(&self, to_add: &State) -> String {
+        let iter = self.state.iter_with_counter_to(to_add);
         xpath_from_iter(iter, true)
     }
 }

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
+use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use heck::ToUpperCamelCase;
 use indexmap::IndexMap;
@@ -18,7 +18,7 @@ pub(crate) struct GenEnum {
     // rs type name
     pub(crate) name: Option<String>,
     pub(crate) simple_variants: GenFields,
-    pub(crate) group_variants: HashMap<String, GenFields>,
+    pub(crate) group_variants: IndexMap<String, GenFields>,
     pub(crate) group: Option<GenFields>,
     pub(crate) is_complex: bool,
     pub(crate) not_allowed: bool,
@@ -65,14 +65,13 @@ impl GenEnum {
         if !(field.is_value() || field.is_text() || field.is_parse()) {
             self.is_complex = true;
         }
+
         if let Some(group) = &mut self.group {
             self.is_complex = true;
-            group.add_field(field, true)?;
+            group.add_field(field, true)
         } else {
-            self.simple_variants.add_field(field, false)?;
+            self.simple_variants.add_field(field, false)
         }
-
-        Ok(None)
     }
 
     pub(crate) fn push_group(&mut self) {
