@@ -5,4 +5,4 @@ name = "YesNo"
 name = "OnOff"
 
 [rule."/ref[@name='UUID']/choice[1]"]
-skip = true
+replace_with_text = true

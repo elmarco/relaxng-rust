@@ -64,6 +64,10 @@ pub struct ConfigRule {
     // rename the associated field
     pub field_name: Option<String>,
 
+    // replace with Text
+    #[serde(default)]
+    pub replace_with_text: bool,
+
     #[serde(default)]
     pub as_child: bool,
 
@@ -71,6 +75,11 @@ pub struct ConfigRule {
     // For cases like: <element><choice>...</choice></element> -> choice
     #[serde(default)]
     pub parent_is_this: bool,
+
+    // allow the structure to be just an enum,
+    // usually because the enum is a common type
+    #[serde(default)]
+    pub allow_structure_is_enum: bool,
 }
 
 impl ConfigRule {
@@ -82,8 +91,10 @@ impl ConfigRule {
         if c.field_name.is_some() {
             self.field_name = c.field_name.clone();
         }
+        self.replace_with_text |= c.replace_with_text;
         self.as_child |= c.as_child;
         self.parent_is_this |= c.parent_is_this;
+        self.allow_structure_is_enum |= c.allow_structure_is_enum;
     }
 }
 
@@ -452,7 +463,7 @@ impl Context {
         if config.skip {
             return;
         }
-        if gen_struct.fields.is_enum() {
+        if gen_struct.fields.is_enum() && !config.allow_structure_is_enum {
             warn!("Structure is an enum {}", xpath);
         }
         if let Some(ref name) = config.name {
@@ -494,6 +505,10 @@ impl Context {
     }
 
     fn pop_choice(&mut self, mut gen_enum: GenEnum, config: &ConfigRule, xpath: &str) {
+        if config.skip {
+            return;
+        }
+
         if config.parent_is_this {
             match self.state.pop().unwrap() {
                 State::Element { gen_struct, .. } => {
@@ -521,17 +536,21 @@ impl Context {
             gen_enum.set_name(name);
         }
 
-        let field_name = gen_enum.var_name().to_string();
-        let gen_enum = GenEnumRef::from(gen_enum);
-        self.add_field(
-            &field_name,
-            config.field_name.as_deref(),
-            FieldTy::Choice(gen_enum.clone()),
-        );
+        let xml_name = gen_enum.var_name().to_string();
+        if config.replace_with_text {
+            self.add_field(&xml_name, config.field_name.as_deref(), FieldTy::Text);
+        } else {
+            let gen_enum = GenEnumRef::from(gen_enum);
+            self.add_field(
+                &xml_name,
+                config.field_name.as_deref(),
+                FieldTy::Choice(gen_enum.clone()),
+            );
 
-        if !gen_enum.borrow().is_none() {
-            let unit = GenUnit::Enum(gen_enum);
-            self.add_unit(unit, xpath);
+            if !gen_enum.borrow().is_none() {
+                let unit = GenUnit::Enum(gen_enum);
+                self.add_unit(unit, xpath);
+            }
         }
     }
 
