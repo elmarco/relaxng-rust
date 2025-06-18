@@ -4,7 +4,7 @@ use crate::model::Pattern;
 use codemap::CodeMap;
 
 use nom::error::Error;
-use nom_locate::{LocatedSpan, impl_compare};
+use nom_locate::LocatedSpan;
 use relaxng_syntax::types::{
     DatatypeName, Name, NamespaceUriLiteral, NamespacedName, NcName, QName, Schema,
 };

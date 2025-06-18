@@ -6,7 +6,7 @@ use pluralizer::pluralize;
 use proc_macro2::{Literal, TokenStream};
 use quote::{ToTokens, TokenStreamExt, format_ident, quote};
 use syn::{Ident, Path, parse_quote};
-use tracing::{debug, trace};
+use tracing::trace;
 
 use crate::{
     rustgen::{Error, genenum::GenEnum},
@@ -121,7 +121,8 @@ impl GenField {
     }
 
     pub(crate) fn as_element(&self) -> bool {
-        matches!(self.serialize_as, SerializeAs::Element)
+        // matches!(self.serialize_as, SerializeAs::Element)
+        false
     }
 
     pub(crate) fn as_inline(&self) -> bool {
@@ -256,7 +257,6 @@ impl GenField {
                 };
                 from_xml_attrs.push(pat)
             }
-            SerializeAs::Element => todo!(),
             SerializeAs::Inline => {
                 let pat = quote! {
                     #value => {
@@ -303,10 +303,6 @@ impl GenField {
                 };
                 from_xml_attrs.push(pat)
             }
-            SerializeAs::Element => {
-                debug!(?self);
-                todo!();
-            }
             SerializeAs::Inline => {
                 let pat = quote! {
                     _ => { #build_field }
@@ -320,7 +316,7 @@ impl GenField {
         &self,
         ty: &Path,
         from_xml_attrs: &mut Vec<TokenStream>,
-        from_xml_elems: &mut Vec<TokenStream>,
+        _from_xml_elems: &mut Vec<TokenStream>,
         from_xml_other: &mut Vec<TokenStream>,
     ) {
         let xml_name = &self.xml_name;
@@ -339,9 +335,9 @@ impl GenField {
                 };
                 from_xml_attrs.push(attr);
             }
-            SerializeAs::Element => {
-                self.gen_from_ty_xml(ty, from_xml_elems, false);
-            }
+            // SerializeAs::Element => {
+            //     self.gen_from_ty_xml(ty, from_xml_elems, false);
+            // }
             SerializeAs::Inline => {
                 from_xml_other.push(quote! {
                     let child = &mut node.first_child();
@@ -410,7 +406,7 @@ impl GenField {
                 let name_b = self.xml_name_b();
                 quote! { start.push_attribute((&#name_b[..], quick_xml::escape::escape(#val).as_bytes())); }
             }
-            SerializeAs::Element | SerializeAs::Inline => {
+            SerializeAs::Inline => {
                 if self.is_text() || self.is_parse() || self.is_value() {
                     quote! { writer.write_event(Event::Text(BytesText::new(#val)))?; }
                 } else {
@@ -699,7 +695,7 @@ impl FieldTy {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub(crate) enum SerializeAs {
     Attribute,
-    Element,
+    // Element,
     Inline,
 }
 
@@ -707,7 +703,7 @@ impl Display for SerializeAs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SerializeAs::Attribute => write!(f, "@"),
-            SerializeAs::Element => write!(f, "<>"),
+            //SerializeAs::Element => write!(f, "<>"),
             SerializeAs::Inline => write!(f, ""),
         }
     }

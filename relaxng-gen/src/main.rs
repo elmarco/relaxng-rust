@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use rustgen::Config;
 use structopt::StructOpt;
