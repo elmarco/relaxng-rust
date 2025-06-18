@@ -11,6 +11,7 @@ use relaxng_model::Syntax;
 use relaxng_model::model::DefineRule;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::exit;
@@ -49,6 +50,14 @@ pub(crate) struct Config {
 impl Config {
     pub(crate) fn merge(&mut self, c: Config) {
         self.rule.extend(c.rule);
+    }
+
+    pub(crate) fn load_toml(&mut self, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        debug!("Loading TOML configuration from {}...", path.display());
+        let config_str = fs::read_to_string(path)?;
+        let c = toml::from_str(&config_str)?;
+        self.merge(c);
+        Ok(())
     }
 }
 
@@ -115,7 +124,7 @@ impl fmt::Display for Error {
 
 pub(crate) type Result<T, E = Error> = std::result::Result<T, E>;
 
-pub(crate) fn generate(schema: PathBuf, out: PathBuf, test: bool, config: Config) {
+pub(crate) fn generate(schema: PathBuf, out: PathBuf, test: bool, mut config: Config) {
     let mut compiler = if schema.extension().map(|ext| ext == "rng").unwrap_or(false) {
         Compiler::new(FsFiles, Syntax::Xml)
     } else {
@@ -128,6 +137,14 @@ pub(crate) fn generate(schema: PathBuf, out: PathBuf, test: bool, config: Config
             exit(1);
         }
     };
+    for loaded in compiler.loaded() {
+        let path = loaded.with_extension("toml");
+        if path.exists() {
+            config
+                .load_toml(&path)
+                .expect("Failed to load TOML configuration");
+        }
+    }
     let define = model.as_ref().borrow();
     let pattern = define.as_ref().expect("A define rule").pattern();
     let mut ctx = Context::new(config);

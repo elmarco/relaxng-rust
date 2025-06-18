@@ -4,7 +4,7 @@ use crate::model::Pattern;
 use codemap::CodeMap;
 
 use nom::error::Error;
-use nom_locate::LocatedSpan;
+use nom_locate::{LocatedSpan, impl_compare};
 use relaxng_syntax::types::{
     DatatypeName, Name, NamespaceUriLiteral, NamespacedName, NcName, QName, Schema,
 };
@@ -685,6 +685,10 @@ impl<FS: Files> Compiler<FS> {
 
     pub fn set_syntax(&mut self, syntax: Syntax) {
         self.syntax = syntax;
+    }
+
+    pub fn loaded(&self) -> impl Iterator<Item = &PathBuf> {
+        self.loaded.keys()
     }
 
     // TODO: provide a simpler return-type
