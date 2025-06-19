@@ -492,7 +492,8 @@ impl Context {
 
         let new_units = std::mem::take(&mut gen_struct.units);
         for new_unit in new_units {
-            self.add_unit(new_unit, &xpath);
+            let modname = new_unit.mod_name();
+            self.add_unit(new_unit, &format!("{}/{}", xpath, modname));
         }
 
         self.add_field(

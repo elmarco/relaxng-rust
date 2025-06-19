@@ -1,0 +1,5 @@
+[rule."/ref[@name='devSeclabel']/element[@name='seclabel'][1]/group[1]/choice[1]/group[1]"]
+name = "NameThis"
+
+[rule."/ref[@name='devSeclabel']/element[@name='seclabel'][1]/group[1]/choice[1]"]
+name = "SecLabelChoice"

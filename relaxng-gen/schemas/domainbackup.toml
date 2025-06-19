@@ -1,0 +1,50 @@
+[rule."/ref[@name='domainbackup']/element[@name='domainbackup'][1]/interleave[1]/choice[1]"]
+name = "PushOrPull"
+
+[rule."/ref[@name='domainbackup']/element[@name='domainbackup'][1]/interleave[1]/choice[1]/group[1]"]
+name = "Push"
+
+[rule."/ref[@name='domainbackup']/element[@name='domainbackup'][1]/interleave[1]/choice[1]/group[2]"]
+name = "Pull"
+
+[rule."/ref[@name='backupPushDriver']/optional/element[@name='driver'][1]"]
+name = "PushDriver"
+
+[rule."/ref[@name='backupPullDriver']/optional/element[@name='driver'][1]"]
+name = "PullDriver"
+
+[rule."/ref[@name='backupDisksPush']/optional/element[@name='disks'][1]/oneOrMore/element[@name='disk'][1]/group[1]/choice[1]/group[1]/interleave[1]/optional/element[@name='target'][1]"]
+name = "FileTarget"
+
+[rule."/ref[@name='backupDisksPush']/optional/element[@name='disks'][1]/oneOrMore/element[@name='disk'][1]/group[1]/choice[1]/group[2]/interleave[1]/optional/element[@name='target'][1]"]
+name = "BlockTarget"
+
+[rule."/ref[@name='backupDisksPush']/optional/element[@name='disks'][1]/oneOrMore/element[@name='disk'][1]/group[1]/choice[1]/group[1]"]
+name = "File"
+
+[rule."/ref[@name='backupDisksPush']/optional/element[@name='disks'][1]/oneOrMore/element[@name='disk'][1]/group[1]/choice[1]/group[2]"]
+name = "Block"
+
+[rule."/ref[@name='backupDisksPush']/optional/element[@name='disks'][1]/oneOrMore/element[@name='disk'][1]/group[1]/choice[1]"]
+name = "BackupDiskType"
+
+[rule."/ref[@name='backupDisksPush']/optional/element[@name='disks'][1]"]
+name = "PushDisks"
+
+[rule."/ref[@name='backupDisksPull']/optional/element[@name='disks'][1]/oneOrMore/element[@name='disk'][1]/group[1]/choice[1]/group[1]/optional/interleave[1]/element[@name='scratch'][1]"]
+name = "FileScratch"
+
+[rule."/ref[@name='backupDisksPull']/optional/element[@name='disks'][1]/oneOrMore/element[@name='disk'][1]/group[1]/choice[1]/group[2]/interleave[1]/element[@name='scratch'][1]"]
+name = "BlockScratch"
+
+[rule."/ref[@name='backupDisksPull']/optional/element[@name='disks'][1]/oneOrMore/element[@name='disk'][1]/group[1]/choice[1]"]
+name = "BackupDiskType"
+
+[rule."/ref[@name='backupDisksPull']/optional/element[@name='disks'][1]"]
+name = "PullDisks"
+
+[rule."/ref[@name='domainbackup']/element[@name='domainbackup'][1]/interleave[1]/choice[1]/group[2]/interleave[1]/element[@name='server'][1]/group[1]/choice[1]"]
+name = "Transport"
+
+[rule."/ref[@name='backupDiskMode']/optional/choice[1]/group[1]"]
+name = "BackupDiskModeIncremental"
