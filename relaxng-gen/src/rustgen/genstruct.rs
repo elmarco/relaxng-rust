@@ -23,6 +23,7 @@ pub(crate) struct GenStruct {
     pub(crate) fields: GenFields,
     pub(crate) xml_name: String,
     pub(crate) not_allowed: bool,
+    pub(crate) units: Vec<GenUnit>,
 }
 
 impl Display for GenStruct {
@@ -40,6 +41,7 @@ impl GenStruct {
             xml_name,
             fields: Default::default(),
             not_allowed: false,
+            units: Vec::new(),
         }
     }
 
@@ -47,13 +49,16 @@ impl GenStruct {
         self.name = safe_ty_name(name);
     }
 
-    pub(crate) fn add_field(&mut self, field: GenField) -> Result<Option<GenUnit>> {
-        let res = if field.ty.is_empty() {
-            None
-        } else {
-            self.fields.add_field(field, true)?
-        };
-        Ok(res)
+    pub(crate) fn add_field(&mut self, field: GenField) -> Result<()> {
+        if field.ty.is_empty() {
+            return Ok(());
+        }
+
+        if let Some(new_unit) = self.fields.add_field(field, true)? {
+            self.add_unit(new_unit);
+        }
+
+        Ok(())
     }
 
     pub(crate) fn name(&self) -> &str {
@@ -149,6 +154,11 @@ impl GenStruct {
 
     pub(crate) fn mod_name(&self) -> String {
         self.var_name().to_string()
+    }
+
+    fn add_unit(&mut self, new_unit: GenUnit) {
+        dbg!(&new_unit);
+        self.units.push(new_unit);
     }
 }
 

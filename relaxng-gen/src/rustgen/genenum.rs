@@ -22,6 +22,7 @@ pub(crate) struct GenEnum {
     pub(crate) group: Option<GenFields>,
     pub(crate) is_complex: bool,
     pub(crate) not_allowed: bool,
+    pub(crate) units: Vec<GenUnit>,
 }
 
 impl Display for GenEnum {
@@ -61,17 +62,23 @@ impl GenEnum {
         format_ident!("{}Builder", self.name())
     }
 
-    pub(crate) fn add_field(&mut self, field: GenField) -> Result<Option<GenUnit>> {
+    pub(crate) fn add_field(&mut self, field: GenField) -> Result<()> {
         if !(field.is_value() || field.is_text() || field.is_parse()) {
             self.is_complex = true;
         }
 
-        if let Some(group) = &mut self.group {
+        let new_unit = if let Some(group) = &mut self.group {
             self.is_complex = true;
-            group.add_field(field, true)
+            group.add_field(field, true)?
         } else {
-            self.simple_variants.add_field(field, false)
+            self.simple_variants.add_field(field, false)?
+        };
+
+        if let Some(new_unit) = new_unit {
+            self.add_unit(new_unit);
         }
+
+        Ok(())
     }
 
     pub(crate) fn push_group(&mut self) {
@@ -206,6 +213,11 @@ impl GenEnum {
 
     pub(crate) fn set_not_allowed(&mut self, not_allowed: bool) {
         self.not_allowed = not_allowed;
+    }
+
+    fn add_unit(&mut self, new_unit: GenUnit) {
+        dbg!(&new_unit);
+        self.units.push(new_unit);
     }
 }
 

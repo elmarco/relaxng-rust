@@ -300,14 +300,6 @@ impl StateStack {
         self.states.iter()
     }
 
-    fn iter_with_counter_to(
-        &self,
-        to_add: &State,
-    ) -> impl DoubleEndedIterator<Item = &StateCounter> {
-        let end = self.states.iter().rfind(|x| x.state == to_add);
-        self.states[begin..end].iter()
-    }
-
     fn iter(&self) -> impl DoubleEndedIterator<Item = &State> {
         self.states.iter().map(|s| &s.state)
     }
@@ -454,26 +446,15 @@ impl Context {
             field.serialize_as
         );
 
-        let new_unit = match to_add {
+        match to_add {
             Some(State::Element { gen_struct, .. }) => gen_struct.add_field(field)?,
             Some(State::Choice { gen_enum, .. }) => gen_enum.add_field(field)?,
             _ => {
                 let ty_path = field.ty_path().unwrap();
                 let path = ty_path.get_ident().unwrap();
                 self.root_name = Some((field.name.to_string(), path.to_string()));
-                None
             }
         };
-
-        if let Some(unit) = new_unit {
-            let xpath = if let Some(to_add) = to_add {
-                self.xpath_from_last_ref_to(to_add)
-            } else {
-                format!("")
-            };
-            debug!(?xpath, "new unit");
-            self.add_unit_err(unit, &xpath)?;
-        }
 
         Ok(())
     }
@@ -507,6 +488,11 @@ impl Context {
         let mut field_name = gen_struct.var_name().to_string();
         if let Some(config_field_name) = &config.field_name {
             field_name = config_field_name.to_string();
+        }
+
+        let new_units = std::mem::take(&mut gen_struct.units);
+        for new_unit in new_units {
+            self.add_unit(new_unit, &xpath);
         }
 
         self.add_field(
@@ -548,6 +534,12 @@ impl Context {
             }
             self.push_state(State::Choice { gen_enum });
             return;
+        }
+
+        let new_units = std::mem::take(&mut gen_enum.units);
+        for new_unit in new_units {
+            let modname = new_unit.mod_name();
+            self.add_unit(new_unit, &format!("{}/{}", xpath, modname));
         }
 
         let name = if let Some(ref name) = config.name {
@@ -679,11 +671,6 @@ impl Context {
 
     fn xpath(&self) -> String {
         let iter = self.state.iter_with_counter(false);
-        xpath_from_iter(iter, true)
-    }
-
-    fn xpath_from_last_ref_to(&self, to_add: &State) -> String {
-        let iter = self.state.iter_with_counter_to(to_add);
         xpath_from_iter(iter, true)
     }
 }
