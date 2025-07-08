@@ -1,0 +1,9 @@
+---
+source: relaxng-dump/tests/dump.rs
+expression: output
+---
+<test name>
+  <name>
+    text
+  </name>
+</test>

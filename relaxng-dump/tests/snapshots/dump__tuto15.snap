@@ -1,0 +1,25 @@
+---
+source: relaxng-dump/tests/dump.rs
+expression: output
+---
+<html>
+  <body>
+    <table class>
+      <tr class>
+        <td class>
+          <span class>
+            text
+          </span>
+        </td>
+        <td class>
+          text
+        </td>
+      </tr>
+    </table>
+  </body>
+  <head>
+    <title>
+      text
+    </title>
+  </head>
+</html>

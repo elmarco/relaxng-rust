@@ -1,0 +1,4 @@
+start = element doc { inline }
+inline =
+  (element bold { inline },
+   element italic { inline })

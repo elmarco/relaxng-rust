@@ -1,0 +1,12 @@
+---
+source: relaxng-dump/tests/dump.rs
+assertion_line: 34
+expression: output
+---
+<root>
+  <bar/>
+  <baz/>
+  <foo/>
+  <n1/>
+  <n2/>
+</root>

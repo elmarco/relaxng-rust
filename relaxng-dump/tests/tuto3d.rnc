@@ -1,0 +1,6 @@
+element addressBook {
+  element foo {
+    attribute match { "foo" | "bar" },
+    attribute email { text }
+  }*
+}

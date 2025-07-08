@@ -1,0 +1,4 @@
+start = element doc { inline }
+inline =
+  (attribute style { text },
+   attribute name{ text })

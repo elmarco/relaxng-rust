@@ -1,0 +1,5 @@
+---
+source: relaxng-dump/tests/dump.rs
+expression: output
+---
+<number/>

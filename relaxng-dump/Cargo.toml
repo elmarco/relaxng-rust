@@ -1,0 +1,13 @@
+[package]
+name = "relaxng-dump"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+relaxng-model = { path = "../relaxng-model" }
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+
+[dev-dependencies]
+insta = "1.43.1"
+

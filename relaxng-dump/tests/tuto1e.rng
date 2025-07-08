@@ -1,0 +1,18 @@
+<element name="addressBook" xmlns="http://relaxng.org/ns/structure/1.0">
+    <element name="card">
+      <element name="name">
+        <text/>
+      </element>
+      <element name="email">
+        <text/>
+      </element>
+    </element>
+    <element name="card">
+      <element name="name">
+        <text/>
+      </element>
+      <element name="email">
+        <text/>
+      </element>
+    </element>
+</element>
