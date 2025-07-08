@@ -5,6 +5,7 @@ members = [
     "relaxng-model",
     "relaxng-validator",
     "relaxng-tool",
+    "relaxng-dump",
 ]
 
 [profile.release]

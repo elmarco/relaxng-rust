@@ -1,0 +1,10 @@
+---
+source: relaxng-dump/tests/dump.rs
+expression: output
+---
+<doc>
+  <bold/>
+  <italic/>
+  <span style/>
+  text
+</doc>

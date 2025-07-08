@@ -1,0 +1,9 @@
+---
+source: relaxng-dump/tests/dump.rs
+expression: output
+---
+<conflictName name>
+  <other>
+    text
+  </other>
+</conflictName>

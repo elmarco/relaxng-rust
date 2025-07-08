@@ -1,0 +1,16 @@
+---
+source: relaxng-dump/tests/dump.rs
+expression: output
+---
+<cpu>
+  <arch>
+    text
+  </arch>
+  <feature policy/>
+  <features>
+    <nonpae/>
+    <pae/>
+    <svm/>
+    <vmx/>
+  </features>
+</cpu>

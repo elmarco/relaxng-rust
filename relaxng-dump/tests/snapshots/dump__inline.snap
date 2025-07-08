@@ -1,0 +1,7 @@
+---
+source: relaxng-dump/tests/dump.rs
+expression: output
+---
+<code/>
+<em/>
+text

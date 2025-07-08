@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+<start>
+    <ref name="refname"/>
+</start>
+
+  <define name="refname">
+    <element name="secret">
+      <attribute name="type">
+        <choice>
+          <value>ceph</value>
+          <value>iscsi</value>
+        </choice>
+      </attribute>
+      <choice>
+        <attribute name="uuid">
+	<text/>
+        </attribute>
+        <attribute name="usage">
+	<text/>
+        </attribute>
+      </choice>
+    </element>
+  </define>
+
+</grammar>

@@ -1,0 +1,14 @@
+---
+source: relaxng-dump/tests/dump.rs
+expression: output
+---
+<addressBook>
+  <card email name>
+    <email>
+      text
+    </email>
+    <name>
+      text
+    </name>
+  </card>
+</addressBook>
