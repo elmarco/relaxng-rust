@@ -515,7 +515,6 @@ impl Context {
                     name: _name,
                 } => {
                     // field.set_name(_name);
-                    //field.set_ref(true);
                     field.set_ref(rf.clone());
                     field.set_recursive(*recursively);
                 }
