@@ -23,6 +23,9 @@ doc = "Capabilities available to a guest using a given hypervisor."
 [rule."/ref[@name='hostcaps']/element[@name='host'][1]"]
 doc = "Host capabilities."
 
+[rule."/ref[@name='hostcaps']/element[@name='host'][1]/group[1]/optional/element[@name='uuid'][1]"]
+doc = "The host UUID."
+
 [rule."/ref[@name='ostype']/element[@name='os_type'][1]/choice[1]"]
 parent_is_this = true
 

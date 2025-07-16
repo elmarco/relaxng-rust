@@ -408,10 +408,10 @@ impl Context {
     }
 
     fn pop_state(&mut self) {
-        let xpath_str = self.xpath_from_last_ref();
-        debug!(?xpath_str, "pop");
-
-        let config = self.get_config_from_xpath(&xpath_str);
+        let xpath = self.xpath();
+        let xpath_ref = self.xpath_from_last_ref();
+        debug!(?xpath_ref, "pop");
+        let config = self.get_config_from_xpath(&xpath_ref);
         if config.skip {
             return;
         }
@@ -426,16 +426,16 @@ impl Context {
         match self.state.pop().unwrap() {
             State::Element { gen_struct, .. } => {
                 doc_needed = true;
-                self.pop_struct(gen_struct, &config, &xpath_str);
+                self.pop_struct(gen_struct, &config, &xpath);
             }
             State::Choice { gen_enum, .. } => {
                 doc_needed = true;
-                self.pop_choice(gen_enum, &config, &xpath_str);
+                self.pop_choice(gen_enum, &config, &xpath);
             }
             State::Group { .. } => {
                 if let Some(State::Choice { gen_enum, .. }) = self.state.last_mut() {
                     if config.name.is_none() {
-                        warn!("Unnamed variant at {}", xpath_str)
+                        warn!("Unnamed variant at {}", xpath_ref)
                     }
                     gen_enum.pop_group(config.name);
                 }
@@ -457,7 +457,7 @@ impl Context {
         }
 
         if doc_needed && config.doc.is_none() {
-            self.missing_doc.insert(xpath_str);
+            self.missing_doc.insert(xpath_ref);
         }
     }
 
@@ -497,7 +497,7 @@ impl Context {
                     name: _name,
                 } => {
                     // field.set_name(_name);
-                    field.set_ref(true);
+                    //field.set_ref(true);
                     field.set_recursive(*recursively);
                 }
                 State::Group { .. } => {
@@ -682,10 +682,14 @@ impl Context {
     }
 
     fn add_unit_err(&mut self, unit: GenUnit, xpath: &str) -> Result<()> {
-        fn conflict(unit: GenUnit, exist: &mut GenUnit) -> Result<Vec<GenUnit>> {
+        fn conflict(xpath: &str, unit: GenUnit, exist: &mut GenUnit) -> Result<Vec<GenUnit>> {
             let mut new_units = Vec::new();
             if unit != *exist {
-                trace!("Conflicting unit: {}", Comparison::new(exist, &unit));
+                trace!(
+                    "Conflicting unit {}: {}",
+                    xpath,
+                    Comparison::new(exist, &unit)
+                );
                 let old = exist.clone();
                 new_units = exist.reconcile(unit)?;
                 trace!("Resulting unit: {}", Comparison::new(&old, exist));
@@ -697,9 +701,9 @@ impl Context {
         let mut new_units = Vec::new();
         let mut xpath = xpath.to_string();
         if let Some(exist) = self.units.lookup_unit_mut(&xpath) {
-            new_units = conflict(unit, exist)?;
+            new_units = conflict(&xpath, unit, exist)?;
         } else if let Some((exist, path)) = self.units.file_conflict_at(&xpath, &unit.name()) {
-            new_units = conflict(unit, exist)?;
+            new_units = conflict(&xpath, unit, exist)?;
             self.units.move_children(&xpath, &path);
             xpath = path;
         } else {
