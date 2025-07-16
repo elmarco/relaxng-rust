@@ -10,12 +10,14 @@ use relaxng_model::FsFiles;
 use relaxng_model::Syntax;
 use relaxng_model::model::DefineRule;
 use serde::Deserialize;
+use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::exit;
+use std::rc::Rc;
 use std::str::FromStr;
 use tracing::debug;
 use tracing::trace;
@@ -358,7 +360,7 @@ pub struct Context {
     state: StateStack,
     choice_count: usize,
     units: GenTree,
-    refs: HashMap<String, Ref>,
+    refs: HashMap<String, Rc<RefCell<Ref>>>,
     config: Config,
     root_name: Option<(String, String)>,
     missing_doc: BTreeSet<String>,
@@ -828,36 +830,24 @@ fn visit_pattern(pattern: &Pattern, ctx: &mut Context) {
             ctx.pop_state();
         }
         Pattern::Ref(_span, name, pat_ref) => {
-            let xpath = ctx.xpath();
-            let recursively = if let Some(_ref) = ctx.refs.get_mut(name) {
-                debug!("Reference loop: {} at {}", name, xpath);
-                if _ref.recursive() {
-                    debug!("recursive reference");
-                    return;
-                }
-                _ref.set_recursive(true);
-                true
-            } else {
-                ctx.refs.insert(name.clone(), Ref::new());
-                false
-            };
+            let rf = ctx.refs.entry(name.to_string()).or_default().clone();
+            if rf.borrow().depth() >= 2 {
+                debug!("inner recursive reference");
+                return;
+            }
 
             let rule = pat_ref.0.borrow();
             let rule = rule.as_ref().unwrap();
             assert!(matches!(rule, DefineRule::AssignCombine(_, _, _)));
 
+            rf.borrow_mut().enter();
             ctx.push_state(State::Ref {
                 name: name.clone(),
-                recursively,
+                recursively: rf.borrow().depth() >= 2,
             });
             visit_pattern(rule.pattern(), ctx);
             ctx.pop_state();
-
-            if recursively {
-                ctx.refs.get_mut(name).unwrap().set_recursive(false);
-            } else {
-                ctx.refs.remove(name);
-            }
+            rf.borrow_mut().exit();
         }
         Pattern::DatatypeValue { datatype } => {
             use relaxng_model::datatype::*;
@@ -962,19 +952,19 @@ fn xpath_from_iter<'a>(iter: impl Iterator<Item = &'a StateCounter>, with_count:
 
 #[derive(Debug, Default)]
 struct Ref {
-    recursive: bool,
+    depth: usize,
 }
 
 impl Ref {
-    fn new() -> Self {
-        Self::default()
+    fn depth(&self) -> usize {
+        self.depth
     }
 
-    fn recursive(&self) -> bool {
-        self.recursive
+    fn enter(&mut self) {
+        self.depth += 1;
     }
 
-    fn set_recursive(&mut self, recursive: bool) {
-        self.recursive = recursive
+    fn exit(&mut self) {
+        self.depth -= 1;
     }
 }
