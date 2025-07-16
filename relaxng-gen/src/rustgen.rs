@@ -215,17 +215,32 @@ impl Attribute {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum State {
-    Element { name: String, gen_struct: GenStruct },
+    Element {
+        name: String,
+        gen_struct: GenStruct,
+    },
     Attribute(Attribute),
-    Group { interleave: bool },
-    Choice { gen_enum: GenEnum },
+    Group {
+        interleave: bool,
+    },
+    Choice {
+        gen_enum: GenEnum,
+    },
     Optional,
     OneOrMore,
     ZeroOrMore,
-    Ref { name: String, recursively: bool },
+    Ref {
+        name: String,
+        recursively: bool,
+        rf: Rc<RefCell<Ref>>,
+    },
     Text,
-    Value { value: String },
-    DatatypeName { ty: syn::Path },
+    Value {
+        value: String,
+    },
+    DatatypeName {
+        ty: syn::Path,
+    },
 }
 
 impl State {
@@ -495,11 +510,13 @@ impl Context {
                     field.set_multiple(true);
                 }
                 State::Ref {
+                    rf,
                     recursively,
                     name: _name,
                 } => {
                     // field.set_name(_name);
                     //field.set_ref(true);
+                    field.set_ref(rf.clone());
                     field.set_recursive(*recursively);
                 }
                 State::Group { .. } => {
@@ -521,7 +538,7 @@ impl Context {
 
         let field_name = format!("{}.{}", parent_name, field.name);
         debug!(
-            "Adding field: {}{}{} {}",
+            "Adding field: {}{} {}",
             field_name,
             if field.multiple {
                 "[]"
@@ -530,7 +547,6 @@ impl Context {
             } else {
                 ""
             },
-            if field.in_ref { "+" } else { "" },
             field.serialize_as
         );
 
@@ -844,6 +860,7 @@ fn visit_pattern(pattern: &Pattern, ctx: &mut Context) {
             ctx.push_state(State::Ref {
                 name: name.clone(),
                 recursively: rf.borrow().depth() >= 2,
+                rf: rf.clone(),
             });
             visit_pattern(rule.pattern(), ctx);
             ctx.pop_state();
@@ -950,17 +967,25 @@ fn xpath_from_iter<'a>(iter: impl Iterator<Item = &'a StateCounter>, with_count:
     path
 }
 
-#[derive(Debug, Default)]
-struct Ref {
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(crate) struct Ref {
+    entered: usize,
     depth: usize,
 }
 
 impl Ref {
+    fn shared_ref(&self) -> bool {
+        self.entered > 1
+    }
+
     fn depth(&self) -> usize {
         self.depth
     }
 
     fn enter(&mut self) {
+        if self.depth == 0 {
+            self.entered += 1;
+        }
         self.depth += 1;
     }
 

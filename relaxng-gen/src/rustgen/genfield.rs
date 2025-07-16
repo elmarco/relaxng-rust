@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 use heck::ToSnakeCase;
 use indexmap::IndexMap;
@@ -13,7 +13,7 @@ use crate::{
     utils::{safe_ty_name, safe_var_name},
 };
 
-use super::{GenUnit, Result, genenum::GenEnumRef};
+use super::{GenUnit, Ref, Result, genenum::GenEnumRef};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct GenField {
@@ -28,9 +28,9 @@ pub(crate) struct GenField {
     pub(crate) multiple: bool,
     pub(crate) serialize_as: SerializeAs,
     pub(crate) not_allowed: bool,
-    pub(crate) in_ref: bool,
     pub(crate) recursive: bool,
     pub(crate) public: bool,
+    pub(crate) rf: Option<Rc<RefCell<Ref>>>,
 }
 
 impl GenField {
@@ -44,9 +44,9 @@ impl GenField {
             multiple: false,
             serialize_as: SerializeAs::Inline,
             not_allowed: false,
-            in_ref: false,
             recursive: false,
             public: true,
+            rf: None,
         }
     }
 
@@ -552,7 +552,7 @@ impl GenField {
             return quote! {};
         }
         let mod_name = self.mod_name();
-        if self.in_ref {
+        if self.shared_ref() {
             quote! {
                 use crate::#mod_name::#ty;
             }
@@ -674,8 +674,15 @@ impl GenField {
         self.not_allowed = not_allowed;
     }
 
-    pub(crate) fn set_ref(&mut self, arg: bool) {
-        self.in_ref = arg;
+    pub(crate) fn set_ref(&mut self, rf: Rc<RefCell<Ref>>) {
+        self.rf = Some(rf);
+    }
+
+    pub(crate) fn shared_ref(&self) -> bool {
+        self.rf
+            .as_ref()
+            .map(|rf| rf.borrow().shared_ref())
+            .unwrap_or(false)
     }
 
     pub(crate) fn set_recursive(&mut self, recursive: bool) {
