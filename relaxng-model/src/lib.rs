@@ -682,6 +682,11 @@ impl<FS: Files> Compiler<FS> {
             datatype_compiler: datatype::Compiler::default(),
         }
     }
+
+    pub fn loaded(&self) -> impl Iterator<Item = &PathBuf> {
+        self.loaded.keys()
+    }
+
     // TODO: provide a simpler return-type
     // TODO: does this need to support URLs?
     pub fn compile(
