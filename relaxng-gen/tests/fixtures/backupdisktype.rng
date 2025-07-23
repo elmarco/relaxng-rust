@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<element xmlns="http://relaxng.org/ns/structure/1.0" name="backupdisktype">
+  <choice>
+    <group>
+      <attribute name="backup">
+        <value>no</value>
+      </attribute>
+    </group>
+
+    <group>
+      <optional>
+        <attribute name="backup">
+          <choice>
+            <value>yes</value>
+          </choice>
+        </attribute>
+      </optional>
+    </group>
+
+    <group>
+      <optional>
+        <attribute name="backup">
+          <choice>
+            <value>yes</value>
+          </choice>
+        </attribute>
+      </optional>
+      <attribute name="type">
+        <value>file</value>
+      </attribute>
+    </group>
+
+    <group>
+      <optional>
+        <attribute name="backup">
+          <choice>
+            <value>yes</value>
+          </choice>
+        </attribute>
+      </optional>
+      <attribute name="type">
+        <value>block</value>
+      </attribute>
+    </group>
+  </choice>
+</element>
+

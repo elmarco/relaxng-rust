@@ -1,0 +1,12 @@
+[rule."/ref[@name='cpuHostModel']/element[@name='mode'][1]"]
+name = "HostModel"
+
+[rule."/ref[@name='cpuHost']/element[@name='mode'][1]"]
+name = "HostPassthrough"
+
+[rule."/ref[@name='cpuCustom']/element[@name='mode'][1]"]
+name = "Custom"
+
+[rule."/ref[@name='cpuMax']/element[@name='mode'][1]"]
+name = "Maximum"
+

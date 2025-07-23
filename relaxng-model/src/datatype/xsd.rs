@@ -242,6 +242,10 @@ impl StringFacets {
             }
     }
 
+    pub fn bounded(&self) -> bool {
+        !matches!(self.len, LengthFacet::Unbounded)
+    }
+
     pub fn min_len(&self) -> Option<usize> {
         match self.len {
             LengthFacet::Unbounded => None,

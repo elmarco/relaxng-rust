@@ -1,0 +1,9 @@
+element addressBook {
+  element card {
+    (element name { text }
+     | (element givenName { text },
+        element familyName { text })),
+    element email { text },
+    element note { text }?
+  }*
+}

@@ -1,0 +1,11 @@
+[rule."/ref[@name='root']/element[@name='seclabel'][1]/group[1]/choice[1]"]
+name = "SecLabelKind"
+
+[rule."/ref[@name='root']/element[@name='seclabel'][1]/group[1]/choice[1]/group[1]"]
+name = "DynamicLabel"
+
+[rule."/ref[@name='root']/element[@name='seclabel'][1]/group[1]/choice[1]/group[2]"]
+name = "StaticLabel"
+
+[rule."/ref[@name='root']/element[@name='seclabel'][1]/group[1]/choice[1]/group[3]"]
+name = "NoneLabel"

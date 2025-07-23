@@ -1,0 +1,5 @@
+[rule."/ref[@name='virtualPortProfile']/choice[1]/element[@name='virtualport'][1]//element[@name='parameters']"]
+name = "8021QbgParameters"
+
+[rule."/ref[@name='virtualPortProfile']/choice[1]/element[@name='virtualport'][2]//element[@name='parameters']"]
+name = "8021QbhParameters"

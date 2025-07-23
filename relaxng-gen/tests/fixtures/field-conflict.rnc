@@ -1,0 +1,4 @@
+element test {
+  element name { text },
+  attribute name { text }
+}

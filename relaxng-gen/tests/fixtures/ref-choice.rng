@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!-- A Relax NG schema for the libvirt domain capabilities XML format -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <start>
+    <ref name="test"/>
+  </start>
+
+  <define name="test">
+    <element xmlns="http://relaxng.org/ns/structure/1.0" name="test">
+      <choice>
+        <group>
+	<attribute name="type">
+          <value>foo</value>
+        </attribute>
+        </group>
+        <group>
+          <ref name="someref"/>
+        </group>
+      </choice>
+    </element>
+  </define>
+
+  <define name="someref">
+    <attribute name="type">
+      <value>ref</value>
+    </attribute>
+
+    <optional>
+      <attribute name="refoption">
+        <text/>
+      </attribute>
+    </optional>
+  </define>
+
+</grammar>
+

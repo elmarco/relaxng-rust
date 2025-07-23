@@ -1,0 +1,8 @@
+element addressBook {
+  element card {
+    (attribute name { text }
+     | (attribute givenName { text },
+        attribute familyName { text })),
+    attribute email { text }
+  }*
+}

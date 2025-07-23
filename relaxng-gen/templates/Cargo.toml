@@ -1,0 +1,12 @@
+[package]
+name = "{{ name }}"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+roxmltree = "0.21"
+thiserror = "2.0"
+quick-xml = "0.38"
+bounded-integer = { version = "0.6", features = ["std"] }
+regex = "1.10"
+

@@ -1,0 +1,7 @@
+style_edition = "2024"
+max_width = 100
+reorder_imports = true
+reorder_modules = true
+use_small_heuristics = "Off"
+chain_width = 80
+fn_call_width = 80

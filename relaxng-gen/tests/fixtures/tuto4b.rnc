@@ -1,0 +1,9 @@
+start = element doc { inline }
+inline =
+  (text
+   | element bold { inline }
+   | element italic { inline }
+   | element span {
+       attribute style { text }?,
+       inline
+     })*

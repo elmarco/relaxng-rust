@@ -1,0 +1,5 @@
+---
+source: relaxng-gen/tests/generate.rs
+expression: output
+---
+<tr class="card" bool="true"/>

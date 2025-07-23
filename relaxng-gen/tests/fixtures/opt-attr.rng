@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!-- A Relax NG schema for the libvirt domain capabilities XML format -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <start>
+    <ref name="test"/>
+  </start>
+  <define name="test">
+    <element xmlns="http://relaxng.org/ns/structure/1.0" name="test">
+      <interleave>
+        <choice>
+          <group>
+            <ref name="hostdevsubsys"/>
+          </group>
+          <group>
+            <ref name="hostdevcaps"/>
+          </group>
+        </choice>
+        <optional>
+          <element name="readonly">
+            <empty/>
+          </element>  
+        </optional>     
+      </interleave>
+    </element>
+  </define>
+
+  <define name="hostdevsubsys">
+    <optional>
+      <attribute name="mode">
+        <value>subsystem</value>
+      </attribute>
+    </optional>
+    <optional>
+      <attribute name="managed">
+        <text/>
+      </attribute>
+    </optional>
+  </define>
+
+  <define name="hostdevcaps">
+    <attribute name="mode">
+      <value>capabilities</value>
+    </attribute>
+  </define>
+
+</grammar>
+

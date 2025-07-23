@@ -1,0 +1,9 @@
+---
+source: relaxng-gen/tests/generate.rs
+expression: output
+---
+<card bool="some text">
+  <preferredFormat>
+    <ff>fftext</ff>
+  </preferredFormat>
+</card>

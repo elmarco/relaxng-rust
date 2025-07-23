@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <ref name="root"/>
+  </start>
+
+  <define name="root">
+    <element name="seclabel">
+      <optional>
+        <attribute name="model">
+          <text/>
+        </attribute>
+      </optional>
+      <choice>
+        <group>
+          <!-- with dynamic label (default), relabel must be yes, baselabel
+               is optional, and label and imagelabel are output-only -->
+          <optional>
+            <attribute name="type">
+              <value>dynamic</value>
+            </attribute>
+          </optional>
+          <optional>
+            <attribute name="relabel">
+              <value>yes</value>
+            </attribute>
+          </optional>
+          <interleave>
+            <optional>
+              <element name="label">
+                <text/>
+              </element>
+            </optional>
+            <optional>
+              <element name="imagelabel">
+                <text/>
+              </element>
+            </optional>
+            <optional>
+              <element name="baselabel">
+                <text/>
+              </element>
+            </optional>
+          </interleave>
+        </group>
+        <group>
+          <!-- with static label, relabel can be either format (default
+               no), label is required, imagelabel is output-only, and no
+               baselabel is present -->
+          <attribute name="type">
+            <value>static</value>
+          </attribute>
+          <optional>
+            <attribute name="relabel">
+              <text/>
+            </attribute>
+          </optional>
+          <interleave>
+            <element name="label">
+              <text/>
+            </element>
+            <optional>
+              <element name="imagelabel">
+                <text/>
+              </element>
+            </optional>
+          </interleave>
+        </group>
+        <group>
+          <!-- with none, relabel must be no if present -->
+          <attribute name="type">
+            <value>none</value>
+          </attribute>
+          <optional>
+            <attribute name="relabel">
+              <value>no</value>
+            </attribute>
+          </optional>
+        </group>
+      </choice>
+    </element>
+  </define>
+</grammar>

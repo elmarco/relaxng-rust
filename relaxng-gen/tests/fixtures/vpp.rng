@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<!-- network-related definitions used in multiple grammars -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <ref name="vpp"/>
+  </start>
+
+  <define name="vpp">
+    <element name="vpp">
+      <ref name="virtualPortProfile"/>
+      <element name="portgroup">
+        <ref name="virtualPortProfile"/>
+      </element>
+    </element>
+  </define>
+
+  <define name="virtualPortProfile">
+    <choice>
+      <group>
+        <element name="virtualport">
+          <attribute name="type">
+            <value>802.1Qbg</value>
+          </attribute>
+          <optional>
+            <element name="parameters">
+              <optional>
+                <attribute name="managerid">
+                  <text/>
+                </attribute>
+              </optional>
+            </element>
+          </optional>
+        </element>
+      </group>
+      <group>
+        <element name="virtualport">
+          <attribute name="type">
+            <value>802.1Qbh</value>
+          </attribute>
+          <optional>
+            <element name="parameters">
+              <optional>
+                <attribute name="profileid">
+                  <text/>
+                </attribute>
+              </optional>
+            </element>
+          </optional>
+        </element>
+      </group>
+    </choice>
+  </define>
+</grammar>

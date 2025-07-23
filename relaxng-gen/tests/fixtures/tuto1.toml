@@ -1,0 +1,2 @@
+[rule."/element[@name='addressBook'][1]/zeroOrMore/element[@name='card'][1]/group[1]/element[@name='name'][1]/text"]
+doc = "This is the card/name/text doc"

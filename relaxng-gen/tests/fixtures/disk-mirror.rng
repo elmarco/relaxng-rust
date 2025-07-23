@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<element xmlns="http://relaxng.org/ns/structure/1.0" name="mirror">
+      <interleave>
+        <choice>
+          <group> <!-- old format, for block copy back-compat -->
+            <optional>
+              <attribute name="job">
+                <value>copy</value>
+              </attribute>
+            </optional>
+          </group>
+          <group> <!-- preferred format -->
+            <attribute name="job">
+              <choice>
+                <value>copy</value>
+                <value>active-commit</value>
+              </choice>
+            </attribute>
+          </group>
+        </choice>
+        <optional>
+          <attribute name="ready">
+            <choice>
+              <value>yes</value>
+              <value>abort</value>
+              <value>pivot</value>
+            </choice>
+          </attribute>
+        </optional>
+      </interleave>
+</element>
+

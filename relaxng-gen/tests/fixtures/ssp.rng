@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!-- A Relax NG schema for the libvirt domain capabilities XML format -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <start>
+    <ref name="test"/>
+  </start>
+
+  <define name="test">
+    <element xmlns="http://relaxng.org/ns/structure/1.0" name="test">
+      <optional>
+        <ref name="storageStartupPolicy"/>
+      </optional>
+    </element>
+  </define>
+
+  <define name="storageStartupPolicy">
+    <!-- Use a combine="choice" override in client files that want to
+         add additional attributes to a <source> sub-element
+         associated with a storage source -->
+    <notAllowed/>
+  </define>
+
+  <define name="storageStartupPolicy" combine="choice">
+    <!-- overrides the no-op version in storagecommon.rng -->
+    <ref name="startupPolicy"/>
+  </define>
+
+  <define name="startupPolicy">
+    <attribute name="startupPolicy">
+      <choice>
+        <value>mandatory</value>
+        <value>requisite</value>
+        <value>optional</value>
+      </choice>
+    </attribute>
+  </define>
+
+</grammar>
+

@@ -1,0 +1,4 @@
+element card {
+  element preferredFormat { "html" | "text" | element ff { text } },
+  attribute bool { "true" | "false" | text }
+}

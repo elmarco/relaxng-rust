@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!-- A Relax NG schema for the libvirt domain capabilities XML format -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <start>
+    <ref name="test"/>
+  </start>
+  <define name="test">
+    <element xmlns="http://relaxng.org/ns/structure/1.0" name="test">
+        <choice>
+          <attribute name="keyfile">
+            <ref name="absFilePath"/>
+          </attribute>
+          <attribute name="agentsock">
+            <ref name="absFilePath"/>
+          </attribute>
+        </choice>
+     </element>
+  </define>
+
+  <define name="absFilePath">
+    <data type="string">
+      <param name="pattern">(/|[a-zA-Z]:\\).+</param>
+      <param name="maxLength">1234</param>
+    </data>
+  </define>
+
+</grammar>
+

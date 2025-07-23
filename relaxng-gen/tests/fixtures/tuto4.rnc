@@ -1,0 +1,5 @@
+start = AddressBook
+AddressBook = element addressBook { Card* }
+Card = element card { Name, Email }
+Name = element name { text }
+Email = element email { text }
