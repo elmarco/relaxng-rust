@@ -241,6 +241,30 @@ impl StringFacets {
                 true
             }
     }
+
+    pub fn min_len(&self) -> Option<usize> {
+        match self.len {
+            LengthFacet::Unbounded => None,
+            LengthFacet::MinLength(min) => Some(min),
+            LengthFacet::MaxLength(_) => None,
+            LengthFacet::MinMaxLength(min, _) => Some(min),
+            LengthFacet::Length(len) => Some(len),
+        }
+    }
+
+    pub fn max_len(&self) -> Option<usize> {
+        match self.len {
+            LengthFacet::Unbounded => None,
+            LengthFacet::MinLength(_) => None,
+            LengthFacet::MaxLength(max) => Some(max),
+            LengthFacet::MinMaxLength(_, max) => Some(max),
+            LengthFacet::Length(len) => Some(len),
+        }
+    }
+
+    pub fn regex(&self) -> Option<&regex::Regex> {
+        self.pattern.as_ref().map(|pat| &pat.1)
+    }
 }
 
 #[derive(Debug)]
@@ -362,10 +386,43 @@ impl<T: PartialOrd> Default for MinMaxFacet<T> {
         }
     }
 }
+
+impl<T> MinMaxFacet<T>
+where
+    T: PartialOrd + Copy + std::ops::Add<Output = T> + From<u8>,
+{
+    // return the min inclusive value
+    pub fn min(&self) -> Option<T> {
+        match &self.min {
+            Min::Unbounded => None,
+            Min::Inclusive(min) => Some(*min),
+            Min::Exclusive(min) => Some(*min + T::from(1)),
+        }
+    }
+}
+
+impl<T> MinMaxFacet<T>
+where
+    T: PartialOrd + Copy + std::ops::Sub<Output = T> + From<u8>,
+{
+    // return the max inclusive value
+    pub fn max(&self) -> Option<T> {
+        match &self.max {
+            Max::Unbounded => None,
+            Max::Inclusive(max) => Some(*max),
+            Max::Exclusive(max) => Some(*max - T::from(1)),
+        }
+    }
+}
+
 impl<T> MinMaxFacet<T>
 where
     T: PartialOrd,
 {
+    pub fn bounded(&self) -> bool {
+        !matches!((&self.min, &self.max), (Min::Unbounded, Max::Unbounded))
+    }
+
     fn min_inclusive(&mut self, val: T) -> Result<(), FacetError> {
         match &self.max {
             Max::Unbounded => {}
