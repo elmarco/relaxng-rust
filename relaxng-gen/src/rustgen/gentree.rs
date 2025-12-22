@@ -42,7 +42,15 @@ impl GenTree {
             let ts = unit.to_token_stream(config);
             if !ts.is_empty() {
                 let mut path = dst.to_path_buf();
-                path.push(unit_path);
+                // Use parent directory from unit_path but filename from unit's mod_name
+                // This ensures the file name matches what imports expect
+                if let Some(parent) = unit_path.parent() {
+                    if parent.components().count() > 0 {
+                        path.push(parent);
+                    }
+                }
+                let mod_name = unit.mod_name(true);
+                path.push(&mod_name);
                 path.set_extension("rs");
                 info!("Writing unit {:?}", path);
                 if path.exists() && !config.force {
@@ -61,6 +69,7 @@ impl GenTree {
             .map(|(_, unit)| unit.mod_name(false))
             .collect();
         mods.sort();
+        mods.dedup();
         mods
     }
 }
