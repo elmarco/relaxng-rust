@@ -31,8 +31,7 @@ impl XPath {
         matches_recurse(&self.0, &xpath.0)
     }
 
-    #[cfg(test)]
-    pub(crate) fn to_string(&self, with_index: bool) -> String {
+    pub(crate) fn format(&self, with_index: bool) -> String {
         let mut res = String::new();
         for e in self.0.iter() {
             match e {
@@ -54,12 +53,23 @@ impl XPath {
     }
 
     #[cfg(test)]
+    pub(crate) fn to_string(&self, with_index: bool) -> String {
+        self.format(with_index)
+    }
+
+    #[cfg(test)]
     pub(crate) fn matches_str(&self, path: &str) -> bool {
         let Ok(path) = Self::from_str(path) else {
             return false;
         };
 
         self.matches(&path)
+    }
+}
+
+impl std::fmt::Display for XPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.format(true))
     }
 }
 
