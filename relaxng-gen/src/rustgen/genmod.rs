@@ -40,7 +40,13 @@ impl GenLib {
         let root_mod = format_ident!("{}", self.root_mod);
         let filename = format!("'{}'", &self.schema_filename);
 
-        let mods = self.mods.iter().map(|m| format_ident!("{}", m));
+        let mods = self.mods.iter().map(|m| {
+            if let Some(stripped) = m.strip_prefix("r#") {
+                syn::Ident::new_raw(stripped, proc_macro2::Span::call_site())
+            } else {
+                format_ident!("{}", m)
+            }
+        });
         let mods = quote! {
             #(pub mod #mods;)*
             pub use #root_mod::*;
