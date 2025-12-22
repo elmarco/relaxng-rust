@@ -115,6 +115,40 @@ pub(crate) fn mod_path_from_iter<'a>(iter: impl Iterator<Item = &'a State>) -> P
     iter.filter_map(|c| c.state.mod_name(true)).collect()
 }
 
+/// Generate an XML XPath from the state stack (e.g., /element/child/@attr)
+pub(crate) fn xml_xpath_from_iter<'a>(iter: impl Iterator<Item = &'a State>) -> String {
+    let mut path = String::new();
+    for c in iter {
+        match &c.state {
+            PatState::Element {
+                name,
+                ..
+            } => {
+                path.push('/');
+                path.push_str(name);
+            }
+            PatState::Attribute(attribute) => {
+                path.push_str("/@");
+                path.push_str(&attribute.name);
+            }
+            PatState::Choice { .. }
+            | PatState::Group { .. }
+            | PatState::Optional
+            | PatState::OneOrMore
+            | PatState::ZeroOrMore
+            | PatState::Ref { .. }
+            | PatState::Text
+            | PatState::Value { .. }
+            | PatState::DatatypeName { .. } => {}
+        }
+    }
+    if path.is_empty() {
+        "/".to_string()
+    } else {
+        path
+    }
+}
+
 #[derive(Debug)]
 pub struct StateStack {
     pub(crate) states: Vec<State>,
@@ -222,6 +256,10 @@ impl StateStack {
 
     pub(crate) fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut PatState> {
         self.states.iter_mut().map(|s| &mut s.state)
+    }
+
+    pub(crate) fn iter_states_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut State> {
+        self.states.iter_mut()
     }
 
     pub(crate) fn last_mut(&mut self) -> Option<&mut PatState> {
@@ -332,6 +370,14 @@ impl PatState {
 
     pub(crate) fn is_choice(&self) -> bool {
         matches!(self, PatState::Choice { .. })
+    }
+
+    pub(crate) fn has_name(&self) -> bool {
+        match self {
+            PatState::Element { gen_struct, .. } => !gen_struct.name.is_empty(),
+            PatState::Choice { gen_enum, .. } => !gen_enum.name_is_none(),
+            _ => false,
+        }
     }
 
     pub(crate) fn set_name(&mut self, name: &str) {
