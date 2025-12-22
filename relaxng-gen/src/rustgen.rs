@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::{self, exit};
 use std::rc::Rc;
@@ -37,7 +37,7 @@ use gentest::generate_test;
 mod gentree;
 use gentree::{GenTree, GenUnit};
 mod state;
-use state::{PatState, Ref, StateStack, mod_path_from_iter, xpath_from_iter};
+use state::{PatState, Ref, StateStack, mod_path_from_iter, xml_xpath_from_iter, xpath_from_iter};
 
 pub(crate) fn generate(schema: PathBuf, out: PathBuf, config: &mut Config) -> Context<'_> {
     if config.without_impl && config.with_test {
@@ -81,6 +81,7 @@ pub(crate) fn generate(schema: PathBuf, out: PathBuf, config: &mut Config) -> Co
 
     ctx.add_unit(GenUnit::Lib(gen_lib), "", Path::new("lib"));
     ctx.write_rs(&out);
+    ctx.warn_unused_doc();
 
     if config.with_test {
         let project_name = out.file_name().unwrap().to_str().unwrap();
@@ -237,8 +238,11 @@ pub struct Context<'a> {
     config: &'a Config,
     /// (module_name, type_name, needs_interleave_args)
     root_name: Option<(String, String, bool)>,
-    missing_doc: BTreeSet<String>,
-    regex_patterns: HashMap<String, Ident>,
+    /// Maps schema XPath to XML XPath for missing documentation
+    missing_doc: BTreeMap<String, String>,
+    /// Tracks which config rule XPaths with doc have been used
+    used_doc_rules: HashSet<XPath>,
+    regex_patterns: BTreeMap<String, Ident>,
 }
 
 impl<'a> Context<'a> {
@@ -249,8 +253,9 @@ impl<'a> Context<'a> {
             units: GenTree::default(),
             refs: Default::default(),
             root_name: None,
-            missing_doc: BTreeSet::new(),
-            regex_patterns: HashMap::new(),
+            missing_doc: BTreeMap::new(),
+            used_doc_rules: HashSet::new(),
+            regex_patterns: BTreeMap::new(),
             config,
         }
     }
@@ -262,10 +267,18 @@ impl<'a> Context<'a> {
     }
 
     pub(crate) fn print_missing_doc(&self) {
-        for name in self.missing_doc.iter() {
+        for (name, _) in self.missing_doc.iter() {
             println!("[rule.\"{name}\"]");
             println!("doc = \"\"");
             println!()
+        }
+    }
+
+    pub(crate) fn warn_unused_doc(&self) {
+        for (pat, rule) in self.config.rule.iter() {
+            if rule.doc.is_some() && !self.used_doc_rules.contains(pat) {
+                warn!("Unused doc configuration for rule: {pat}");
+            }
         }
     }
 
@@ -281,9 +294,10 @@ impl<'a> Context<'a> {
         let xpath_ref = self.xpath_from_last_ref();
         let config = self.get_config_from_xpath(&xpath_ref);
 
+        let has_name = self.stack.states.last().is_some_and(|s| s.state.has_name());
         if let Some(name) = config.name.as_deref() {
             self.stack.last_mut().unwrap().set_name(name);
-        } else if is_choice {
+        } else if is_choice && !has_name {
             let name = self.enum_name_from_state().unwrap_or_else(|| {
                 self.choice_count += 1;
                 warn!("Unnamed enum at {}", xpath_ref);
@@ -297,6 +311,7 @@ impl<'a> Context<'a> {
 
     fn pop_state(&mut self) {
         let xpath = self.xpath_from_last_ref();
+        let xml_xpath = self.xml_xpath();
         let mod_path = self.mod_path();
         let (state, config) = self.stack.pop().unwrap();
         // TODO: allow the xpath to store the unit to be somewhere else on the tree
@@ -360,7 +375,7 @@ impl<'a> Context<'a> {
         }
 
         if doc_needed && config.doc.is_none() {
-            self.missing_doc.insert(xpath);
+            self.missing_doc.insert(xpath, xml_xpath);
         }
     }
 
@@ -407,12 +422,18 @@ impl<'a> Context<'a> {
         mod_path: PathBuf,
     ) {
         if config.collapse_with_parent {
-            match self.stack.pop().unwrap().0 {
-                PatState::Element {
-                    gen_struct,
-                    ..
-                } => {
+            match self.stack.pop().unwrap() {
+                (
+                    PatState::Element {
+                        gen_struct,
+                        ..
+                    },
+                    elem_config,
+                ) => {
                     gen_enum.set_as_element(gen_struct);
+                    if gen_enum.doc.is_none() {
+                        gen_enum.doc = elem_config.doc;
+                    }
                 }
                 _ => panic!("Unexpected state"),
             }
@@ -422,7 +443,9 @@ impl<'a> Context<'a> {
             return;
         }
 
-        gen_enum.doc = config.doc.clone();
+        if gen_enum.doc.is_none() {
+            gen_enum.doc = config.doc.clone();
+        }
 
         let child_units = std::mem::take(&mut gen_enum.units);
         for c in child_units {
@@ -444,6 +467,7 @@ impl<'a> Context<'a> {
             );
         } else {
             let rf = self.stack.get_ref();
+            let doc = gen_enum.doc.clone().or_else(|| config.doc.clone());
             // Set merged_name from config if specified
             gen_enum.set_merged_name(config.merged_name.clone());
             let gen_enum = GenEnumRef::from(gen_enum);
@@ -454,7 +478,7 @@ impl<'a> Context<'a> {
                     gen_enum: gen_enum.clone(),
                     root: rf.is_some(),
                 },
-                config.doc.clone(),
+                doc,
             );
 
             if !gen_enum.borrow().name_is_none() {
@@ -537,12 +561,15 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    fn get_config_from_xpath(&self, xpath_str: &str) -> ConfigRule {
+    fn get_config_from_xpath(&mut self, xpath_str: &str) -> ConfigRule {
         let mut config = ConfigRule::default();
         let xpath = XPath::from_str(xpath_str).unwrap();
         for (pat, c) in self.config.rule.iter() {
             if pat.matches(&xpath) {
                 debug!("Extra config: {:?}", c);
+                if c.doc.is_some() {
+                    self.used_doc_rules.insert(pat.clone());
+                }
                 config.merge(c);
             }
         }
@@ -564,18 +591,18 @@ impl<'a> Context<'a> {
     ) -> Result<()> {
         let mut field = GenField::new(xml_name, ty, doc);
         let mut parent = None;
-        for state in self.stack.iter_mut().rev() {
-            match state {
+        for s in self.stack.iter_states_mut().rev() {
+            match &mut s.state {
                 PatState::Element {
                     ..
                 } => {
-                    parent = Some(state);
+                    parent = Some(&mut s.state);
                     break;
                 }
                 PatState::Choice {
                     ..
                 } => {
-                    parent = Some(state);
+                    parent = Some(&mut s.state);
                     break;
                 }
                 PatState::Attribute(state::Attribute {
@@ -585,6 +612,12 @@ impl<'a> Context<'a> {
                     field.set_xml_name(name);
                     field.set_serialize_as(SerializeAs::Attribute);
                     field.set_not_allowed(*not_allowed);
+                    // Override doc if attribute has a doc config
+                    if let Some(ref config) = s.config
+                        && let Some(ref attr_doc) = config.doc
+                    {
+                        field.doc = Some(attr_doc.clone());
+                    }
                 }
                 PatState::Optional => field.set_optional(true),
                 PatState::OneOrMore => field.set_multiple(true),
@@ -710,6 +743,11 @@ impl<'a> Context<'a> {
     fn mod_path(&self) -> PathBuf {
         let iter = self.stack.iter_with_counter(true);
         mod_path_from_iter(iter)
+    }
+
+    fn xml_xpath(&self) -> String {
+        let iter = self.stack.iter_with_counter(true);
+        xml_xpath_from_iter(iter)
     }
 
     fn add_regex_pattern(&mut self, pat: &str) -> Ident {
