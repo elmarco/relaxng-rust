@@ -445,21 +445,11 @@ impl GenField {
         to_xml_elems: &mut TokenStream,
         to_xml_empty: &mut Vec<TokenStream>,
     ) {
-        // In struct's to_xml(), the local variable is `start`
-        // In enum's to_xml_attr(), the parameter is `__start` to avoid shadowing by field names
-        let start_var = if for_self {
-            quote! { start }
-        } else {
-            quote! { __start }
-        };
-
         if self.is_choice() && self.as_inline() {
-            // For struct (for_self=true), `start` is a local variable so we need `&mut`
-            // For enum (for_self=false), `__start` is already a `&mut` parameter
             let elem_to_xml = if for_self {
-                quote! { elem.to_xml_attr(&mut #start_var)?; }
+                quote! { elem.to_xml_attr(&mut start)?; }
             } else {
-                quote! { elem.to_xml_attr(#start_var)?; }
+                quote! { elem.to_xml_attr(start)?; }
             };
             let elem = self.to_xml_elem_wrap(for_self, elem_to_xml);
             to_xml_attrs.extend(elem);
@@ -489,7 +479,7 @@ impl GenField {
         let mut elem_to_xml = match self.serialize_as {
             SerializeAs::Attribute => {
                 let name_b = self.xml_name_b();
-                quote! { #start_var.push_attribute((&#name_b[..], quick_xml::escape::escape(#val).as_bytes())); }
+                quote! { start.push_attribute((&#name_b[..], quick_xml::escape::escape(#val).as_bytes())); }
             }
             SerializeAs::Inline => {
                 if self.is_text() || self.is_parse() || self.is_value() {
