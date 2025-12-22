@@ -1,0 +1,8 @@
+---
+source: relaxng-gen/tests/generate_and_run.rs
+expression: "String::from_utf8_lossy(&output.stdout).to_string()"
+---
+<os>
+  <type arch="x86_64" machine="pc-q35-9.1">hvm</type>
+  <boot dev="hd"/>
+</os>

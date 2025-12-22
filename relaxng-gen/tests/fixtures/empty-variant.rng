@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Test case: empty group variant {} gets matched with { empty } pattern
+     Reproduces: Variant2 {} being matched as Self::Variant2 { empty } -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+  <start>
+    <ref name="backend"/>
+  </start>
+
+  <define name="backend">
+    <element name="backend">
+      <choice>
+        <group>
+          <ref name="rngBackendChoice"/>
+        </group>
+        <group>
+          <attribute name="type">
+            <choice>
+              <value>dev</value>
+              <value>file</value>
+            </choice>
+          </attribute>
+          <element name="source">
+            <text/>
+          </element>
+        </group>
+        <group>
+          <attribute name="type">
+            <value>builtin</value>
+          </attribute>
+          <empty/>
+        </group>
+      </choice>
+    </element>
+  </define>
+
+  <define name="rngBackendChoice">
+    <attribute name="model">
+      <choice>
+        <value>random</value>
+        <value>egd</value>
+      </choice>
+    </attribute>
+  </define>
+</grammar>

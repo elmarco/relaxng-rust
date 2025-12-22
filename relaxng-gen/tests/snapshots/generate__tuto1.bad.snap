@@ -1,5 +1,0 @@
----
-source: relaxng-gen/tests/generate.rs
-expression: "String::from_utf8_lossy(&output.stdout).to_string()"
----
-<addressBook/>

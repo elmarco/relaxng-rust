@@ -1,0 +1,677 @@
+---
+source: relaxng-gen/tests/build.rs
+expression: combined
+---
+--- inline/code.rs ---
+//!`code` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::inline::Inline;
+///`<code/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Code {
+    pub inlines: Vec<Inline>,
+}
+impl ToXml for Code {
+    type Builder = CodeBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("code");
+        {
+            let elem = &self.inlines;
+            for elem in elem {
+                elem.to_xml_attr(&mut start)?;
+            }
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.inlines;
+                    elem.iter().all(|elem| elem.is_empty())
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.inlines;
+                for elem in elem {
+                    elem.to_xml(writer)?;
+                }
+            }
+            writer.write_event(Event::End(BytesEnd::new("code")))?;
+        }
+        Ok(())
+    }
+}
+impl Code {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        let child = &mut node.first_child();
+        loop {
+            if let Ok(elem) = Inline::from_xml(node, child) {
+                builder.inline(elem)?;
+            } else {
+                break;
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Code {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<code/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CodeBuilder {
+    pub inlines: Vec<Inline>,
+}
+impl CodeBuilder {
+    pub fn inline<T>(&mut self, inline: T) -> Result<&mut Self>
+    where
+        T: TryInto<Inline>,
+        Error: From<<T as TryInto<Inline>>::Error>,
+    {
+        self.inlines.push(inline.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Code`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Code> {
+        let inlines = Clone::clone(&self.inlines);
+        Ok(Code { inlines })
+    }
+}
+
+--- inline/em.rs ---
+//!`em` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::inline::Inline;
+///`<em/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Em {
+    pub inlines: Vec<Inline>,
+}
+impl ToXml for Em {
+    type Builder = EmBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("em");
+        {
+            let elem = &self.inlines;
+            for elem in elem {
+                elem.to_xml_attr(&mut start)?;
+            }
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.inlines;
+                    elem.iter().all(|elem| elem.is_empty())
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.inlines;
+                for elem in elem {
+                    elem.to_xml(writer)?;
+                }
+            }
+            writer.write_event(Event::End(BytesEnd::new("em")))?;
+        }
+        Ok(())
+    }
+}
+impl Em {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        let child = &mut node.first_child();
+        loop {
+            if let Ok(elem) = Inline::from_xml(node, child) {
+                builder.inline(elem)?;
+            } else {
+                break;
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Em {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<em/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EmBuilder {
+    pub inlines: Vec<Inline>,
+}
+impl EmBuilder {
+    pub fn inline<T>(&mut self, inline: T) -> Result<&mut Self>
+    where
+        T: TryInto<Inline>,
+        Error: From<<T as TryInto<Inline>>::Error>,
+    {
+        self.inlines.push(inline.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Em`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Em> {
+        let inlines = Clone::clone(&self.inlines);
+        Ok(Em { inlines })
+    }
+}
+
+--- inline.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod code;
+use code::Code;
+pub mod em;
+use em::Em;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Inline {
+    Value(String),
+    Code(Code),
+    Em(Em),
+}
+impl ToXml for Inline {
+    type Builder = InlineBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::Value(value) => {
+                let elem = value;
+                {
+                    let elem = value;
+                    writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
+                }
+            }
+            Self::Code(code) => {
+                let elem = code;
+                {
+                    let elem = code;
+                    elem.to_xml(writer)?;
+                }
+            }
+            Self::Em(em) => {
+                let elem = em;
+                {
+                    let elem = em;
+                    elem.to_xml(writer)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for Inline {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl Inline {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<Inline> {
+        let mut builder = Inline::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        "code" if Code::from_xml(&child).is_ok() => {
+                            builder.code(Code::from_xml(&child)?)?;
+                        }
+                        "em" if Em::from_xml(&child).is_ok() => {
+                            builder.em(Em::from_xml(&child)?)?;
+                        }
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            _ => {
+                                builder.value(val)?;
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::Value(value) => {
+                let elem = value;
+            }
+            Self::Code(code) => {
+                let elem = code;
+            }
+            Self::Em(em) => {
+                let elem = em;
+            }
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct InlineBuilder {
+    value: Option<String>,
+    code: Option<Code>,
+    em: Option<Em>,
+}
+impl InlineBuilder {
+    pub fn value<T>(&mut self, value: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.value = Some(value.try_into()?);
+        Ok(self)
+    }
+    pub fn code<T>(&mut self, code: T) -> Result<&mut Self>
+    where
+        T: TryInto<Code>,
+        Error: From<<T as TryInto<Code>>::Error>,
+    {
+        self.code = Some(code.try_into()?);
+        Ok(self)
+    }
+    pub fn em<T>(&mut self, em: T) -> Result<&mut Self>
+    where
+        T: TryInto<Em>,
+        Error: From<<T as TryInto<Em>>::Error>,
+    {
+        self.em = Some(em.try_into()?);
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<Inline> {
+        if self.value.is_some() {
+            return Ok(Inline::Value(Clone::clone(&self.value.as_ref().unwrap())));
+        }
+        if self.code.is_some() {
+            return Ok(Inline::Code(Clone::clone(&self.code.as_ref().unwrap())));
+        }
+        if self.em.is_some() {
+            return Ok(Inline::Em(Clone::clone(&self.em.as_ref().unwrap())));
+        }
+        Err(Error::BuilderVariant("Inline"))
+    }
+}
+
+--- lib.rs ---
+#![doc = concat!(
+    "Generated from ",
+    "'/home/elmarco/src/relaxng-rust/relaxng-gen/tests/fixtures/recurse-inline.rnc'",
+    " schema."
+)]
+#![allow(dead_code)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+use thiserror::Error;
+pub mod inline;
+pub mod top;
+pub use top::*;
+/// The error type used by this crate.
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("From UTF-8 error: {0}")]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
+    #[error("{0} builder is missing mandatory field: {1}")]
+    BuilderMissingField(&'static str, &'static str),
+    #[error("{0} builder cannot build a variant")]
+    BuilderVariant(&'static str),
+    #[error("String too short, expected at least {0} characters, got {1}")]
+    TooShort(usize, usize),
+    #[error("String too long, expected at most {0} characters, got {1}")]
+    TooLong(usize, usize),
+    #[error("String '{0}' does not match pattern '{1}'")]
+    PatternMismatch(&'static str, String),
+    #[error("Failed to compile regex: {0}")]
+    RegexError(#[from] regex::Error),
+    #[error("Failed to parse '{0}': {1}")]
+    ParseError(
+        &'static str,
+        #[source]
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    ),
+}
+impl From<std::convert::Infallible> for Error {
+    fn from(_: std::convert::Infallible) -> Self {
+        unreachable!("Infallible error should not occur")
+    }
+}
+/// Helper trait for this crate XML types.
+pub trait ToXml {
+    /// The associated builder type.
+    type Builder: Default;
+    /// Creates a new builder for this type.
+    fn builder() -> Self::Builder {
+        Self::Builder::default()
+    }
+    /// Writes Events to a XML writer.
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write;
+}
+#[doc(hidden)]
+pub trait RegexPattern {
+    const REGEX: &'static str;
+}
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoPattern;
+impl RegexPattern for NoPattern {
+    const REGEX: &'static str = "";
+}
+/// A string type with length constraints and optional runtime regex validation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ConstrainedString<
+    const MIN_LEN: usize,
+    const MAX_LEN: usize,
+    P: RegexPattern = NoPattern,
+> {
+    value: String,
+    _phantom: std::marker::PhantomData<P>,
+}
+impl<
+    const MIN: usize,
+    const MAX: usize,
+    P: RegexPattern,
+> ConstrainedString<MIN, MAX, P> {
+    pub const NO_MIN_CONSTRAINT: usize = 0;
+    pub const NO_MAX_CONSTRAINT: usize = usize::MAX;
+    pub fn try_new(value: impl Into<String>) -> Result<Self> {
+        let s = value.into();
+        Self::validate(&s)?;
+        Ok(Self {
+            value: s,
+            _phantom: std::marker::PhantomData,
+        })
+    }
+    fn validate(s: &str) -> Result<()> {
+        fn get_compiled_regex(pattern: &'static str) -> Result<regex::Regex> {
+            /// Registry for compiled regex patterns
+            static REGEX_REGISTRY: std::sync::OnceLock<
+                std::sync::Mutex<std::collections::HashMap<&'static str, regex::Regex>>,
+            > = std::sync::OnceLock::new();
+            if pattern.is_empty() {
+                return Ok(regex::Regex::new(".*").unwrap());
+            }
+            let registry = REGEX_REGISTRY
+                .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+            let mut map = registry.lock().unwrap();
+            if let Some(regex) = map.get(pattern) {
+                return Ok(regex.clone());
+            }
+            match regex::Regex::new(pattern) {
+                Ok(regex) => {
+                    let result = regex.clone();
+                    map.insert(pattern, regex);
+                    Ok(result)
+                }
+                Err(e) => Err(Error::RegexError(e)),
+            }
+        }
+        if MIN > Self::NO_MIN_CONSTRAINT && s.len() < MIN {
+            return Err(Error::TooShort(MIN, s.len()));
+        }
+        if MAX < Self::NO_MAX_CONSTRAINT && s.len() > MAX {
+            return Err(Error::TooLong(MAX, s.len()));
+        }
+        if !P::REGEX.is_empty() {
+            let regex = get_compiled_regex(P::REGEX)?;
+            if !regex.is_match(s) {
+                return Err(Error::PatternMismatch(P::REGEX, s.to_string()));
+            }
+        }
+        Ok(())
+    }
+    /// Returns the string as a `&str`.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.value
+    }
+    /// Converts the constrained string into a `String`, consuming it.
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::ops::Deref
+for ConstrainedString<MIN, MAX, P> {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::fmt::Display
+for ConstrainedString<MIN, MAX, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> AsRef<str>
+for ConstrainedString<MIN, MAX, P> {
+    fn as_ref(&self) -> &str {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::str::FromStr
+for ConstrainedString<MIN, MAX, P> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_new(s)
+    }
+}
+/// A specialized Result type where the error is hard-wired to [`enum@Error`].
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+--- main.rs ---
+use std::path::Path;
+use std::{env::args, fs};
+fn main() {
+    let path = args().nth(1).expect("No XML file path provided");
+    let xml_path = Path::new(&path);
+    let xml = fs::read_to_string(xml_path).expect("Failed to read test XML file");
+    let xml = roxmltree::Document::parse(&xml).expect("Failed to parse XML");
+    let root = xml.root().first_child().expect("No root element found");
+    let res = test_recurse_inline::Top::from_xml(&root).unwrap();
+    let res = res.to_string();
+    println!("{}", res);
+}
+
+--- top.rs ---
+//!`top` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::inline::Inline;
+///`<top/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Top {
+    pub inlines: Vec<Inline>,
+}
+impl ToXml for Top {
+    type Builder = TopBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("top");
+        {
+            let elem = &self.inlines;
+            for elem in elem {
+                elem.to_xml_attr(&mut start)?;
+            }
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.inlines;
+                    elem.iter().all(|elem| elem.is_empty())
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.inlines;
+                for elem in elem {
+                    elem.to_xml(writer)?;
+                }
+            }
+            writer.write_event(Event::End(BytesEnd::new("top")))?;
+        }
+        Ok(())
+    }
+}
+impl Top {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        let child = &mut node.first_child();
+        loop {
+            if let Ok(elem) = Inline::from_xml(node, child) {
+                builder.inline(elem)?;
+            } else {
+                break;
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Top {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<top/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TopBuilder {
+    pub inlines: Vec<Inline>,
+}
+impl TopBuilder {
+    pub fn inline<T>(&mut self, inline: T) -> Result<&mut Self>
+    where
+        T: TryInto<Inline>,
+        Error: From<<T as TryInto<Inline>>::Error>,
+    {
+        self.inlines.push(inline.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Top`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Top> {
+        let inlines = Clone::clone(&self.inlines);
+        Ok(Top { inlines })
+    }
+}

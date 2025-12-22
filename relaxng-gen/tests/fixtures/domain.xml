@@ -1,0 +1,5 @@
+<domain>
+  <name>example.com</name>
+  <os>Linux</os>
+  <bootloader2>GRUB</bootloader2>
+</domain>

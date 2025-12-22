@@ -1,0 +1,7 @@
+---
+source: relaxng-gen/tests/generate_and_run.rs
+expression: "String::from_utf8_lossy(&output.stdout).to_string()"
+---
+<root>
+  <wordsize>31</wordsize>
+</root>

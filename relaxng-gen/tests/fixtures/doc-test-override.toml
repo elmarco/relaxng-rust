@@ -1,0 +1,24 @@
+# Test case demonstrating attribute documentation behavior
+
+[relaxng-gen]
+doc = "Test crate for attribute doc override."
+
+# Root element
+[rule."/ref[@name='root']/element[@name='config'][1]"]
+doc = "Configuration element with various attribute types."
+
+# Attribute-level doc overrides the type's doc
+[rule."/ref[@name='root']/element[@name='config'][1]/group[1]/attribute[@name='timeout']"]
+doc = "The timeout in seconds before giving up."
+
+# Type definition doc - applies to usages that don't have attribute-level override
+[rule."/ref[@name='unsignedInt']/data"]
+doc = "An unsigned 32-bit integer value."
+
+# Custom string type with pattern - doc via the /data rule
+[rule."/ref[@name='featureName']/data"]
+doc = "A feature name using lowercase letters and underscores."
+
+# Inline data type - context-specific doc
+[rule."/ref[@name='root']/element[@name='config'][1]/group[1]/attribute[@name='count']/data"]
+doc = "The number of items to process."

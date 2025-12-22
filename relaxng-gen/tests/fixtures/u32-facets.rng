@@ -1,0 +1,15 @@
+<element name="config" xmlns="http://relaxng.org/ns/structure/1.0"
+         datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <element name="port">
+    <data type="unsignedInt">
+      <param name="minInclusive">1024</param>
+      <param name="maxInclusive">65535</param>
+    </data>
+  </element>
+  <element name="timeout">
+    <data type="unsignedInt">
+      <param name="minInclusive">1</param>
+      <param name="maxInclusive">3600</param>
+    </data>
+  </element>
+</element>

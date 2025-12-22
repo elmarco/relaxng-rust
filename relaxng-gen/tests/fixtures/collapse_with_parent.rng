@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <ref name="root"/>
+  </start>
+
+<define name="root">
+  <element name="root">
+    <element name="wordsize">
+      <choice>
+        <value>31</value>
+        <value>32</value>
+        <value>64</value>
+      </choice>
+    </element>
+  </element>
+</define>
+
+
+</grammar>
+

@@ -1,0 +1,18 @@
+---
+source: relaxng-gen/tests/generate_and_run.rs
+expression: "String::from_utf8_lossy(&output.stdout).to_string()"
+---
+<addressBook>
+  <card name="John Smith" email="js@example.com"/>
+  <card name="John Smith" email="js@example.com"/>
+  <card email="js@example.com">
+    <name>John Smith</name>
+  </card>
+  <card name="John Smith">
+    <email>js@example.com</email>
+  </card>
+  <card>
+    <name>John Smith</name>
+    <email>js@example.com</email>
+  </card>
+</addressBook>

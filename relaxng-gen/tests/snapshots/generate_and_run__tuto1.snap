@@ -1,0 +1,14 @@
+---
+source: relaxng-gen/tests/generate_and_run.rs
+expression: "String::from_utf8_lossy(&output.stdout).to_string()"
+---
+<addressBook>
+  <card>
+    <name>John Smith</name>
+    <email>js@example.com</email>
+  </card>
+  <card>
+    <name>Fred Bloggs</name>
+    <email>fb@example.net</email>
+  </card>
+</addressBook>

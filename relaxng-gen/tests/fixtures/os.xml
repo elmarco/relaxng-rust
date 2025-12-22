@@ -1,0 +1,5 @@
+  <os>
+    <type arch='x86_64' machine='pc-q35-9.1'>hvm</type>
+    <boot dev='hd'/>
+  </os>
+

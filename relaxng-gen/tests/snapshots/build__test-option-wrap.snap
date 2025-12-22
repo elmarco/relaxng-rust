@@ -1,0 +1,663 @@
+---
+source: relaxng-gen/tests/build.rs
+expression: combined
+---
+--- lib.rs ---
+#![doc = concat!(
+    "Generated from ",
+    "'/home/elmarco/src/relaxng-rust/relaxng-gen/tests/fixtures/option-wrap.rng'",
+    " schema."
+)]
+#![allow(dead_code)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+use thiserror::Error;
+pub mod target;
+pub mod type_choice;
+pub use target::*;
+/// The error type used by this crate.
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("From UTF-8 error: {0}")]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
+    #[error("{0} builder is missing mandatory field: {1}")]
+    BuilderMissingField(&'static str, &'static str),
+    #[error("{0} builder cannot build a variant")]
+    BuilderVariant(&'static str),
+    #[error("String too short, expected at least {0} characters, got {1}")]
+    TooShort(usize, usize),
+    #[error("String too long, expected at most {0} characters, got {1}")]
+    TooLong(usize, usize),
+    #[error("String '{0}' does not match pattern '{1}'")]
+    PatternMismatch(&'static str, String),
+    #[error("Failed to compile regex: {0}")]
+    RegexError(#[from] regex::Error),
+    #[error("Failed to parse '{0}': {1}")]
+    ParseError(
+        &'static str,
+        #[source]
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    ),
+}
+impl From<std::convert::Infallible> for Error {
+    fn from(_: std::convert::Infallible) -> Self {
+        unreachable!("Infallible error should not occur")
+    }
+}
+/// Helper trait for this crate XML types.
+pub trait ToXml {
+    /// The associated builder type.
+    type Builder: Default;
+    /// Creates a new builder for this type.
+    fn builder() -> Self::Builder {
+        Self::Builder::default()
+    }
+    /// Writes Events to a XML writer.
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write;
+}
+#[doc(hidden)]
+pub trait RegexPattern {
+    const REGEX: &'static str;
+}
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoPattern;
+impl RegexPattern for NoPattern {
+    const REGEX: &'static str = "";
+}
+/// A string type with length constraints and optional runtime regex validation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ConstrainedString<
+    const MIN_LEN: usize,
+    const MAX_LEN: usize,
+    P: RegexPattern = NoPattern,
+> {
+    value: String,
+    _phantom: std::marker::PhantomData<P>,
+}
+impl<
+    const MIN: usize,
+    const MAX: usize,
+    P: RegexPattern,
+> ConstrainedString<MIN, MAX, P> {
+    pub const NO_MIN_CONSTRAINT: usize = 0;
+    pub const NO_MAX_CONSTRAINT: usize = usize::MAX;
+    pub fn try_new(value: impl Into<String>) -> Result<Self> {
+        let s = value.into();
+        Self::validate(&s)?;
+        Ok(Self {
+            value: s,
+            _phantom: std::marker::PhantomData,
+        })
+    }
+    fn validate(s: &str) -> Result<()> {
+        fn get_compiled_regex(pattern: &'static str) -> Result<regex::Regex> {
+            /// Registry for compiled regex patterns
+            static REGEX_REGISTRY: std::sync::OnceLock<
+                std::sync::Mutex<std::collections::HashMap<&'static str, regex::Regex>>,
+            > = std::sync::OnceLock::new();
+            if pattern.is_empty() {
+                return Ok(regex::Regex::new(".*").unwrap());
+            }
+            let registry = REGEX_REGISTRY
+                .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+            let mut map = registry.lock().unwrap();
+            if let Some(regex) = map.get(pattern) {
+                return Ok(regex.clone());
+            }
+            match regex::Regex::new(pattern) {
+                Ok(regex) => {
+                    let result = regex.clone();
+                    map.insert(pattern, regex);
+                    Ok(result)
+                }
+                Err(e) => Err(Error::RegexError(e)),
+            }
+        }
+        if MIN > Self::NO_MIN_CONSTRAINT && s.len() < MIN {
+            return Err(Error::TooShort(MIN, s.len()));
+        }
+        if MAX < Self::NO_MAX_CONSTRAINT && s.len() > MAX {
+            return Err(Error::TooLong(MAX, s.len()));
+        }
+        if !P::REGEX.is_empty() {
+            let regex = get_compiled_regex(P::REGEX)?;
+            if !regex.is_match(s) {
+                return Err(Error::PatternMismatch(P::REGEX, s.to_string()));
+            }
+        }
+        Ok(())
+    }
+    /// Returns the string as a `&str`.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.value
+    }
+    /// Converts the constrained string into a `String`, consuming it.
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::ops::Deref
+for ConstrainedString<MIN, MAX, P> {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::fmt::Display
+for ConstrainedString<MIN, MAX, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> AsRef<str>
+for ConstrainedString<MIN, MAX, P> {
+    fn as_ref(&self) -> &str {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::str::FromStr
+for ConstrainedString<MIN, MAX, P> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_new(s)
+    }
+}
+/// A specialized Result type where the error is hard-wired to [`enum@Error`].
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+--- main.rs ---
+use std::path::Path;
+use std::{env::args, fs};
+fn main() {
+    let path = args().nth(1).expect("No XML file path provided");
+    let xml_path = Path::new(&path);
+    let xml = fs::read_to_string(xml_path).expect("Failed to read test XML file");
+    let xml = roxmltree::Document::parse(&xml).expect("Failed to parse XML");
+    let root = xml.root().first_child().expect("No root element found");
+    let res = test_option_wrap::Target::from_xml(&root).unwrap();
+    let res = res.to_string();
+    println!("{}", res);
+}
+
+--- target/target_choice.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::type_choice::TypeChoice;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TargetChoice {
+    TypeChoice(Option<TypeChoice>),
+}
+impl ToXml for TargetChoice {
+    type Builder = TargetChoiceBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::TypeChoice(r#type) => {
+                let elem = r#type;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for TargetChoice {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl TargetChoice {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<TargetChoice> {
+        let mut builder = TargetChoice::builder();
+        if let Some(val) = node.attribute("type") {
+            builder.r#type(Some(TypeChoice::from_str(val)?))?;
+        }
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::TypeChoice(r#type) => {
+                let elem = r#type;
+                {
+                    let elem = r#type;
+                    if let Some(elem) = elem {
+                        __start
+                            .push_attribute((
+                                &b"type"[..],
+                                quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                            ));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for TargetChoice {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            val if TypeChoice::from_str(val).is_ok() => {
+                let val: TypeChoice = TypeChoice::from_str(val).unwrap();
+                builder.r#type(Some(val))?;
+            }
+            other => {
+                dbg!(other);
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TargetChoiceBuilder {
+    r#type: Option<TypeChoice>,
+}
+impl TargetChoiceBuilder {
+    pub fn r#type<T>(&mut self, r#type: Option<T>) -> Result<&mut Self>
+    where
+        T: TryInto<TypeChoice>,
+        Error: From<<T as TryInto<TypeChoice>>::Error>,
+    {
+        self.r#type = if let Some(r#type) = r#type {
+            Some(r#type.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<TargetChoice> {
+        if self.r#type.is_some() {
+            return Ok(TargetChoice::TypeChoice(Clone::clone(&self.r#type)));
+        }
+        Err(Error::BuilderVariant("TargetChoice"))
+    }
+}
+
+--- target.rs ---
+//!`target` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod target_choice;
+use target_choice::TargetChoice;
+///`<target/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Target {
+    pub target_choice: TargetChoice,
+}
+impl ToXml for Target {
+    type Builder = TargetBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("target");
+        {
+            let elem = &self.target_choice;
+            elem.to_xml_attr(&mut start)?;
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.target_choice;
+                    elem.is_empty()
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.target_choice;
+                elem.to_xml(writer)?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("target")))?;
+        }
+        Ok(())
+    }
+}
+impl Target {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        let child = &mut node.first_child();
+        builder.target_choice(TargetChoice::from_xml(node, child)?)?;
+        builder.build()
+    }
+}
+impl core::fmt::Display for Target {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<target/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TargetBuilder {
+    pub target_choice: Option<TargetChoice>,
+}
+impl TargetBuilder {
+    pub fn target_choice<T>(&mut self, target_choice: T) -> Result<&mut Self>
+    where
+        T: TryInto<TargetChoice>,
+        Error: From<<T as TryInto<TargetChoice>>::Error>,
+    {
+        self.target_choice = Some(target_choice.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Target`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Target> {
+        let target_choice = Clone::clone(
+            self
+                .target_choice
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("target", "target_choice"))?,
+        );
+        Ok(Target { target_choice })
+    }
+}
+
+--- type_choice.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TypeChoice {
+    Xen(Option<()>),
+    Serial(Option<()>),
+    Virtio(Option<()>),
+    IsaSerial,
+    UsbSerial,
+    PciSerial,
+}
+impl ToXml for TypeChoice {
+    type Builder = TypeChoiceBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::Xen(xen) => {
+                let elem = xen;
+                {
+                    let elem = xen;
+                    if let Some(elem) = elem {
+                        writer.write_event(Event::Text(BytesText::new("xen")))?;
+                    }
+                }
+            }
+            Self::Serial(serial) => {
+                let elem = serial;
+                {
+                    let elem = serial;
+                    if let Some(elem) = elem {
+                        writer.write_event(Event::Text(BytesText::new("serial")))?;
+                    }
+                }
+            }
+            Self::Virtio(virtio) => {
+                let elem = virtio;
+                {
+                    let elem = virtio;
+                    if let Some(elem) = elem {
+                        writer.write_event(Event::Text(BytesText::new("virtio")))?;
+                    }
+                }
+            }
+            Self::IsaSerial => {
+                writer.write_event(Event::Text(BytesText::new("isa-serial")))?;
+            }
+            Self::UsbSerial => {
+                writer.write_event(Event::Text(BytesText::new("usb-serial")))?;
+            }
+            Self::PciSerial => {
+                writer.write_event(Event::Text(BytesText::new("pci-serial")))?;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for TypeChoice {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl TypeChoice {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<TypeChoice> {
+        let mut builder = TypeChoice::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            "xen" => {
+                                builder.xen()?;
+                            }
+                            "serial" => {
+                                builder.serial()?;
+                            }
+                            "virtio" => {
+                                builder.virtio()?;
+                            }
+                            "isa-serial" => {
+                                builder.isa_serial()?;
+                            }
+                            "usb-serial" => {
+                                builder.usb_serial()?;
+                            }
+                            "pci-serial" => {
+                                builder.pci_serial()?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::Xen(xen) => {
+                let elem = xen;
+            }
+            Self::Serial(serial) => {
+                let elem = serial;
+            }
+            Self::Virtio(virtio) => {
+                let elem = virtio;
+            }
+            Self::IsaSerial => {}
+            Self::UsbSerial => {}
+            Self::PciSerial => {}
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for TypeChoice {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            "xen" => {
+                builder.xen()?;
+            }
+            "serial" => {
+                builder.serial()?;
+            }
+            "virtio" => {
+                builder.virtio()?;
+            }
+            "isa-serial" => {
+                builder.isa_serial()?;
+            }
+            "usb-serial" => {
+                builder.usb_serial()?;
+            }
+            "pci-serial" => {
+                builder.pci_serial()?;
+            }
+            other => {
+                dbg!(other);
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeChoiceBuilder {
+    xen: Option<()>,
+    serial: Option<()>,
+    virtio: Option<()>,
+    isa_serial: Option<()>,
+    usb_serial: Option<()>,
+    pci_serial: Option<()>,
+}
+impl TypeChoiceBuilder {
+    pub fn xen(&mut self) -> Result<&mut Self> {
+        self.xen = Some(());
+        Ok(self)
+    }
+    pub fn serial(&mut self) -> Result<&mut Self> {
+        self.serial = Some(());
+        Ok(self)
+    }
+    pub fn virtio(&mut self) -> Result<&mut Self> {
+        self.virtio = Some(());
+        Ok(self)
+    }
+    pub fn isa_serial(&mut self) -> Result<&mut Self> {
+        self.isa_serial = Some(());
+        Ok(self)
+    }
+    pub fn usb_serial(&mut self) -> Result<&mut Self> {
+        self.usb_serial = Some(());
+        Ok(self)
+    }
+    pub fn pci_serial(&mut self) -> Result<&mut Self> {
+        self.pci_serial = Some(());
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<TypeChoice> {
+        if self.xen.is_some() {
+            return Ok(TypeChoice::Xen(Clone::clone(&self.xen)));
+        }
+        if self.serial.is_some() {
+            return Ok(TypeChoice::Serial(Clone::clone(&self.serial)));
+        }
+        if self.virtio.is_some() {
+            return Ok(TypeChoice::Virtio(Clone::clone(&self.virtio)));
+        }
+        if self.isa_serial.is_some() {
+            return Ok(TypeChoice::IsaSerial);
+        }
+        if self.usb_serial.is_some() {
+            return Ok(TypeChoice::UsbSerial);
+        }
+        if self.pci_serial.is_some() {
+            return Ok(TypeChoice::PciSerial);
+        }
+        Err(Error::BuilderVariant("TypeChoice"))
+    }
+}

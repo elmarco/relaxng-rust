@@ -1,0 +1,4 @@
+<config>
+  <port>8080</port>
+  <timeout>300</timeout>
+</config>

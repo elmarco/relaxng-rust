@@ -1,2 +1,0 @@
-[rule."/ref[@name='root']/element[@name='wordsize'][1]/choice[1]"]
-parent_is_this = true

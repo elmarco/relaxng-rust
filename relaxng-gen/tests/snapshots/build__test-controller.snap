@@ -1,0 +1,1075 @@
+---
+source: relaxng-gen/tests/build.rs
+expression: combined
+---
+--- controller/controller_choice/controller_model.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ControllerModel {
+    Auto,
+    Buslogic,
+    Ehci,
+    Xhci,
+}
+impl ToXml for ControllerModel {
+    type Builder = ControllerModelBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::Auto => {
+                writer.write_event(Event::Text(BytesText::new("auto")))?;
+            }
+            Self::Buslogic => {
+                writer.write_event(Event::Text(BytesText::new("buslogic")))?;
+            }
+            Self::Ehci => {
+                writer.write_event(Event::Text(BytesText::new("ehci")))?;
+            }
+            Self::Xhci => {
+                writer.write_event(Event::Text(BytesText::new("xhci")))?;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for ControllerModel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl ControllerModel {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<ControllerModel> {
+        let mut builder = ControllerModel::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            "auto" => {
+                                builder.auto()?;
+                            }
+                            "buslogic" => {
+                                builder.buslogic()?;
+                            }
+                            "ehci" => {
+                                builder.ehci()?;
+                            }
+                            "xhci" => {
+                                builder.xhci()?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::Auto => {}
+            Self::Buslogic => {}
+            Self::Ehci => {}
+            Self::Xhci => {}
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for ControllerModel {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            "auto" => {
+                builder.auto()?;
+            }
+            "buslogic" => {
+                builder.buslogic()?;
+            }
+            "ehci" => {
+                builder.ehci()?;
+            }
+            "xhci" => {
+                builder.xhci()?;
+            }
+            other => {
+                dbg!(other);
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ControllerModelBuilder {
+    auto: Option<()>,
+    buslogic: Option<()>,
+    ehci: Option<()>,
+    xhci: Option<()>,
+}
+impl ControllerModelBuilder {
+    pub fn auto(&mut self) -> Result<&mut Self> {
+        self.auto = Some(());
+        Ok(self)
+    }
+    pub fn buslogic(&mut self) -> Result<&mut Self> {
+        self.buslogic = Some(());
+        Ok(self)
+    }
+    pub fn ehci(&mut self) -> Result<&mut Self> {
+        self.ehci = Some(());
+        Ok(self)
+    }
+    pub fn xhci(&mut self) -> Result<&mut Self> {
+        self.xhci = Some(());
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<ControllerModel> {
+        if self.auto.is_some() {
+            return Ok(ControllerModel::Auto);
+        }
+        if self.buslogic.is_some() {
+            return Ok(ControllerModel::Buslogic);
+        }
+        if self.ehci.is_some() {
+            return Ok(ControllerModel::Ehci);
+        }
+        if self.xhci.is_some() {
+            return Ok(ControllerModel::Xhci);
+        }
+        Err(Error::BuilderVariant("ControllerModel"))
+    }
+}
+
+--- controller/controller_choice/scsi_model.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use super::controller_model::ControllerModel;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum SCSIModel {
+    Auto,
+    Buslogic,
+}
+impl From<SCSIModel> for super::controller_model::ControllerModel {
+    fn from(value: SCSIModel) -> Self {
+        match value {
+            SCSIModel::Auto => ControllerModel::Auto,
+            SCSIModel::Buslogic => ControllerModel::Buslogic,
+        }
+    }
+}
+impl TryFrom<ControllerModel> for SCSIModel {
+    type Error = Error;
+    fn try_from(value: ControllerModel) -> Result<Self> {
+        match value {
+            ControllerModel::Auto => Ok(SCSIModel::Auto),
+            ControllerModel::Buslogic => Ok(SCSIModel::Buslogic),
+            _ => Err(Error::BuilderVariant("SCSIModel")),
+        }
+    }
+}
+impl ToXml for SCSIModel {
+    type Builder = SCSIModelBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::Auto => {
+                writer.write_event(Event::Text(BytesText::new("auto")))?;
+            }
+            Self::Buslogic => {
+                writer.write_event(Event::Text(BytesText::new("buslogic")))?;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for SCSIModel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl SCSIModel {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<SCSIModel> {
+        let mut builder = SCSIModel::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            "auto" => {
+                                builder.auto()?;
+                            }
+                            "buslogic" => {
+                                builder.buslogic()?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::Auto => {}
+            Self::Buslogic => {}
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for SCSIModel {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            "auto" => {
+                builder.auto()?;
+            }
+            "buslogic" => {
+                builder.buslogic()?;
+            }
+            other => {
+                dbg!(other);
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SCSIModelBuilder {
+    auto: Option<()>,
+    buslogic: Option<()>,
+}
+impl SCSIModelBuilder {
+    pub fn auto(&mut self) -> Result<&mut Self> {
+        self.auto = Some(());
+        Ok(self)
+    }
+    pub fn buslogic(&mut self) -> Result<&mut Self> {
+        self.buslogic = Some(());
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<SCSIModel> {
+        if self.auto.is_some() {
+            return Ok(SCSIModel::Auto);
+        }
+        if self.buslogic.is_some() {
+            return Ok(SCSIModel::Buslogic);
+        }
+        Err(Error::BuilderVariant("SCSIModel"))
+    }
+}
+
+--- controller/controller_choice/type.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Type {
+    Scsi,
+    Usb,
+}
+impl ToXml for Type {
+    type Builder = TypeBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::Scsi => {
+                writer.write_event(Event::Text(BytesText::new("scsi")))?;
+            }
+            Self::Usb => {
+                writer.write_event(Event::Text(BytesText::new("usb")))?;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for Type {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl Type {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<Type> {
+        let mut builder = Type::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            "scsi" => {
+                                builder.scsi()?;
+                            }
+                            "usb" => {
+                                builder.usb()?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::Scsi => {}
+            Self::Usb => {}
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for Type {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            "scsi" => {
+                builder.scsi()?;
+            }
+            "usb" => {
+                builder.usb()?;
+            }
+            other => {
+                dbg!(other);
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeBuilder {
+    scsi: Option<()>,
+    usb: Option<()>,
+}
+impl TypeBuilder {
+    pub fn scsi(&mut self) -> Result<&mut Self> {
+        self.scsi = Some(());
+        Ok(self)
+    }
+    pub fn usb(&mut self) -> Result<&mut Self> {
+        self.usb = Some(());
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<Type> {
+        if self.scsi.is_some() {
+            return Ok(Type::Scsi);
+        }
+        if self.usb.is_some() {
+            return Ok(Type::Usb);
+        }
+        Err(Error::BuilderVariant("Type"))
+    }
+}
+
+--- controller/controller_choice/usb_model.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use super::controller_model::ControllerModel;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum USBModel {
+    Ehci,
+    Xhci,
+}
+impl From<USBModel> for super::controller_model::ControllerModel {
+    fn from(value: USBModel) -> Self {
+        match value {
+            USBModel::Ehci => ControllerModel::Ehci,
+            USBModel::Xhci => ControllerModel::Xhci,
+        }
+    }
+}
+impl TryFrom<ControllerModel> for USBModel {
+    type Error = Error;
+    fn try_from(value: ControllerModel) -> Result<Self> {
+        match value {
+            ControllerModel::Ehci => Ok(USBModel::Ehci),
+            ControllerModel::Xhci => Ok(USBModel::Xhci),
+            _ => Err(Error::BuilderVariant("USBModel")),
+        }
+    }
+}
+impl ToXml for USBModel {
+    type Builder = USBModelBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::Ehci => {
+                writer.write_event(Event::Text(BytesText::new("ehci")))?;
+            }
+            Self::Xhci => {
+                writer.write_event(Event::Text(BytesText::new("xhci")))?;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for USBModel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl USBModel {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<USBModel> {
+        let mut builder = USBModel::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            "ehci" => {
+                                builder.ehci()?;
+                            }
+                            "xhci" => {
+                                builder.xhci()?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::Ehci => {}
+            Self::Xhci => {}
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for USBModel {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            "ehci" => {
+                builder.ehci()?;
+            }
+            "xhci" => {
+                builder.xhci()?;
+            }
+            other => {
+                dbg!(other);
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct USBModelBuilder {
+    ehci: Option<()>,
+    xhci: Option<()>,
+}
+impl USBModelBuilder {
+    pub fn ehci(&mut self) -> Result<&mut Self> {
+        self.ehci = Some(());
+        Ok(self)
+    }
+    pub fn xhci(&mut self) -> Result<&mut Self> {
+        self.xhci = Some(());
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<USBModel> {
+        if self.ehci.is_some() {
+            return Ok(USBModel::Ehci);
+        }
+        if self.xhci.is_some() {
+            return Ok(USBModel::Xhci);
+        }
+        Err(Error::BuilderVariant("USBModel"))
+    }
+}
+
+--- controller/controller_choice.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod controller_model;
+use controller_model::ControllerModel;
+pub mod r#type;
+use r#type::Type;
+pub mod scsi_model;
+use scsi_model::SCSIModel;
+pub mod usb_model;
+use usb_model::USBModel;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ControllerChoice {
+    #[doc = "/element[@name='controller'][1]/choice[1]/group[1]"]
+    SCSI { model: Option<SCSIModel> },
+    #[doc = "/element[@name='controller'][1]/choice[1]/group[2]"]
+    USB { model: Option<USBModel> },
+}
+impl ToXml for ControllerChoice {
+    type Builder = ControllerChoiceBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::SCSI { model } => {}
+            Self::USB { model } => {}
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for ControllerChoice {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl ControllerChoice {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<ControllerChoice> {
+        let mut builder = ControllerChoice::builder();
+        if let Some(val) = node.attribute("type") {
+            builder.r#type(Type::from_str(val)?)?;
+        }
+        if let Some(val) = node.attribute("model") {
+            builder.model(Some(ControllerModel::from_str(val)?))?;
+        }
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::SCSI { model } => {
+                __start
+                    .push_attribute((
+                        &b"type"[..],
+                        quick_xml::escape::escape("scsi").as_bytes(),
+                    ));
+                let elem = model;
+                {
+                    let elem = model;
+                    if let Some(elem) = elem {
+                        __start
+                            .push_attribute((
+                                &b"model"[..],
+                                quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                            ));
+                    }
+                }
+            }
+            Self::USB { model } => {
+                __start
+                    .push_attribute((
+                        &b"type"[..],
+                        quick_xml::escape::escape("usb").as_bytes(),
+                    ));
+                let elem = model;
+                {
+                    let elem = model;
+                    if let Some(elem) = elem {
+                        __start
+                            .push_attribute((
+                                &b"model"[..],
+                                quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                            ));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ControllerChoiceBuilder {
+    r#type: Option<Type>,
+    model: Option<ControllerModel>,
+}
+impl ControllerChoiceBuilder {
+    pub fn r#type<T>(&mut self, r#type: T) -> Result<&mut Self>
+    where
+        T: TryInto<Type>,
+        Error: From<<T as TryInto<Type>>::Error>,
+    {
+        self.r#type = Some(r#type.try_into()?);
+        Ok(self)
+    }
+    pub fn model<T>(&mut self, model: Option<T>) -> Result<&mut Self>
+    where
+        T: TryInto<ControllerModel>,
+        Error: From<<T as TryInto<ControllerModel>>::Error>,
+    {
+        self.model = if let Some(model) = model {
+            Some(model.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<ControllerChoice> {
+        if matches!(self.r#type, Some(Type::Scsi)) {
+            return Ok(ControllerChoice::SCSI {
+                model: self.model.clone().map(|m| m.try_into()).transpose()?,
+            });
+        }
+        if matches!(self.r#type, Some(Type::Usb)) {
+            return Ok(ControllerChoice::USB {
+                model: self.model.clone().map(|m| m.try_into()).transpose()?,
+            });
+        }
+        Err(Error::BuilderVariant("ControllerChoice"))
+    }
+}
+
+--- controller.rs ---
+//!`controller` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod controller_choice;
+use controller_choice::ControllerChoice;
+///`<controller/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Controller {
+    pub controller_choice: ControllerChoice,
+}
+impl ToXml for Controller {
+    type Builder = ControllerBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("controller");
+        {
+            let elem = &self.controller_choice;
+            elem.to_xml_attr(&mut start)?;
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.controller_choice;
+                    elem.is_empty()
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.controller_choice;
+                elem.to_xml(writer)?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("controller")))?;
+        }
+        Ok(())
+    }
+}
+impl Controller {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        let child = &mut node.first_child();
+        builder.controller_choice(ControllerChoice::from_xml(node, child)?)?;
+        builder.build()
+    }
+}
+impl core::fmt::Display for Controller {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<controller/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ControllerBuilder {
+    pub controller_choice: Option<ControllerChoice>,
+}
+impl ControllerBuilder {
+    pub fn controller_choice<T>(&mut self, controller_choice: T) -> Result<&mut Self>
+    where
+        T: TryInto<ControllerChoice>,
+        Error: From<<T as TryInto<ControllerChoice>>::Error>,
+    {
+        self.controller_choice = Some(controller_choice.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Controller`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Controller> {
+        let controller_choice = Clone::clone(
+            self
+                .controller_choice
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("controller", "controller_choice"))?,
+        );
+        Ok(Controller { controller_choice })
+    }
+}
+
+--- lib.rs ---
+#![doc = concat!(
+    "Generated from ",
+    "'/home/elmarco/src/relaxng-rust/relaxng-gen/tests/fixtures/controller.rng'",
+    " schema."
+)]
+#![allow(dead_code)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+use thiserror::Error;
+pub mod controller;
+pub use controller::*;
+/// The error type used by this crate.
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("From UTF-8 error: {0}")]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
+    #[error("{0} builder is missing mandatory field: {1}")]
+    BuilderMissingField(&'static str, &'static str),
+    #[error("{0} builder cannot build a variant")]
+    BuilderVariant(&'static str),
+    #[error("String too short, expected at least {0} characters, got {1}")]
+    TooShort(usize, usize),
+    #[error("String too long, expected at most {0} characters, got {1}")]
+    TooLong(usize, usize),
+    #[error("String '{0}' does not match pattern '{1}'")]
+    PatternMismatch(&'static str, String),
+    #[error("Failed to compile regex: {0}")]
+    RegexError(#[from] regex::Error),
+    #[error("Failed to parse '{0}': {1}")]
+    ParseError(
+        &'static str,
+        #[source]
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    ),
+}
+impl From<std::convert::Infallible> for Error {
+    fn from(_: std::convert::Infallible) -> Self {
+        unreachable!("Infallible error should not occur")
+    }
+}
+/// Helper trait for this crate XML types.
+pub trait ToXml {
+    /// The associated builder type.
+    type Builder: Default;
+    /// Creates a new builder for this type.
+    fn builder() -> Self::Builder {
+        Self::Builder::default()
+    }
+    /// Writes Events to a XML writer.
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write;
+}
+#[doc(hidden)]
+pub trait RegexPattern {
+    const REGEX: &'static str;
+}
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoPattern;
+impl RegexPattern for NoPattern {
+    const REGEX: &'static str = "";
+}
+/// A string type with length constraints and optional runtime regex validation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ConstrainedString<
+    const MIN_LEN: usize,
+    const MAX_LEN: usize,
+    P: RegexPattern = NoPattern,
+> {
+    value: String,
+    _phantom: std::marker::PhantomData<P>,
+}
+impl<
+    const MIN: usize,
+    const MAX: usize,
+    P: RegexPattern,
+> ConstrainedString<MIN, MAX, P> {
+    pub const NO_MIN_CONSTRAINT: usize = 0;
+    pub const NO_MAX_CONSTRAINT: usize = usize::MAX;
+    pub fn try_new(value: impl Into<String>) -> Result<Self> {
+        let s = value.into();
+        Self::validate(&s)?;
+        Ok(Self {
+            value: s,
+            _phantom: std::marker::PhantomData,
+        })
+    }
+    fn validate(s: &str) -> Result<()> {
+        fn get_compiled_regex(pattern: &'static str) -> Result<regex::Regex> {
+            /// Registry for compiled regex patterns
+            static REGEX_REGISTRY: std::sync::OnceLock<
+                std::sync::Mutex<std::collections::HashMap<&'static str, regex::Regex>>,
+            > = std::sync::OnceLock::new();
+            if pattern.is_empty() {
+                return Ok(regex::Regex::new(".*").unwrap());
+            }
+            let registry = REGEX_REGISTRY
+                .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+            let mut map = registry.lock().unwrap();
+            if let Some(regex) = map.get(pattern) {
+                return Ok(regex.clone());
+            }
+            match regex::Regex::new(pattern) {
+                Ok(regex) => {
+                    let result = regex.clone();
+                    map.insert(pattern, regex);
+                    Ok(result)
+                }
+                Err(e) => Err(Error::RegexError(e)),
+            }
+        }
+        if MIN > Self::NO_MIN_CONSTRAINT && s.len() < MIN {
+            return Err(Error::TooShort(MIN, s.len()));
+        }
+        if MAX < Self::NO_MAX_CONSTRAINT && s.len() > MAX {
+            return Err(Error::TooLong(MAX, s.len()));
+        }
+        if !P::REGEX.is_empty() {
+            let regex = get_compiled_regex(P::REGEX)?;
+            if !regex.is_match(s) {
+                return Err(Error::PatternMismatch(P::REGEX, s.to_string()));
+            }
+        }
+        Ok(())
+    }
+    /// Returns the string as a `&str`.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.value
+    }
+    /// Converts the constrained string into a `String`, consuming it.
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::ops::Deref
+for ConstrainedString<MIN, MAX, P> {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::fmt::Display
+for ConstrainedString<MIN, MAX, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> AsRef<str>
+for ConstrainedString<MIN, MAX, P> {
+    fn as_ref(&self) -> &str {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::str::FromStr
+for ConstrainedString<MIN, MAX, P> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_new(s)
+    }
+}
+/// A specialized Result type where the error is hard-wired to [`enum@Error`].
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+--- main.rs ---
+use std::path::Path;
+use std::{env::args, fs};
+fn main() {
+    let path = args().nth(1).expect("No XML file path provided");
+    let xml_path = Path::new(&path);
+    let xml = fs::read_to_string(xml_path).expect("Failed to read test XML file");
+    let xml = roxmltree::Document::parse(&xml).expect("Failed to parse XML");
+    let root = xml.root().first_child().expect("No root element found");
+    let res = test_controller::Controller::from_xml(&root).unwrap();
+    let res = res.to_string();
+    println!("{}", res);
+}

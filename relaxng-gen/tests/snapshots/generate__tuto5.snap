@@ -1,5 +1,0 @@
----
-source: relaxng-gen/tests/generate.rs
-expression: output
----
-<number>42</number>

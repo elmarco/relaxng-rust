@@ -1,0 +1,461 @@
+<?xml version="1.0"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <!-- Standalone OS definitions extracted from domaincommon.rng -->
+
+  <start>
+    <ref name="os"/>
+  </start>
+
+  <define name="os">
+    <choice>
+      <ref name="osxen"/>
+      <ref name="oshvm"/>
+      <ref name="osexe"/>
+    </choice>
+  </define>
+
+  <define name="osxen">
+    <choice>
+      <group>
+        <interleave>
+          <optional>
+            <ref name="bootloader"/>
+          </optional>
+          <element name="os">
+            <interleave>
+              <ref name="ostypexen"/>
+              <ref name="osbootkernel"/>
+            </interleave>
+          </element>
+        </interleave>
+      </group>
+      <group>
+        <interleave>
+          <ref name="bootloader"/>
+          <optional>
+            <element name="os">
+              <interleave>
+                <ref name="ostypexen"/>
+                <optional>
+                  <ref name="osbootkernel"/>
+                </optional>
+              </interleave>
+            </element>
+          </optional>
+        </interleave>
+      </group>
+    </choice>
+  </define>
+
+  <define name="oshvm">
+    <interleave>
+      <optional>
+        <ref name="bootloader"/>
+      </optional>
+      <element name="os">
+        <interleave>
+          <optional>
+            <attribute name="firmware">
+              <choice>
+                <value>bios</value>
+                <value>efi</value>
+              </choice>
+            </attribute>
+          </optional>
+          <ref name="ostypehvm"/>
+          <optional>
+            <element name="firmware">
+              <oneOrMore>
+                <element name="feature">
+                  <attribute name="enabled">
+                    <ref name="virYesNo"/>
+                  </attribute>
+                  <attribute name="name">
+                    <choice>
+                      <value>enrolled-keys</value>
+                      <value>secure-boot</value>
+                    </choice>
+                  </attribute>
+                </element>
+              </oneOrMore>
+            </element>
+          </optional>
+          <optional>
+            <element name="loader">
+              <optional>
+                <attribute name="readonly">
+                  <ref name="virYesNo"/>
+                </attribute>
+              </optional>
+              <optional>
+                <attribute name="secure">
+                  <ref name="virYesNo"/>
+                </attribute>
+              </optional>
+              <optional>
+                <attribute name="type">
+                  <choice>
+                    <value>rom</value>
+                    <value>pflash</value>
+                  </choice>
+                </attribute>
+              </optional>
+              <optional>
+                <attribute name="stateless">
+                  <ref name="virYesNo"/>
+                </attribute>
+              </optional>
+              <optional>
+                <ref name="pflashFormat"/>
+              </optional>
+              <optional>
+                <ref name="absFilePath"/>
+              </optional>
+            </element>
+          </optional>
+          <optional>
+            <element name="nvram">
+              <optional>
+                <attribute name="template">
+                  <ref name="absFilePath"/>
+                </attribute>
+                <optional>
+                  <attribute name="templateFormat">
+                    <ref name="pflashFormatTypes"/>
+                  </attribute>
+                </optional>
+              </optional>
+              <optional>
+                <ref name="pflashFormat"/>
+              </optional>
+              <optional>
+                <ref name="absFilePath"/>
+              </optional>
+            </element>
+          </optional>
+          <optional>
+            <ref name="osbootkernel"/>
+          </optional>
+          <zeroOrMore>
+            <ref name="osbootdev"/>
+          </zeroOrMore>
+          <optional>
+            <element name="bootmenu">
+              <attribute name="enable">
+                <ref name="virYesNo"/>
+              </attribute>
+              <optional>
+                <attribute name="timeout">
+                  <ref name="unsignedShort"/>
+                </attribute>
+              </optional>
+            </element>
+          </optional>
+          <optional>
+            <ref name="smbios"/>
+          </optional>
+          <optional>
+            <ref name="bios"/>
+          </optional>
+          <optional>
+            <ref name="acpiTable"/>
+          </optional>
+        </interleave>
+      </element>
+    </interleave>
+  </define>
+
+  <define name="ostypexen">
+    <element name="type">
+      <optional>
+        <attribute name="arch">
+          <choice>
+            <value>i686</value>
+            <value>x86_64</value>
+            <value>ia64</value>
+          </choice>
+        </attribute>
+      </optional>
+      <optional>
+        <attribute name="machine">
+          <choice>
+            <value>xenpv</value>
+            <value>xenfv</value>
+            <value>xenpvh</value>
+          </choice>
+        </attribute>
+      </optional>
+      <choice>
+        <value>xen</value>
+        <value>linux</value>
+        <value>xenpvh</value>
+      </choice>
+    </element>
+  </define>
+
+  <define name="ostypehvm">
+    <element name="type">
+      <optional>
+        <attribute name="arch">
+          <ref name="archnames"/>
+        </attribute>
+      </optional>
+      <optional>
+        <attribute name="machine">
+          <data type="string">
+            <param name="pattern">[a-zA-Z0-9_\.\-]+</param>
+          </data>
+        </attribute>
+      </optional>
+      <value>hvm</value>
+    </element>
+  </define>
+
+  <define name="osexe">
+    <element name="os">
+      <interleave>
+        <element name="type">
+          <optional>
+            <attribute name="arch">
+              <ref name="archnames"/>
+            </attribute>
+          </optional>
+          <value>exe</value>
+        </element>
+        <optional>
+          <element name="init">
+            <ref name="absFilePath"/>
+          </element>
+        </optional>
+        <zeroOrMore>
+          <element name="initarg">
+            <text/>
+          </element>
+        </zeroOrMore>
+        <zeroOrMore>
+          <element name="initenv">
+            <attribute name="name">
+              <data type="string">
+                <param name="pattern">[a-zA-Z_]+[a-zA-Z0-9_]*</param>
+              </data>
+            </attribute>
+            <text/>
+          </element>
+        </zeroOrMore>
+        <optional>
+          <element name="initdir">
+            <ref name="absFilePath"/>
+          </element>
+        </optional>
+        <optional>
+          <interleave>
+            <element name="inituser">
+              <ref name="genericName"/>
+            </element>
+            <element name="initgroup">
+              <ref name="genericName"/>
+            </element>
+          </interleave>
+        </optional>
+      </interleave>
+    </element>
+  </define>
+
+  <define name="bootloader">
+    <interleave>
+      <optional>
+        <element name="bootloader">
+          <choice>
+            <text/>
+            <empty/>
+          </choice>
+        </element>
+      </optional>
+      <optional>
+        <element name="bootloader_args">
+          <text/>
+        </element>
+      </optional>
+    </interleave>
+  </define>
+
+  <define name="osbootkernel">
+    <interleave>
+      <optional>
+        <element name="kernel">
+          <ref name="absFilePath"/>
+        </element>
+      </optional>
+      <optional>
+        <element name="initrd">
+          <ref name="absFilePath"/>
+        </element>
+      </optional>
+      <optional>
+        <element name="root">
+          <ref name="absFilePath"/>
+        </element>
+      </optional>
+      <optional>
+        <element name="cmdline">
+          <text/>
+        </element>
+      </optional>
+      <optional>
+        <element name="shim">
+          <text/>
+        </element>
+      </optional>
+      <optional>
+        <element name="dtb">
+          <ref name="absFilePath"/>
+        </element>
+      </optional>
+    </interleave>
+  </define>
+
+  <define name="osbootdev">
+    <element name="boot">
+      <attribute name="dev">
+        <choice>
+          <value>hd</value>
+          <value>fd</value>
+          <value>cdrom</value>
+          <value>network</value>
+        </choice>
+      </attribute>
+      <empty/>
+    </element>
+  </define>
+
+  <define name="acpiTable">
+    <element name="acpi">
+      <zeroOrMore>
+        <element name="table">
+          <attribute name="type">
+            <choice>
+              <value>raw</value>
+              <value>rawset</value>
+              <value>slic</value>
+              <value>msdm</value>
+            </choice>
+          </attribute>
+          <ref name="absFilePath"/>
+        </element>
+      </zeroOrMore>
+    </element>
+  </define>
+
+  <define name="smbios">
+    <element name="smbios">
+      <attribute name="mode">
+        <choice>
+          <value>emulate</value>
+          <value>host</value>
+          <value>sysinfo</value>
+        </choice>
+      </attribute>
+      <empty/>
+    </element>
+  </define>
+
+  <define name="bios">
+    <element name="bios">
+      <optional>
+        <attribute name="useserial">
+          <ref name="virYesNo"/>
+        </attribute>
+      </optional>
+      <optional>
+        <attribute name="rebootTimeout">
+          <ref name="rebootTimeoutDelay"/>
+        </attribute>
+      </optional>
+    </element>
+  </define>
+
+  <define name="rebootTimeoutDelay">
+    <data type="short">
+      <param name="minInclusive">-1</param>
+    </data>
+  </define>
+
+  <define name="pflashFormatTypes">
+    <choice>
+      <value>raw</value>
+      <value>qcow2</value>
+    </choice>
+  </define>
+
+  <define name="pflashFormat">
+    <attribute name="format">
+      <ref name="pflashFormatTypes"/>
+    </attribute>
+  </define>
+
+  <define name="unsignedShort">
+    <data type="unsignedShort"/>
+  </define>
+
+  <!-- Inlined from basictypes.rng -->
+
+  <define name="virYesNo">
+    <choice>
+      <value>yes</value>
+      <value>no</value>
+    </choice>
+  </define>
+
+  <define name="absFilePath">
+    <data type="string">
+      <param name="pattern">(/|[a-zA-Z]:\\).+</param>
+    </data>
+  </define>
+
+  <define name="genericName">
+    <data type="string">
+      <param name="pattern">[a-zA-Z0-9_\+\-]+</param>
+    </data>
+  </define>
+
+  <define name="archnames">
+    <choice>
+      <value>aarch64</value>
+      <value>alpha</value>
+      <value>armv6l</value>
+      <value>armv7l</value>
+      <value>cris</value>
+      <value>i686</value>
+      <value>ia64</value>
+      <value>lm32</value>
+      <value>loongarch64</value>
+      <value>m68k</value>
+      <value>microblaze</value>
+      <value>microblazeel</value>
+      <value>mips</value>
+      <value>mipsel</value>
+      <value>mips64</value>
+      <value>mips64el</value>
+      <value>openrisc</value>
+      <value>parisc</value>
+      <value>parisc64</value>
+      <value>ppc</value>
+      <value>ppc64</value>
+      <value>ppc64le</value>
+      <value>ppcemb</value>
+      <value>riscv32</value>
+      <value>riscv64</value>
+      <value>s390</value>
+      <value>s390x</value>
+      <value>sh4</value>
+      <value>sh4eb</value>
+      <value>sparc</value>
+      <value>sparc64</value>
+      <value>unicore32</value>
+      <value>x86_64</value>
+      <value>xtensa</value>
+      <value>xtensaeb</value>
+    </choice>
+  </define>
+
+</grammar>

@@ -1,0 +1,1232 @@
+---
+source: relaxng-gen/tests/build.rs
+expression: combined
+---
+--- lib.rs ---
+#![doc = concat!(
+    "Generated from ",
+    "'/home/elmarco/src/relaxng-rust/relaxng-gen/tests/fixtures/seclabel.rng'",
+    " schema."
+)]
+#![allow(dead_code)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+use thiserror::Error;
+pub mod seclabel;
+pub use seclabel::*;
+/// The error type used by this crate.
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("From UTF-8 error: {0}")]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
+    #[error("{0} builder is missing mandatory field: {1}")]
+    BuilderMissingField(&'static str, &'static str),
+    #[error("{0} builder cannot build a variant")]
+    BuilderVariant(&'static str),
+    #[error("String too short, expected at least {0} characters, got {1}")]
+    TooShort(usize, usize),
+    #[error("String too long, expected at most {0} characters, got {1}")]
+    TooLong(usize, usize),
+    #[error("String '{0}' does not match pattern '{1}'")]
+    PatternMismatch(&'static str, String),
+    #[error("Failed to compile regex: {0}")]
+    RegexError(#[from] regex::Error),
+    #[error("Failed to parse '{0}': {1}")]
+    ParseError(
+        &'static str,
+        #[source]
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    ),
+}
+impl From<std::convert::Infallible> for Error {
+    fn from(_: std::convert::Infallible) -> Self {
+        unreachable!("Infallible error should not occur")
+    }
+}
+/// Helper trait for this crate XML types.
+pub trait ToXml {
+    /// The associated builder type.
+    type Builder: Default;
+    /// Creates a new builder for this type.
+    fn builder() -> Self::Builder {
+        Self::Builder::default()
+    }
+    /// Writes Events to a XML writer.
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write;
+}
+#[doc(hidden)]
+pub trait RegexPattern {
+    const REGEX: &'static str;
+}
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoPattern;
+impl RegexPattern for NoPattern {
+    const REGEX: &'static str = "";
+}
+/// A string type with length constraints and optional runtime regex validation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ConstrainedString<
+    const MIN_LEN: usize,
+    const MAX_LEN: usize,
+    P: RegexPattern = NoPattern,
+> {
+    value: String,
+    _phantom: std::marker::PhantomData<P>,
+}
+impl<
+    const MIN: usize,
+    const MAX: usize,
+    P: RegexPattern,
+> ConstrainedString<MIN, MAX, P> {
+    pub const NO_MIN_CONSTRAINT: usize = 0;
+    pub const NO_MAX_CONSTRAINT: usize = usize::MAX;
+    pub fn try_new(value: impl Into<String>) -> Result<Self> {
+        let s = value.into();
+        Self::validate(&s)?;
+        Ok(Self {
+            value: s,
+            _phantom: std::marker::PhantomData,
+        })
+    }
+    fn validate(s: &str) -> Result<()> {
+        fn get_compiled_regex(pattern: &'static str) -> Result<regex::Regex> {
+            /// Registry for compiled regex patterns
+            static REGEX_REGISTRY: std::sync::OnceLock<
+                std::sync::Mutex<std::collections::HashMap<&'static str, regex::Regex>>,
+            > = std::sync::OnceLock::new();
+            if pattern.is_empty() {
+                return Ok(regex::Regex::new(".*").unwrap());
+            }
+            let registry = REGEX_REGISTRY
+                .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+            let mut map = registry.lock().unwrap();
+            if let Some(regex) = map.get(pattern) {
+                return Ok(regex.clone());
+            }
+            match regex::Regex::new(pattern) {
+                Ok(regex) => {
+                    let result = regex.clone();
+                    map.insert(pattern, regex);
+                    Ok(result)
+                }
+                Err(e) => Err(Error::RegexError(e)),
+            }
+        }
+        if MIN > Self::NO_MIN_CONSTRAINT && s.len() < MIN {
+            return Err(Error::TooShort(MIN, s.len()));
+        }
+        if MAX < Self::NO_MAX_CONSTRAINT && s.len() > MAX {
+            return Err(Error::TooLong(MAX, s.len()));
+        }
+        if !P::REGEX.is_empty() {
+            let regex = get_compiled_regex(P::REGEX)?;
+            if !regex.is_match(s) {
+                return Err(Error::PatternMismatch(P::REGEX, s.to_string()));
+            }
+        }
+        Ok(())
+    }
+    /// Returns the string as a `&str`.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.value
+    }
+    /// Converts the constrained string into a `String`, consuming it.
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::ops::Deref
+for ConstrainedString<MIN, MAX, P> {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::fmt::Display
+for ConstrainedString<MIN, MAX, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> AsRef<str>
+for ConstrainedString<MIN, MAX, P> {
+    fn as_ref(&self) -> &str {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::str::FromStr
+for ConstrainedString<MIN, MAX, P> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_new(s)
+    }
+}
+/// A specialized Result type where the error is hard-wired to [`enum@Error`].
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+--- main.rs ---
+use std::path::Path;
+use std::{env::args, fs};
+fn main() {
+    let path = args().nth(1).expect("No XML file path provided");
+    let xml_path = Path::new(&path);
+    let xml = fs::read_to_string(xml_path).expect("Failed to read test XML file");
+    let xml = roxmltree::Document::parse(&xml).expect("Failed to parse XML");
+    let root = xml.root().first_child().expect("No root element found");
+    let res = test_seclabel::Seclabel::from_xml(&root).unwrap();
+    let res = res.to_string();
+    println!("{}", res);
+}
+
+--- seclabel/sec_label_kind/baselabel.rs ---
+//!`baselabel` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+///`<baselabel/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Baselabel {
+    pub value: String,
+}
+impl ToXml for Baselabel {
+    type Builder = BaselabelBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("baselabel");
+        let empty = {
+            true
+                && ({
+                    let elem = &self.value;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.value;
+                writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("baselabel")))?;
+        }
+        Ok(())
+    }
+}
+impl Baselabel {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {
+                    builder.value(val)?;
+                }
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Baselabel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<baselabel/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BaselabelBuilder {
+    pub value: Option<String>,
+}
+impl BaselabelBuilder {
+    pub fn value<T>(&mut self, value: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.value = Some(value.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Baselabel`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Baselabel> {
+        let value = Clone::clone(
+            self.value.as_ref().ok_or(Error::BuilderMissingField("baselabel", "value"))?,
+        );
+        Ok(Baselabel { value })
+    }
+}
+
+--- seclabel/sec_label_kind/imagelabel.rs ---
+//!`imagelabel` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+///`<imagelabel/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Imagelabel {
+    pub value: String,
+}
+impl ToXml for Imagelabel {
+    type Builder = ImagelabelBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("imagelabel");
+        let empty = {
+            true
+                && ({
+                    let elem = &self.value;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.value;
+                writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("imagelabel")))?;
+        }
+        Ok(())
+    }
+}
+impl Imagelabel {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {
+                    builder.value(val)?;
+                }
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Imagelabel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<imagelabel/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ImagelabelBuilder {
+    pub value: Option<String>,
+}
+impl ImagelabelBuilder {
+    pub fn value<T>(&mut self, value: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.value = Some(value.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Imagelabel`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Imagelabel> {
+        let value = Clone::clone(
+            self.value.as_ref().ok_or(Error::BuilderMissingField("imagelabel", "value"))?,
+        );
+        Ok(Imagelabel { value })
+    }
+}
+
+--- seclabel/sec_label_kind/label.rs ---
+//!`label` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+///`<label/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Label {
+    pub value: String,
+}
+impl ToXml for Label {
+    type Builder = LabelBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("label");
+        let empty = {
+            true
+                && ({
+                    let elem = &self.value;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.value;
+                writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("label")))?;
+        }
+        Ok(())
+    }
+}
+impl Label {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {
+                    builder.value(val)?;
+                }
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Label {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<label/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LabelBuilder {
+    pub value: Option<String>,
+}
+impl LabelBuilder {
+    pub fn value<T>(&mut self, value: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.value = Some(value.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Label`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Label> {
+        let value = Clone::clone(
+            self.value.as_ref().ok_or(Error::BuilderMissingField("label", "value"))?,
+        );
+        Ok(Label { value })
+    }
+}
+
+--- seclabel/sec_label_kind/relabel.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Relabel {
+    Yes,
+    Text(String),
+    No,
+}
+impl ToXml for Relabel {
+    type Builder = RelabelBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::Yes => {
+                writer.write_event(Event::Text(BytesText::new("yes")))?;
+            }
+            Self::Text(text) => {
+                let elem = text;
+                {
+                    let elem = text;
+                    writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
+                }
+            }
+            Self::No => {
+                writer.write_event(Event::Text(BytesText::new("no")))?;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for Relabel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl Relabel {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<Relabel> {
+        let mut builder = Relabel::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            "yes" => {
+                                builder.yes()?;
+                            }
+                            "no" => {
+                                builder.no()?;
+                            }
+                            _ => {
+                                builder.text(val)?;
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::Yes => {}
+            Self::Text(text) => {
+                let elem = text;
+            }
+            Self::No => {}
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for Relabel {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            "yes" => {
+                builder.yes()?;
+            }
+            "no" => {
+                builder.no()?;
+            }
+            val => {
+                builder.text(val)?;
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RelabelBuilder {
+    yes: Option<()>,
+    text: Option<String>,
+    no: Option<()>,
+}
+impl RelabelBuilder {
+    pub fn yes(&mut self) -> Result<&mut Self> {
+        self.yes = Some(());
+        Ok(self)
+    }
+    pub fn text<T>(&mut self, text: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.text = Some(text.try_into()?);
+        Ok(self)
+    }
+    pub fn no(&mut self) -> Result<&mut Self> {
+        self.no = Some(());
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<Relabel> {
+        if self.yes.is_some() {
+            return Ok(Relabel::Yes);
+        }
+        if self.text.is_some() {
+            return Ok(Relabel::Text(Clone::clone(&self.text.as_ref().unwrap())));
+        }
+        if self.no.is_some() {
+            return Ok(Relabel::No);
+        }
+        Err(Error::BuilderVariant("Relabel"))
+    }
+}
+
+--- seclabel/sec_label_kind/type.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Type {
+    Dynamic,
+    Static,
+    None,
+}
+impl ToXml for Type {
+    type Builder = TypeBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::Dynamic => {
+                writer.write_event(Event::Text(BytesText::new("dynamic")))?;
+            }
+            Self::Static => {
+                writer.write_event(Event::Text(BytesText::new("static")))?;
+            }
+            Self::None => {
+                writer.write_event(Event::Text(BytesText::new("none")))?;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for Type {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl Type {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<Type> {
+        let mut builder = Type::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            "dynamic" => {
+                                builder.dynamic()?;
+                            }
+                            "static" => {
+                                builder.r#static()?;
+                            }
+                            "none" => {
+                                builder.none()?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::Dynamic => {}
+            Self::Static => {}
+            Self::None => {}
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for Type {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            "dynamic" => {
+                builder.dynamic()?;
+            }
+            "static" => {
+                builder.r#static()?;
+            }
+            "none" => {
+                builder.none()?;
+            }
+            other => {
+                dbg!(other);
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeBuilder {
+    dynamic: Option<()>,
+    r#static: Option<()>,
+    none: Option<()>,
+}
+impl TypeBuilder {
+    pub fn dynamic(&mut self) -> Result<&mut Self> {
+        self.dynamic = Some(());
+        Ok(self)
+    }
+    pub fn r#static(&mut self) -> Result<&mut Self> {
+        self.r#static = Some(());
+        Ok(self)
+    }
+    pub fn none(&mut self) -> Result<&mut Self> {
+        self.none = Some(());
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<Type> {
+        if self.dynamic.is_some() {
+            return Ok(Type::Dynamic);
+        }
+        if self.r#static.is_some() {
+            return Ok(Type::Static);
+        }
+        if self.none.is_some() {
+            return Ok(Type::None);
+        }
+        Err(Error::BuilderVariant("Type"))
+    }
+}
+
+--- seclabel/sec_label_kind.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod baselabel;
+use baselabel::Baselabel;
+pub mod imagelabel;
+use imagelabel::Imagelabel;
+pub mod label;
+use label::Label;
+pub mod r#type;
+use r#type::Type;
+pub mod relabel;
+use relabel::Relabel;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum SecLabelKind {
+    #[doc = "/ref[@name='root']/element[@name='seclabel'][1]/group[1]/choice[1]/group[1]"]
+    DynamicLabel {
+        r#type: Option<Type>,
+        relabel: Option<Relabel>,
+        label: Option<Label>,
+        imagelabel: Option<Imagelabel>,
+        baselabel: Option<Baselabel>,
+    },
+    #[doc = "/ref[@name='root']/element[@name='seclabel'][1]/group[1]/choice[1]/group[2]"]
+    StaticLabel {
+        relabel: Option<Relabel>,
+        label: Label,
+        imagelabel: Option<Imagelabel>,
+    },
+    #[doc = "/ref[@name='root']/element[@name='seclabel'][1]/group[1]/choice[1]/group[3]"]
+    NoneLabel { relabel: Option<Relabel> },
+}
+impl ToXml for SecLabelKind {
+    type Builder = SecLabelKindBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::DynamicLabel { r#type, relabel, label, imagelabel, baselabel } => {
+                {
+                    let elem = label;
+                    if let Some(elem) = elem {
+                        elem.to_xml(writer)?;
+                    }
+                }
+                {
+                    let elem = imagelabel;
+                    if let Some(elem) = elem {
+                        elem.to_xml(writer)?;
+                    }
+                }
+                {
+                    let elem = baselabel;
+                    if let Some(elem) = elem {
+                        elem.to_xml(writer)?;
+                    }
+                }
+            }
+            Self::StaticLabel { relabel, label, imagelabel } => {
+                {
+                    let elem = label;
+                    elem.to_xml(writer)?;
+                }
+                {
+                    let elem = imagelabel;
+                    if let Some(elem) = elem {
+                        elem.to_xml(writer)?;
+                    }
+                }
+            }
+            Self::NoneLabel { relabel } => {}
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for SecLabelKind {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl SecLabelKind {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<SecLabelKind> {
+        let mut builder = SecLabelKind::builder();
+        if let Some(val) = node.attribute("type") {
+            builder.r#type(Some(Type::from_str(val)?))?;
+        }
+        if let Some(val) = node.attribute("relabel") {
+            builder.relabel(Some(Relabel::from_str(val)?))?;
+        }
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        "label" if Label::from_xml(&child).is_ok() => {
+                            builder.label(Some(Label::from_xml(&child)?))?;
+                        }
+                        "imagelabel" if Imagelabel::from_xml(&child).is_ok() => {
+                            builder.imagelabel(Some(Imagelabel::from_xml(&child)?))?;
+                        }
+                        "baselabel" if Baselabel::from_xml(&child).is_ok() => {
+                            builder.baselabel(Some(Baselabel::from_xml(&child)?))?;
+                        }
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::DynamicLabel { r#type, relabel, label, imagelabel, baselabel } => {
+                let elem = r#type;
+                {
+                    let elem = r#type;
+                    if let Some(elem) = elem {
+                        __start
+                            .push_attribute((
+                                &b"type"[..],
+                                quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                            ));
+                    }
+                }
+                let elem = relabel;
+                {
+                    let elem = relabel;
+                    if let Some(elem) = elem {
+                        __start
+                            .push_attribute((
+                                &b"relabel"[..],
+                                quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                            ));
+                    }
+                }
+                let elem = label;
+                let elem = imagelabel;
+                let elem = baselabel;
+            }
+            Self::StaticLabel { relabel, label, imagelabel } => {
+                __start
+                    .push_attribute((
+                        &b"type"[..],
+                        quick_xml::escape::escape("static").as_bytes(),
+                    ));
+                let elem = relabel;
+                {
+                    let elem = relabel;
+                    if let Some(elem) = elem {
+                        __start
+                            .push_attribute((
+                                &b"relabel"[..],
+                                quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                            ));
+                    }
+                }
+                let elem = label;
+                let elem = imagelabel;
+            }
+            Self::NoneLabel { relabel } => {
+                __start
+                    .push_attribute((
+                        &b"type"[..],
+                        quick_xml::escape::escape("none").as_bytes(),
+                    ));
+                let elem = relabel;
+                {
+                    let elem = relabel;
+                    if let Some(elem) = elem {
+                        __start
+                            .push_attribute((
+                                &b"relabel"[..],
+                                quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                            ));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SecLabelKindBuilder {
+    r#type: Option<Type>,
+    relabel: Option<Relabel>,
+    label: Option<Label>,
+    imagelabel: Option<Imagelabel>,
+    baselabel: Option<Baselabel>,
+}
+impl SecLabelKindBuilder {
+    pub fn r#type<T>(&mut self, r#type: Option<T>) -> Result<&mut Self>
+    where
+        T: TryInto<Type>,
+        Error: From<<T as TryInto<Type>>::Error>,
+    {
+        self.r#type = if let Some(r#type) = r#type {
+            Some(r#type.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    pub fn relabel<T>(&mut self, relabel: Option<T>) -> Result<&mut Self>
+    where
+        T: TryInto<Relabel>,
+        Error: From<<T as TryInto<Relabel>>::Error>,
+    {
+        self.relabel = if let Some(relabel) = relabel {
+            Some(relabel.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    pub fn label<T>(&mut self, label: Option<T>) -> Result<&mut Self>
+    where
+        T: TryInto<Label>,
+        Error: From<<T as TryInto<Label>>::Error>,
+    {
+        self.label = if let Some(label) = label {
+            Some(label.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    pub fn imagelabel<T>(&mut self, imagelabel: Option<T>) -> Result<&mut Self>
+    where
+        T: TryInto<Imagelabel>,
+        Error: From<<T as TryInto<Imagelabel>>::Error>,
+    {
+        self.imagelabel = if let Some(imagelabel) = imagelabel {
+            Some(imagelabel.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    pub fn baselabel<T>(&mut self, baselabel: Option<T>) -> Result<&mut Self>
+    where
+        T: TryInto<Baselabel>,
+        Error: From<<T as TryInto<Baselabel>>::Error>,
+    {
+        self.baselabel = if let Some(baselabel) = baselabel {
+            Some(baselabel.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<SecLabelKind> {
+        if self.r#type.is_none()
+            || matches!(self.r#type, Some(Type::Dynamic)) && self.relabel.is_none()
+            || matches!(self.relabel, Some(Relabel::Yes))
+        {
+            return Ok(SecLabelKind::DynamicLabel {
+                r#type: Clone::clone(&self.r#type).into(),
+                relabel: Clone::clone(&self.relabel).into(),
+                label: Clone::clone(&self.label).into(),
+                imagelabel: Clone::clone(&self.imagelabel).into(),
+                baselabel: Clone::clone(&self.baselabel).into(),
+            });
+        }
+        if matches!(self.r#type, Some(Type::Static)) && self.relabel.is_none()
+            || matches!(self.relabel, Some(Relabel::Text(_))) && self.label.is_some()
+        {
+            return Ok(SecLabelKind::StaticLabel {
+                relabel: Clone::clone(&self.relabel).into(),
+                label: Clone::clone(self.label.as_ref().unwrap()).into(),
+                imagelabel: Clone::clone(&self.imagelabel).into(),
+            });
+        }
+        if matches!(self.r#type, Some(Type::None)) && self.relabel.is_none()
+            || matches!(self.relabel, Some(Relabel::No))
+        {
+            return Ok(SecLabelKind::NoneLabel {
+                relabel: Clone::clone(&self.relabel).into(),
+            });
+        }
+        Err(Error::BuilderVariant("SecLabelKind"))
+    }
+}
+
+--- seclabel.rs ---
+//!`seclabel` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod sec_label_kind;
+use sec_label_kind::SecLabelKind;
+///`<seclabel/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Seclabel {
+    pub model: Option<String>,
+    pub sec_label_kind: SecLabelKind,
+}
+impl ToXml for Seclabel {
+    type Builder = SeclabelBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("seclabel");
+        {
+            let elem = &self.model;
+            if let Some(elem) = elem {
+                start
+                    .push_attribute((
+                        &b"model"[..],
+                        quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                    ));
+            }
+        }
+        {
+            let elem = &self.sec_label_kind;
+            elem.to_xml_attr(&mut start)?;
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.sec_label_kind;
+                    elem.is_empty()
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.sec_label_kind;
+                elem.to_xml(writer)?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("seclabel")))?;
+        }
+        Ok(())
+    }
+}
+impl Seclabel {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if let Some(val) = node.attribute("model") {
+            builder.model(Some(val))?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        let child = &mut node.first_child();
+        builder.sec_label_kind(SecLabelKind::from_xml(node, child)?)?;
+        builder.build()
+    }
+}
+impl core::fmt::Display for Seclabel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<seclabel/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SeclabelBuilder {
+    pub model: Option<String>,
+    pub sec_label_kind: Option<SecLabelKind>,
+}
+impl SeclabelBuilder {
+    pub fn model<T>(&mut self, model: Option<T>) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.model = if let Some(model) = model {
+            Some(model.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    pub fn sec_label_kind<T>(&mut self, sec_label_kind: T) -> Result<&mut Self>
+    where
+        T: TryInto<SecLabelKind>,
+        Error: From<<T as TryInto<SecLabelKind>>::Error>,
+    {
+        self.sec_label_kind = Some(sec_label_kind.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Seclabel`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Seclabel> {
+        let model = Clone::clone(&self.model);
+        let sec_label_kind = Clone::clone(
+            self
+                .sec_label_kind
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("seclabel", "sec_label_kind"))?,
+        );
+        Ok(Seclabel { model, sec_label_kind })
+    }
+}

@@ -1,0 +1,44 @@
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <start>
+    <ref name="domain"/>
+  </start>
+
+  <define name="domain">
+    <element name="domain">
+      <interleave>
+        <optional>
+          <element name="name">
+            <text/>
+          </element>
+        </optional>
+        <ref name="osref"/>
+      </interleave>
+    </element>
+  </define>
+
+  <define name="osref">
+    <choice>
+      <group>
+        <interleave>
+          <element name="os">
+            <text/>
+          </element>
+          <element name="bootloader">
+            <text/>
+          </element>
+        </interleave>
+      </group>
+      <group>
+        <interleave>
+          <element name="os">
+            <text/>
+          </element>
+          <element name="bootloader2">
+            <text/>
+          </element>
+        </interleave>
+      </group>
+    </choice>
+  </define>
+
+</grammar>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Test case: empty element in a choice group causes scope issues -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+  <start>
+    <ref name="device"/>
+  </start>
+
+  <define name="device">
+    <element name="device">
+      <choice>
+        <group>
+          <attribute name="type">
+            <value>file</value>
+          </attribute>
+          <attribute name="path">
+            <text/>
+          </attribute>
+        </group>
+        <group>
+          <attribute name="type">
+            <value>none</value>
+          </attribute>
+          <empty/>
+        </group>
+      </choice>
+    </element>
+  </define>
+</grammar>

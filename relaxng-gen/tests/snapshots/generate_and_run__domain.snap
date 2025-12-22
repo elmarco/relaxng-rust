@@ -1,0 +1,9 @@
+---
+source: relaxng-gen/tests/generate_and_run.rs
+expression: "String::from_utf8_lossy(&output.stdout).to_string()"
+---
+<domain>
+  <name>example.com</name>
+  <os>Linux</os>
+  <bootloader2>GRUB</bootloader2>
+</domain>

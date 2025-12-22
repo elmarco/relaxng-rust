@@ -1,0 +1,8 @@
+---
+source: relaxng-gen/tests/generate_and_run.rs
+expression: "String::from_utf8_lossy(&output.stdout).to_string()"
+---
+<config>
+  <port>8080</port>
+  <timeout>300</timeout>
+</config>

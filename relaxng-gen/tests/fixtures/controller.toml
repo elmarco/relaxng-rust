@@ -1,0 +1,15 @@
+[rule."/element[@name='controller'][1]/choice[1]"]
+name = "ControllerChoice"
+
+[rule."/element[@name='controller'][1]/choice[1]/group[1]"]
+name = "SCSI"
+
+[rule."/element[@name='controller'][1]/choice[1]/group[2]"]
+name = "USB"
+
+[rule."/element[@name='controller'][1]/choice[1]/group[1]/optional[1]/attribute[@name='model']/choice[1]"]
+name = "SCSIModel"
+merged_name = "ControllerModel"
+
+[rule."/element[@name='controller'][1]/choice[1]/group[2]/optional[1]/attribute[@name='model']/choice[1]"]
+name = "USBModel"

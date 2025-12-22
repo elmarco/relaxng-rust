@@ -1,6 +1,0 @@
----
-source: relaxng-gen/tests/generate.rs
-assertion_line: 21
-expression: output
----
-<tr class="card" bool="true"/>

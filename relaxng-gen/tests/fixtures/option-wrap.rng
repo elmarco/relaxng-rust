@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Test case: builder method expects Option<T> but from_str passes T directly
+     This happens when a choice contains optional refs to other choice types -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+  <start>
+    <ref name="target"/>
+  </start>
+
+  <define name="target">
+    <element name="target">
+      <interleave>
+        <choice>
+          <optional>
+            <ref name="consoleType"/>
+          </optional>
+          <optional>
+            <ref name="serialType"/>
+          </optional>
+        </choice>
+      </interleave>
+    </element>
+  </define>
+
+  <define name="consoleType">
+    <attribute name="type">
+      <choice>
+        <value>xen</value>
+        <value>serial</value>
+        <value>virtio</value>
+      </choice>
+    </attribute>
+  </define>
+
+  <define name="serialType">
+    <attribute name="type">
+      <choice>
+        <value>isa-serial</value>
+        <value>usb-serial</value>
+        <value>pci-serial</value>
+      </choice>
+    </attribute>
+  </define>
+</grammar>

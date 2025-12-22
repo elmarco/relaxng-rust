@@ -1,0 +1,1239 @@
+---
+source: relaxng-gen/tests/build.rs
+expression: combined
+---
+--- cpu.rs ---
+//!`cpu` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::custom::Custom;
+use crate::host_model::HostModel;
+use crate::host_passthrough::HostPassthrough;
+use crate::maximum::Maximum;
+///`<cpu/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Cpu {
+    pub host_passthrough: HostPassthrough,
+    pub maximum: Maximum,
+    pub host_model: HostModel,
+    pub custom: Custom,
+}
+impl ToXml for Cpu {
+    type Builder = CpuBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("cpu");
+        let empty = {
+            true
+                && ({
+                    let elem = &self.host_passthrough;
+                    false
+                })
+                && ({
+                    let elem = &self.maximum;
+                    false
+                })
+                && ({
+                    let elem = &self.host_model;
+                    false
+                })
+                && ({
+                    let elem = &self.custom;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.host_passthrough;
+                elem.to_xml(writer)?;
+            }
+            {
+                let elem = &self.maximum;
+                elem.to_xml(writer)?;
+            }
+            {
+                let elem = &self.host_model;
+                elem.to_xml(writer)?;
+            }
+            {
+                let elem = &self.custom;
+                elem.to_xml(writer)?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("cpu")))?;
+        }
+        Ok(())
+    }
+}
+impl Cpu {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                "mode" if HostPassthrough::from_xml(&child).is_ok() => {
+                    builder.host_passthrough(HostPassthrough::from_xml(&child)?)?;
+                }
+                "mode" if Maximum::from_xml(&child).is_ok() => {
+                    builder.maximum(Maximum::from_xml(&child)?)?;
+                }
+                "mode" if HostModel::from_xml(&child).is_ok() => {
+                    builder.host_model(HostModel::from_xml(&child)?)?;
+                }
+                "mode" if Custom::from_xml(&child).is_ok() => {
+                    builder.custom(Custom::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Cpu {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<cpu/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CpuBuilder {
+    pub host_passthrough: Option<HostPassthrough>,
+    pub maximum: Option<Maximum>,
+    pub host_model: Option<HostModel>,
+    pub custom: Option<Custom>,
+}
+impl CpuBuilder {
+    pub fn host_passthrough<T>(&mut self, host_passthrough: T) -> Result<&mut Self>
+    where
+        T: TryInto<HostPassthrough>,
+        Error: From<<T as TryInto<HostPassthrough>>::Error>,
+    {
+        self.host_passthrough = Some(host_passthrough.try_into()?);
+        Ok(self)
+    }
+    pub fn maximum<T>(&mut self, maximum: T) -> Result<&mut Self>
+    where
+        T: TryInto<Maximum>,
+        Error: From<<T as TryInto<Maximum>>::Error>,
+    {
+        self.maximum = Some(maximum.try_into()?);
+        Ok(self)
+    }
+    pub fn host_model<T>(&mut self, host_model: T) -> Result<&mut Self>
+    where
+        T: TryInto<HostModel>,
+        Error: From<<T as TryInto<HostModel>>::Error>,
+    {
+        self.host_model = Some(host_model.try_into()?);
+        Ok(self)
+    }
+    pub fn custom<T>(&mut self, custom: T) -> Result<&mut Self>
+    where
+        T: TryInto<Custom>,
+        Error: From<<T as TryInto<Custom>>::Error>,
+    {
+        self.custom = Some(custom.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Cpu`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Cpu> {
+        let host_passthrough = Clone::clone(
+            self
+                .host_passthrough
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("cpu", "host_passthrough"))?,
+        );
+        let maximum = Clone::clone(
+            self.maximum.as_ref().ok_or(Error::BuilderMissingField("cpu", "maximum"))?,
+        );
+        let host_model = Clone::clone(
+            self
+                .host_model
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("cpu", "host_model"))?,
+        );
+        let custom = Clone::clone(
+            self.custom.as_ref().ok_or(Error::BuilderMissingField("cpu", "custom"))?,
+        );
+        Ok(Cpu {
+            host_passthrough,
+            maximum,
+            host_model,
+            custom,
+        })
+    }
+}
+
+--- custom.rs ---
+//!`mode` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::vir_yes_no::VirYesNo;
+///`<mode/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Custom {
+    pub supported: VirYesNo,
+}
+impl ToXml for Custom {
+    type Builder = CustomBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("mode");
+        start
+            .push_attribute((
+                &b"name"[..],
+                quick_xml::escape::escape("custom").as_bytes(),
+            ));
+        {
+            let elem = &self.supported;
+            start
+                .push_attribute((
+                    &b"supported"[..],
+                    quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                ));
+        }
+        let empty = { true };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::End(BytesEnd::new("mode")))?;
+        }
+        Ok(())
+    }
+}
+impl Custom {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if matches!(node.attribute("name"), Some("custom")) {
+            builder.name()?;
+        }
+        if let Some(val) = node.attribute("supported") {
+            builder.supported(VirYesNo::from_str(val)?)?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Custom {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<mode/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CustomBuilder {
+    pub name: Option<()>,
+    pub supported: Option<VirYesNo>,
+}
+impl CustomBuilder {
+    pub fn name(&mut self) -> Result<&mut Self> {
+        self.name = Some(());
+        Ok(self)
+    }
+    pub fn supported<T>(&mut self, supported: T) -> Result<&mut Self>
+    where
+        T: TryInto<VirYesNo>,
+        Error: From<<T as TryInto<VirYesNo>>::Error>,
+    {
+        self.supported = Some(supported.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Custom`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Custom> {
+        let name = Clone::clone(
+            self.name.as_ref().ok_or(Error::BuilderMissingField("mode", "name"))?,
+        );
+        let supported = Clone::clone(
+            self
+                .supported
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("mode", "supported"))?,
+        );
+        Ok(Custom { supported })
+    }
+}
+
+--- enum.rs ---
+//!`enum` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::value::Value;
+///`<enum/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Enum {
+    pub name: String,
+    pub values: Vec<Value>,
+}
+impl ToXml for Enum {
+    type Builder = EnumBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("enum");
+        {
+            let elem = &self.name;
+            start
+                .push_attribute((
+                    &b"name"[..],
+                    quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                ));
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.values;
+                    elem.iter().all(|elem| false)
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.values;
+                for elem in elem {
+                    elem.to_xml(writer)?;
+                }
+            }
+            writer.write_event(Event::End(BytesEnd::new("enum")))?;
+        }
+        Ok(())
+    }
+}
+impl Enum {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if let Some(val) = node.attribute("name") {
+            builder.name(val)?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                "value" if Value::from_xml(&child).is_ok() => {
+                    builder.value(Value::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Enum {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<enum/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EnumBuilder {
+    pub name: Option<String>,
+    pub values: Vec<Value>,
+}
+impl EnumBuilder {
+    pub fn name<T>(&mut self, name: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.name = Some(name.try_into()?);
+        Ok(self)
+    }
+    pub fn value<T>(&mut self, value: T) -> Result<&mut Self>
+    where
+        T: TryInto<Value>,
+        Error: From<<T as TryInto<Value>>::Error>,
+    {
+        self.values.push(value.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Enum`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Enum> {
+        let name = Clone::clone(
+            self.name.as_ref().ok_or(Error::BuilderMissingField("enum", "name"))?,
+        );
+        let values = Clone::clone(&self.values);
+        Ok(Enum { name, values })
+    }
+}
+
+--- host_model.rs ---
+//!`mode` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::vir_yes_no::VirYesNo;
+///`<mode/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HostModel {
+    pub supported: VirYesNo,
+}
+impl ToXml for HostModel {
+    type Builder = HostModelBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("mode");
+        start
+            .push_attribute((
+                &b"name"[..],
+                quick_xml::escape::escape("host-model").as_bytes(),
+            ));
+        {
+            let elem = &self.supported;
+            start
+                .push_attribute((
+                    &b"supported"[..],
+                    quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                ));
+        }
+        let empty = { true };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::End(BytesEnd::new("mode")))?;
+        }
+        Ok(())
+    }
+}
+impl HostModel {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if matches!(node.attribute("name"), Some("host-model")) {
+            builder.name()?;
+        }
+        if let Some(val) = node.attribute("supported") {
+            builder.supported(VirYesNo::from_str(val)?)?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for HostModel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<mode/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HostModelBuilder {
+    pub name: Option<()>,
+    pub supported: Option<VirYesNo>,
+}
+impl HostModelBuilder {
+    pub fn name(&mut self) -> Result<&mut Self> {
+        self.name = Some(());
+        Ok(self)
+    }
+    pub fn supported<T>(&mut self, supported: T) -> Result<&mut Self>
+    where
+        T: TryInto<VirYesNo>,
+        Error: From<<T as TryInto<VirYesNo>>::Error>,
+    {
+        self.supported = Some(supported.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`HostModel`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<HostModel> {
+        let name = Clone::clone(
+            self.name.as_ref().ok_or(Error::BuilderMissingField("mode", "name"))?,
+        );
+        let supported = Clone::clone(
+            self
+                .supported
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("mode", "supported"))?,
+        );
+        Ok(HostModel { supported })
+    }
+}
+
+--- host_passthrough.rs ---
+//!`mode` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::r#enum::Enum;
+use crate::vir_yes_no::VirYesNo;
+///`<mode/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HostPassthrough {
+    pub supported: VirYesNo,
+    pub r_enums: Vec<Enum>,
+}
+impl ToXml for HostPassthrough {
+    type Builder = HostPassthroughBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("mode");
+        start
+            .push_attribute((
+                &b"name"[..],
+                quick_xml::escape::escape("host-passthrough").as_bytes(),
+            ));
+        {
+            let elem = &self.supported;
+            start
+                .push_attribute((
+                    &b"supported"[..],
+                    quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                ));
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.r_enums;
+                    elem.iter().all(|elem| false)
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.r_enums;
+                for elem in elem {
+                    elem.to_xml(writer)?;
+                }
+            }
+            writer.write_event(Event::End(BytesEnd::new("mode")))?;
+        }
+        Ok(())
+    }
+}
+impl HostPassthrough {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if matches!(node.attribute("name"), Some("host-passthrough")) {
+            builder.name()?;
+        }
+        if let Some(val) = node.attribute("supported") {
+            builder.supported(VirYesNo::from_str(val)?)?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                "enum" if Enum::from_xml(&child).is_ok() => {
+                    builder.r_enum(Enum::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for HostPassthrough {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<mode/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HostPassthroughBuilder {
+    pub name: Option<()>,
+    pub supported: Option<VirYesNo>,
+    pub r_enums: Vec<Enum>,
+}
+impl HostPassthroughBuilder {
+    pub fn name(&mut self) -> Result<&mut Self> {
+        self.name = Some(());
+        Ok(self)
+    }
+    pub fn supported<T>(&mut self, supported: T) -> Result<&mut Self>
+    where
+        T: TryInto<VirYesNo>,
+        Error: From<<T as TryInto<VirYesNo>>::Error>,
+    {
+        self.supported = Some(supported.try_into()?);
+        Ok(self)
+    }
+    pub fn r_enum<T>(&mut self, r_enum: T) -> Result<&mut Self>
+    where
+        T: TryInto<Enum>,
+        Error: From<<T as TryInto<Enum>>::Error>,
+    {
+        self.r_enums.push(r_enum.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`HostPassthrough`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<HostPassthrough> {
+        let name = Clone::clone(
+            self.name.as_ref().ok_or(Error::BuilderMissingField("mode", "name"))?,
+        );
+        let supported = Clone::clone(
+            self
+                .supported
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("mode", "supported"))?,
+        );
+        let r_enums = Clone::clone(&self.r_enums);
+        Ok(HostPassthrough {
+            supported,
+            r_enums,
+        })
+    }
+}
+
+--- lib.rs ---
+#![doc = concat!(
+    "Generated from ",
+    "'/home/elmarco/src/relaxng-rust/relaxng-gen/tests/fixtures/dom-cpu.rng'", " schema."
+)]
+#![allow(dead_code)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+use thiserror::Error;
+pub mod cpu;
+pub mod custom;
+pub mod host_model;
+pub mod host_passthrough;
+pub mod maximum;
+pub mod r#enum;
+pub mod value;
+pub mod vir_yes_no;
+pub use cpu::*;
+/// The error type used by this crate.
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("From UTF-8 error: {0}")]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
+    #[error("{0} builder is missing mandatory field: {1}")]
+    BuilderMissingField(&'static str, &'static str),
+    #[error("{0} builder cannot build a variant")]
+    BuilderVariant(&'static str),
+    #[error("String too short, expected at least {0} characters, got {1}")]
+    TooShort(usize, usize),
+    #[error("String too long, expected at most {0} characters, got {1}")]
+    TooLong(usize, usize),
+    #[error("String '{0}' does not match pattern '{1}'")]
+    PatternMismatch(&'static str, String),
+    #[error("Failed to compile regex: {0}")]
+    RegexError(#[from] regex::Error),
+    #[error("Failed to parse '{0}': {1}")]
+    ParseError(
+        &'static str,
+        #[source]
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    ),
+}
+impl From<std::convert::Infallible> for Error {
+    fn from(_: std::convert::Infallible) -> Self {
+        unreachable!("Infallible error should not occur")
+    }
+}
+/// Helper trait for this crate XML types.
+pub trait ToXml {
+    /// The associated builder type.
+    type Builder: Default;
+    /// Creates a new builder for this type.
+    fn builder() -> Self::Builder {
+        Self::Builder::default()
+    }
+    /// Writes Events to a XML writer.
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write;
+}
+#[doc(hidden)]
+pub trait RegexPattern {
+    const REGEX: &'static str;
+}
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoPattern;
+impl RegexPattern for NoPattern {
+    const REGEX: &'static str = "";
+}
+/// A string type with length constraints and optional runtime regex validation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ConstrainedString<
+    const MIN_LEN: usize,
+    const MAX_LEN: usize,
+    P: RegexPattern = NoPattern,
+> {
+    value: String,
+    _phantom: std::marker::PhantomData<P>,
+}
+impl<
+    const MIN: usize,
+    const MAX: usize,
+    P: RegexPattern,
+> ConstrainedString<MIN, MAX, P> {
+    pub const NO_MIN_CONSTRAINT: usize = 0;
+    pub const NO_MAX_CONSTRAINT: usize = usize::MAX;
+    pub fn try_new(value: impl Into<String>) -> Result<Self> {
+        let s = value.into();
+        Self::validate(&s)?;
+        Ok(Self {
+            value: s,
+            _phantom: std::marker::PhantomData,
+        })
+    }
+    fn validate(s: &str) -> Result<()> {
+        fn get_compiled_regex(pattern: &'static str) -> Result<regex::Regex> {
+            /// Registry for compiled regex patterns
+            static REGEX_REGISTRY: std::sync::OnceLock<
+                std::sync::Mutex<std::collections::HashMap<&'static str, regex::Regex>>,
+            > = std::sync::OnceLock::new();
+            if pattern.is_empty() {
+                return Ok(regex::Regex::new(".*").unwrap());
+            }
+            let registry = REGEX_REGISTRY
+                .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+            let mut map = registry.lock().unwrap();
+            if let Some(regex) = map.get(pattern) {
+                return Ok(regex.clone());
+            }
+            match regex::Regex::new(pattern) {
+                Ok(regex) => {
+                    let result = regex.clone();
+                    map.insert(pattern, regex);
+                    Ok(result)
+                }
+                Err(e) => Err(Error::RegexError(e)),
+            }
+        }
+        if MIN > Self::NO_MIN_CONSTRAINT && s.len() < MIN {
+            return Err(Error::TooShort(MIN, s.len()));
+        }
+        if MAX < Self::NO_MAX_CONSTRAINT && s.len() > MAX {
+            return Err(Error::TooLong(MAX, s.len()));
+        }
+        if !P::REGEX.is_empty() {
+            let regex = get_compiled_regex(P::REGEX)?;
+            if !regex.is_match(s) {
+                return Err(Error::PatternMismatch(P::REGEX, s.to_string()));
+            }
+        }
+        Ok(())
+    }
+    /// Returns the string as a `&str`.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.value
+    }
+    /// Converts the constrained string into a `String`, consuming it.
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::ops::Deref
+for ConstrainedString<MIN, MAX, P> {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::fmt::Display
+for ConstrainedString<MIN, MAX, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> AsRef<str>
+for ConstrainedString<MIN, MAX, P> {
+    fn as_ref(&self) -> &str {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::str::FromStr
+for ConstrainedString<MIN, MAX, P> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_new(s)
+    }
+}
+/// A specialized Result type where the error is hard-wired to [`enum@Error`].
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+--- main.rs ---
+use std::path::Path;
+use std::{env::args, fs};
+fn main() {
+    let path = args().nth(1).expect("No XML file path provided");
+    let xml_path = Path::new(&path);
+    let xml = fs::read_to_string(xml_path).expect("Failed to read test XML file");
+    let xml = roxmltree::Document::parse(&xml).expect("Failed to parse XML");
+    let root = xml.root().first_child().expect("No root element found");
+    let res = test_dom_cpu::Cpu::from_xml(&root).unwrap();
+    let res = res.to_string();
+    println!("{}", res);
+}
+
+--- maximum.rs ---
+//!`mode` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::r#enum::Enum;
+use crate::vir_yes_no::VirYesNo;
+///`<mode/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Maximum {
+    pub supported: VirYesNo,
+    pub r_enums: Vec<Enum>,
+}
+impl ToXml for Maximum {
+    type Builder = MaximumBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("mode");
+        start
+            .push_attribute((
+                &b"name"[..],
+                quick_xml::escape::escape("maximum").as_bytes(),
+            ));
+        {
+            let elem = &self.supported;
+            start
+                .push_attribute((
+                    &b"supported"[..],
+                    quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                ));
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.r_enums;
+                    elem.iter().all(|elem| false)
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.r_enums;
+                for elem in elem {
+                    elem.to_xml(writer)?;
+                }
+            }
+            writer.write_event(Event::End(BytesEnd::new("mode")))?;
+        }
+        Ok(())
+    }
+}
+impl Maximum {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if matches!(node.attribute("name"), Some("maximum")) {
+            builder.name()?;
+        }
+        if let Some(val) = node.attribute("supported") {
+            builder.supported(VirYesNo::from_str(val)?)?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                "enum" if Enum::from_xml(&child).is_ok() => {
+                    builder.r_enum(Enum::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Maximum {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<mode/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MaximumBuilder {
+    pub name: Option<()>,
+    pub supported: Option<VirYesNo>,
+    pub r_enums: Vec<Enum>,
+}
+impl MaximumBuilder {
+    pub fn name(&mut self) -> Result<&mut Self> {
+        self.name = Some(());
+        Ok(self)
+    }
+    pub fn supported<T>(&mut self, supported: T) -> Result<&mut Self>
+    where
+        T: TryInto<VirYesNo>,
+        Error: From<<T as TryInto<VirYesNo>>::Error>,
+    {
+        self.supported = Some(supported.try_into()?);
+        Ok(self)
+    }
+    pub fn r_enum<T>(&mut self, r_enum: T) -> Result<&mut Self>
+    where
+        T: TryInto<Enum>,
+        Error: From<<T as TryInto<Enum>>::Error>,
+    {
+        self.r_enums.push(r_enum.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Maximum`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Maximum> {
+        let name = Clone::clone(
+            self.name.as_ref().ok_or(Error::BuilderMissingField("mode", "name"))?,
+        );
+        let supported = Clone::clone(
+            self
+                .supported
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("mode", "supported"))?,
+        );
+        let r_enums = Clone::clone(&self.r_enums);
+        Ok(Maximum { supported, r_enums })
+    }
+}
+
+--- value.rs ---
+//!`value` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+///`<value/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Value {
+    pub value: String,
+}
+impl ToXml for Value {
+    type Builder = ValueBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("value");
+        let empty = {
+            true
+                && ({
+                    let elem = &self.value;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.value;
+                writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("value")))?;
+        }
+        Ok(())
+    }
+}
+impl Value {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {
+                    builder.value(val)?;
+                }
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Value {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<value/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ValueBuilder {
+    pub value: Option<String>,
+}
+impl ValueBuilder {
+    pub fn value<T>(&mut self, value: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.value = Some(value.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Value`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Value> {
+        let value = Clone::clone(
+            self.value.as_ref().ok_or(Error::BuilderMissingField("value", "value"))?,
+        );
+        Ok(Value { value })
+    }
+}
+
+--- vir_yes_no.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum VirYesNo {
+    Yes,
+    No,
+}
+impl ToXml for VirYesNo {
+    type Builder = VirYesNoBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::Yes => {
+                writer.write_event(Event::Text(BytesText::new("yes")))?;
+            }
+            Self::No => {
+                writer.write_event(Event::Text(BytesText::new("no")))?;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for VirYesNo {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl VirYesNo {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<VirYesNo> {
+        let mut builder = VirYesNo::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            "yes" => {
+                                builder.yes()?;
+                            }
+                            "no" => {
+                                builder.no()?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::Yes => {}
+            Self::No => {}
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for VirYesNo {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            "yes" => {
+                builder.yes()?;
+            }
+            "no" => {
+                builder.no()?;
+            }
+            other => {
+                dbg!(other);
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct VirYesNoBuilder {
+    yes: Option<()>,
+    no: Option<()>,
+}
+impl VirYesNoBuilder {
+    pub fn yes(&mut self) -> Result<&mut Self> {
+        self.yes = Some(());
+        Ok(self)
+    }
+    pub fn no(&mut self) -> Result<&mut Self> {
+        self.no = Some(());
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<VirYesNo> {
+        if self.yes.is_some() {
+            return Ok(VirYesNo::Yes);
+        }
+        if self.no.is_some() {
+            return Ok(VirYesNo::No);
+        }
+        Err(Error::BuilderVariant("VirYesNo"))
+    }
+}

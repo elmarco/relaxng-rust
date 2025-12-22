@@ -1,0 +1,6 @@
+[rule."/ref[@name='oshvm']/interleave[1]/element[@name='os'][1]"]
+name = "OsHvm"
+
+[rule."/ref[@name='osexe']/element[@name='os'][1]"]
+name = "OsExe"
+

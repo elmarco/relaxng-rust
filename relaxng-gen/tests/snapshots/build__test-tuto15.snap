@@ -1,0 +1,1363 @@
+---
+source: relaxng-gen/tests/build.rs
+expression: combined
+---
+--- html/body/table/tr/td/span/class.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Class {
+    GivenName,
+    FamilyName,
+}
+impl ToXml for Class {
+    type Builder = ClassBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::GivenName => {
+                writer.write_event(Event::Text(BytesText::new("givenName")))?;
+            }
+            Self::FamilyName => {
+                writer.write_event(Event::Text(BytesText::new("familyName")))?;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for Class {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl Class {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<Class> {
+        let mut builder = Class::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            "givenName" => {
+                                builder.given_name()?;
+                            }
+                            "familyName" => {
+                                builder.family_name()?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::GivenName => {}
+            Self::FamilyName => {}
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for Class {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            "givenName" => {
+                builder.given_name()?;
+            }
+            "familyName" => {
+                builder.family_name()?;
+            }
+            other => {
+                dbg!(other);
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ClassBuilder {
+    given_name: Option<()>,
+    family_name: Option<()>,
+}
+impl ClassBuilder {
+    pub fn given_name(&mut self) -> Result<&mut Self> {
+        self.given_name = Some(());
+        Ok(self)
+    }
+    pub fn family_name(&mut self) -> Result<&mut Self> {
+        self.family_name = Some(());
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<Class> {
+        if self.given_name.is_some() {
+            return Ok(Class::GivenName);
+        }
+        if self.family_name.is_some() {
+            return Ok(Class::FamilyName);
+        }
+        Err(Error::BuilderVariant("Class"))
+    }
+}
+
+--- html/body/table/tr/td/span.rs ---
+//!`span` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod class;
+use class::Class;
+///`<span/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Span {
+    pub class: Class,
+    pub value: String,
+}
+impl ToXml for Span {
+    type Builder = SpanBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("span");
+        {
+            let elem = &self.class;
+            start
+                .push_attribute((
+                    &b"class"[..],
+                    quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                ));
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.value;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.value;
+                writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("span")))?;
+        }
+        Ok(())
+    }
+}
+impl Span {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if let Some(val) = node.attribute("class") {
+            builder.class(Class::from_str(val)?)?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {
+                    builder.value(val)?;
+                }
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Span {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<span/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SpanBuilder {
+    pub class: Option<Class>,
+    pub value: Option<String>,
+}
+impl SpanBuilder {
+    pub fn class<T>(&mut self, class: T) -> Result<&mut Self>
+    where
+        T: TryInto<Class>,
+        Error: From<<T as TryInto<Class>>::Error>,
+    {
+        self.class = Some(class.try_into()?);
+        Ok(self)
+    }
+    pub fn value<T>(&mut self, value: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.value = Some(value.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Span`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Span> {
+        let class = Clone::clone(
+            self.class.as_ref().ok_or(Error::BuilderMissingField("span", "class"))?,
+        );
+        let value = Clone::clone(
+            self.value.as_ref().ok_or(Error::BuilderMissingField("span", "value"))?,
+        );
+        Ok(Span { class, value })
+    }
+}
+
+--- html/body/table/tr/td.rs ---
+//!`td` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod span;
+use span::Span;
+///`<td/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Td {
+    pub value: String,
+    pub spans: Vec<Span>,
+}
+impl ToXml for Td {
+    type Builder = TdBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("td");
+        start
+            .push_attribute((
+                &b"class"[..],
+                quick_xml::escape::escape("name").as_bytes(),
+            ));
+        let empty = {
+            true
+                && ({
+                    let elem = &self.value;
+                    false
+                })
+                && ({
+                    let elem = &self.spans;
+                    elem.iter().all(|elem| false)
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.value;
+                writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
+            }
+            {
+                let elem = &self.spans;
+                for elem in elem {
+                    elem.to_xml(writer)?;
+                }
+            }
+            writer.write_event(Event::End(BytesEnd::new("td")))?;
+        }
+        Ok(())
+    }
+}
+impl Td {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if matches!(node.attribute("class"), Some("name")) {
+            builder.class()?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                "span" if Span::from_xml(&child).is_ok() => {
+                    builder.span(Span::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {
+                    builder.value(val)?;
+                }
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Td {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<td/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TdBuilder {
+    pub class: Option<()>,
+    pub value: Option<String>,
+    pub spans: Vec<Span>,
+}
+impl TdBuilder {
+    pub fn class(&mut self) -> Result<&mut Self> {
+        self.class = Some(());
+        Ok(self)
+    }
+    pub fn value<T>(&mut self, value: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.value = Some(value.try_into()?);
+        Ok(self)
+    }
+    pub fn span<T>(&mut self, span: T) -> Result<&mut Self>
+    where
+        T: TryInto<Span>,
+        Error: From<<T as TryInto<Span>>::Error>,
+    {
+        self.spans.push(span.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Td`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Td> {
+        let class = Clone::clone(
+            self.class.as_ref().ok_or(Error::BuilderMissingField("td", "class"))?,
+        );
+        let value = Clone::clone(
+            self.value.as_ref().ok_or(Error::BuilderMissingField("td", "value"))?,
+        );
+        let spans = Clone::clone(&self.spans);
+        Ok(Td { value, spans })
+    }
+}
+
+--- html/body/table/tr/td_email.rs ---
+//!`td` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+///`<td/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TdEmail {
+    pub value: String,
+}
+impl ToXml for TdEmail {
+    type Builder = TdEmailBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("td");
+        start
+            .push_attribute((
+                &b"class"[..],
+                quick_xml::escape::escape("email").as_bytes(),
+            ));
+        let empty = {
+            true
+                && ({
+                    let elem = &self.value;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.value;
+                writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("td")))?;
+        }
+        Ok(())
+    }
+}
+impl TdEmail {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if matches!(node.attribute("class"), Some("email")) {
+            builder.class()?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {
+                    builder.value(val)?;
+                }
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for TdEmail {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<td/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TdEmailBuilder {
+    pub class: Option<()>,
+    pub value: Option<String>,
+}
+impl TdEmailBuilder {
+    pub fn class(&mut self) -> Result<&mut Self> {
+        self.class = Some(());
+        Ok(self)
+    }
+    pub fn value<T>(&mut self, value: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.value = Some(value.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`TdEmail`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<TdEmail> {
+        let class = Clone::clone(
+            self.class.as_ref().ok_or(Error::BuilderMissingField("td", "class"))?,
+        );
+        let value = Clone::clone(
+            self.value.as_ref().ok_or(Error::BuilderMissingField("td", "value"))?,
+        );
+        Ok(TdEmail { value })
+    }
+}
+
+--- html/body/table/tr.rs ---
+//!`tr` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod td;
+use td::Td;
+pub mod td_email;
+use td_email::TdEmail;
+///`<tr/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Tr {
+    pub td: Td,
+    pub td_email: TdEmail,
+}
+impl ToXml for Tr {
+    type Builder = TrBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("tr");
+        start
+            .push_attribute((
+                &b"class"[..],
+                quick_xml::escape::escape("card").as_bytes(),
+            ));
+        let empty = {
+            true
+                && ({
+                    let elem = &self.td;
+                    false
+                })
+                && ({
+                    let elem = &self.td_email;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.td;
+                elem.to_xml(writer)?;
+            }
+            {
+                let elem = &self.td_email;
+                elem.to_xml(writer)?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("tr")))?;
+        }
+        Ok(())
+    }
+}
+impl Tr {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if matches!(node.attribute("class"), Some("card")) {
+            builder.class()?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                "td" if Td::from_xml(&child).is_ok() => {
+                    builder.td(Td::from_xml(&child)?)?;
+                }
+                "td" if TdEmail::from_xml(&child).is_ok() => {
+                    builder.td_email(TdEmail::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Tr {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<tr/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TrBuilder {
+    pub class: Option<()>,
+    pub td: Option<Td>,
+    pub td_email: Option<TdEmail>,
+}
+impl TrBuilder {
+    pub fn class(&mut self) -> Result<&mut Self> {
+        self.class = Some(());
+        Ok(self)
+    }
+    pub fn td<T>(&mut self, td: T) -> Result<&mut Self>
+    where
+        T: TryInto<Td>,
+        Error: From<<T as TryInto<Td>>::Error>,
+    {
+        self.td = Some(td.try_into()?);
+        Ok(self)
+    }
+    pub fn td_email<T>(&mut self, td_email: T) -> Result<&mut Self>
+    where
+        T: TryInto<TdEmail>,
+        Error: From<<T as TryInto<TdEmail>>::Error>,
+    {
+        self.td_email = Some(td_email.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Tr`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Tr> {
+        let class = Clone::clone(
+            self.class.as_ref().ok_or(Error::BuilderMissingField("tr", "class"))?,
+        );
+        let td = Clone::clone(
+            self.td.as_ref().ok_or(Error::BuilderMissingField("tr", "td"))?,
+        );
+        let td_email = Clone::clone(
+            self.td_email.as_ref().ok_or(Error::BuilderMissingField("tr", "td_email"))?,
+        );
+        Ok(Tr { td, td_email })
+    }
+}
+
+--- html/body/table.rs ---
+//!`table` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod tr;
+use tr::Tr;
+///`<table/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Table {
+    pub trs: Vec<Tr>,
+}
+impl ToXml for Table {
+    type Builder = TableBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("table");
+        start
+            .push_attribute((
+                &b"class"[..],
+                quick_xml::escape::escape("addressBook").as_bytes(),
+            ));
+        let empty = {
+            true
+                && ({
+                    let elem = &self.trs;
+                    elem.iter().all(|elem| false)
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.trs;
+                for elem in elem {
+                    elem.to_xml(writer)?;
+                }
+            }
+            writer.write_event(Event::End(BytesEnd::new("table")))?;
+        }
+        Ok(())
+    }
+}
+impl Table {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if matches!(node.attribute("class"), Some("addressBook")) {
+            builder.class()?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                "tr" if Tr::from_xml(&child).is_ok() => {
+                    builder.tr(Tr::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Table {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<table/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TableBuilder {
+    pub class: Option<()>,
+    pub trs: Vec<Tr>,
+}
+impl TableBuilder {
+    pub fn class(&mut self) -> Result<&mut Self> {
+        self.class = Some(());
+        Ok(self)
+    }
+    pub fn tr<T>(&mut self, tr: T) -> Result<&mut Self>
+    where
+        T: TryInto<Tr>,
+        Error: From<<T as TryInto<Tr>>::Error>,
+    {
+        self.trs.push(tr.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Table`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Table> {
+        let class = Clone::clone(
+            self.class.as_ref().ok_or(Error::BuilderMissingField("table", "class"))?,
+        );
+        let trs = if self.trs.is_empty() {
+            return Err(Error::BuilderMissingField("table", "trs"));
+        } else {
+            Clone::clone(&self.trs)
+        };
+        Ok(Table { trs })
+    }
+}
+
+--- html/body.rs ---
+//!`body` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod table;
+use table::Table;
+///`<body/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Body {
+    pub table: Table,
+}
+impl ToXml for Body {
+    type Builder = BodyBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("body");
+        let empty = {
+            true
+                && ({
+                    let elem = &self.table;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.table;
+                elem.to_xml(writer)?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("body")))?;
+        }
+        Ok(())
+    }
+}
+impl Body {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                "table" if Table::from_xml(&child).is_ok() => {
+                    builder.table(Table::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Body {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<body/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BodyBuilder {
+    pub table: Option<Table>,
+}
+impl BodyBuilder {
+    pub fn table<T>(&mut self, table: T) -> Result<&mut Self>
+    where
+        T: TryInto<Table>,
+        Error: From<<T as TryInto<Table>>::Error>,
+    {
+        self.table = Some(table.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Body`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Body> {
+        let table = Clone::clone(
+            self.table.as_ref().ok_or(Error::BuilderMissingField("body", "table"))?,
+        );
+        Ok(Body { table })
+    }
+}
+
+--- html/head/title.rs ---
+//!`title` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+///`<title/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Title {
+    pub value: String,
+}
+impl ToXml for Title {
+    type Builder = TitleBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("title");
+        let empty = {
+            true
+                && ({
+                    let elem = &self.value;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.value;
+                writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("title")))?;
+        }
+        Ok(())
+    }
+}
+impl Title {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {
+                    builder.value(val)?;
+                }
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Title {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<title/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TitleBuilder {
+    pub value: Option<String>,
+}
+impl TitleBuilder {
+    pub fn value<T>(&mut self, value: T) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.value = Some(value.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Title`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Title> {
+        let value = Clone::clone(
+            self.value.as_ref().ok_or(Error::BuilderMissingField("title", "value"))?,
+        );
+        Ok(Title { value })
+    }
+}
+
+--- html/head.rs ---
+//!`head` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod title;
+use title::Title;
+///`<head/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Head {
+    pub title: Title,
+}
+impl ToXml for Head {
+    type Builder = HeadBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("head");
+        let empty = {
+            true
+                && ({
+                    let elem = &self.title;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.title;
+                elem.to_xml(writer)?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("head")))?;
+        }
+        Ok(())
+    }
+}
+impl Head {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                "title" if Title::from_xml(&child).is_ok() => {
+                    builder.title(Title::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Head {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<head/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HeadBuilder {
+    pub title: Option<Title>,
+}
+impl HeadBuilder {
+    pub fn title<T>(&mut self, title: T) -> Result<&mut Self>
+    where
+        T: TryInto<Title>,
+        Error: From<<T as TryInto<Title>>::Error>,
+    {
+        self.title = Some(title.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Head`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Head> {
+        let title = Clone::clone(
+            self.title.as_ref().ok_or(Error::BuilderMissingField("head", "title"))?,
+        );
+        Ok(Head { title })
+    }
+}
+
+--- html.rs ---
+//!`html` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod body;
+use body::Body;
+pub mod head;
+use head::Head;
+///`<html/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Html {
+    pub head: Head,
+    pub body: Body,
+}
+impl ToXml for Html {
+    type Builder = HtmlBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("html");
+        let empty = {
+            true
+                && ({
+                    let elem = &self.head;
+                    false
+                })
+                && ({
+                    let elem = &self.body;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.head;
+                elem.to_xml(writer)?;
+            }
+            {
+                let elem = &self.body;
+                elem.to_xml(writer)?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("html")))?;
+        }
+        Ok(())
+    }
+}
+impl Html {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                "head" if Head::from_xml(&child).is_ok() => {
+                    builder.head(Head::from_xml(&child)?)?;
+                }
+                "body" if Body::from_xml(&child).is_ok() => {
+                    builder.body(Body::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Html {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<html/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HtmlBuilder {
+    pub head: Option<Head>,
+    pub body: Option<Body>,
+}
+impl HtmlBuilder {
+    pub fn head<T>(&mut self, head: T) -> Result<&mut Self>
+    where
+        T: TryInto<Head>,
+        Error: From<<T as TryInto<Head>>::Error>,
+    {
+        self.head = Some(head.try_into()?);
+        Ok(self)
+    }
+    pub fn body<T>(&mut self, body: T) -> Result<&mut Self>
+    where
+        T: TryInto<Body>,
+        Error: From<<T as TryInto<Body>>::Error>,
+    {
+        self.body = Some(body.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Html`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Html> {
+        let head = Clone::clone(
+            self.head.as_ref().ok_or(Error::BuilderMissingField("html", "head"))?,
+        );
+        let body = Clone::clone(
+            self.body.as_ref().ok_or(Error::BuilderMissingField("html", "body"))?,
+        );
+        Ok(Html { head, body })
+    }
+}
+
+--- lib.rs ---
+//!This is some doc for tuto15
+#![doc = concat!(
+    "Generated from ",
+    "'/home/elmarco/src/relaxng-rust/relaxng-gen/tests/fixtures/tuto15.rnc'", " schema."
+)]
+#![allow(dead_code)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+use thiserror::Error;
+pub mod html;
+pub use html::*;
+/// The error type used by this crate.
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("From UTF-8 error: {0}")]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
+    #[error("{0} builder is missing mandatory field: {1}")]
+    BuilderMissingField(&'static str, &'static str),
+    #[error("{0} builder cannot build a variant")]
+    BuilderVariant(&'static str),
+    #[error("String too short, expected at least {0} characters, got {1}")]
+    TooShort(usize, usize),
+    #[error("String too long, expected at most {0} characters, got {1}")]
+    TooLong(usize, usize),
+    #[error("String '{0}' does not match pattern '{1}'")]
+    PatternMismatch(&'static str, String),
+    #[error("Failed to compile regex: {0}")]
+    RegexError(#[from] regex::Error),
+    #[error("Failed to parse '{0}': {1}")]
+    ParseError(
+        &'static str,
+        #[source]
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    ),
+}
+impl From<std::convert::Infallible> for Error {
+    fn from(_: std::convert::Infallible) -> Self {
+        unreachable!("Infallible error should not occur")
+    }
+}
+/// Helper trait for this crate XML types.
+pub trait ToXml {
+    /// The associated builder type.
+    type Builder: Default;
+    /// Creates a new builder for this type.
+    fn builder() -> Self::Builder {
+        Self::Builder::default()
+    }
+    /// Writes Events to a XML writer.
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write;
+}
+#[doc(hidden)]
+pub trait RegexPattern {
+    const REGEX: &'static str;
+}
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoPattern;
+impl RegexPattern for NoPattern {
+    const REGEX: &'static str = "";
+}
+/// A string type with length constraints and optional runtime regex validation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ConstrainedString<
+    const MIN_LEN: usize,
+    const MAX_LEN: usize,
+    P: RegexPattern = NoPattern,
+> {
+    value: String,
+    _phantom: std::marker::PhantomData<P>,
+}
+impl<
+    const MIN: usize,
+    const MAX: usize,
+    P: RegexPattern,
+> ConstrainedString<MIN, MAX, P> {
+    pub const NO_MIN_CONSTRAINT: usize = 0;
+    pub const NO_MAX_CONSTRAINT: usize = usize::MAX;
+    pub fn try_new(value: impl Into<String>) -> Result<Self> {
+        let s = value.into();
+        Self::validate(&s)?;
+        Ok(Self {
+            value: s,
+            _phantom: std::marker::PhantomData,
+        })
+    }
+    fn validate(s: &str) -> Result<()> {
+        fn get_compiled_regex(pattern: &'static str) -> Result<regex::Regex> {
+            /// Registry for compiled regex patterns
+            static REGEX_REGISTRY: std::sync::OnceLock<
+                std::sync::Mutex<std::collections::HashMap<&'static str, regex::Regex>>,
+            > = std::sync::OnceLock::new();
+            if pattern.is_empty() {
+                return Ok(regex::Regex::new(".*").unwrap());
+            }
+            let registry = REGEX_REGISTRY
+                .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+            let mut map = registry.lock().unwrap();
+            if let Some(regex) = map.get(pattern) {
+                return Ok(regex.clone());
+            }
+            match regex::Regex::new(pattern) {
+                Ok(regex) => {
+                    let result = regex.clone();
+                    map.insert(pattern, regex);
+                    Ok(result)
+                }
+                Err(e) => Err(Error::RegexError(e)),
+            }
+        }
+        if MIN > Self::NO_MIN_CONSTRAINT && s.len() < MIN {
+            return Err(Error::TooShort(MIN, s.len()));
+        }
+        if MAX < Self::NO_MAX_CONSTRAINT && s.len() > MAX {
+            return Err(Error::TooLong(MAX, s.len()));
+        }
+        if !P::REGEX.is_empty() {
+            let regex = get_compiled_regex(P::REGEX)?;
+            if !regex.is_match(s) {
+                return Err(Error::PatternMismatch(P::REGEX, s.to_string()));
+            }
+        }
+        Ok(())
+    }
+    /// Returns the string as a `&str`.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.value
+    }
+    /// Converts the constrained string into a `String`, consuming it.
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::ops::Deref
+for ConstrainedString<MIN, MAX, P> {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::fmt::Display
+for ConstrainedString<MIN, MAX, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> AsRef<str>
+for ConstrainedString<MIN, MAX, P> {
+    fn as_ref(&self) -> &str {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::str::FromStr
+for ConstrainedString<MIN, MAX, P> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_new(s)
+    }
+}
+/// A specialized Result type where the error is hard-wired to [`enum@Error`].
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+--- main.rs ---
+use std::path::Path;
+use std::{env::args, fs};
+fn main() {
+    let path = args().nth(1).expect("No XML file path provided");
+    let xml_path = Path::new(&path);
+    let xml = fs::read_to_string(xml_path).expect("Failed to read test XML file");
+    let xml = roxmltree::Document::parse(&xml).expect("Failed to parse XML");
+    let root = xml.root().first_child().expect("No root element found");
+    let res = test_tuto15::Html::from_xml(&root).unwrap();
+    let res = res.to_string();
+    println!("{}", res);
+}

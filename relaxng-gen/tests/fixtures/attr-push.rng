@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Test case: push_attribute called on primitive (u64) instead of BytesStart -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0"
+         datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <start>
+    <ref name="clock"/>
+  </start>
+
+  <define name="clock">
+    <element name="clock">
+      <choice>
+        <group>
+          <attribute name="offset">
+            <value>utc</value>
+          </attribute>
+        </group>
+        <group>
+          <attribute name="offset">
+            <value>absolute</value>
+          </attribute>
+          <attribute name="start">
+            <data type="unsignedLong"/>
+          </attribute>
+        </group>
+      </choice>
+    </element>
+  </define>
+</grammar>

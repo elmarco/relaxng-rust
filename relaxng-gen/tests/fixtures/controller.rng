@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+  <start>
+    <element name="controller">
+      <choice>
+        <!-- Group 1: scsi with model choice -->
+        <group>
+          <attribute name="type">
+            <value>scsi</value>
+          </attribute>
+          <optional>
+            <attribute name="model">
+              <choice>
+                <value>auto</value>
+                <value>buslogic</value>
+              </choice>
+            </attribute>
+          </optional>
+        </group>
+        <!-- Group 2: usb with model choice (similar structure) -->
+        <group>
+          <attribute name="type">
+            <value>usb</value>
+          </attribute>
+          <optional>
+            <attribute name="model">
+              <choice>
+                <value>ehci</value>
+                <value>xhci</value>
+              </choice>
+            </attribute>
+          </optional>
+        </group>
+      </choice>
+    </element>
+  </start>
+</grammar>

@@ -1,0 +1,10 @@
+---
+source: relaxng-gen/tests/generate_and_run.rs
+expression: "String::from_utf8_lossy(&output.stdout).to_string()"
+---
+<doc>
+	<bold>
+    <italic>bold-italic</italic>
+  </bold>
+	<italic>italic</italic>
+</doc>

@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!-- Minimal test case to demonstrate attribute doc override limitation -->
+<grammar xmlns="http://relaxng.org/ns/structure/1.0"
+         datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <ref name="root"/>
+  </start>
+
+  <!-- Base type with generic documentation -->
+  <define name="unsignedInt">
+    <data type="unsignedInt">
+      <param name="pattern">[0-9]+</param>
+    </data>
+  </define>
+
+  <!-- Custom string type with pattern -->
+  <define name="featureName">
+    <data type="string">
+      <param name="pattern">[a-z_]+</param>
+    </data>
+  </define>
+
+  <define name="root">
+    <element name="config">
+      <!-- Attribute using unsignedInt ref - doc override does NOT work -->
+      <attribute name="timeout">
+        <ref name="unsignedInt"/>
+      </attribute>
+
+      <!-- Attribute using custom string ref - doc override DOES work -->
+      <attribute name="name">
+        <ref name="featureName"/>
+      </attribute>
+
+      <!-- Inline data type - doc override works -->
+      <attribute name="count">
+        <data type="unsignedInt"/>
+      </attribute>
+
+      <empty/>
+    </element>
+  </define>
+
+</grammar>

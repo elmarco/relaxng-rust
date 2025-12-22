@@ -2,6 +2,6 @@ element addressBook {
   element card {
     element name { text },
     element email { text },
-    element note { external "inline.rnc" }?
+    element note { external "inline.rnc.fixme" }?
   }*
 }

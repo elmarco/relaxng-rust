@@ -1,0 +1,1054 @@
+---
+source: relaxng-gen/tests/build.rs
+expression: combined
+---
+--- lib.rs ---
+#![doc = concat!(
+    "Generated from ",
+    "'/home/elmarco/src/relaxng-rust/relaxng-gen/tests/fixtures/vpp.rng'", " schema."
+)]
+#![allow(dead_code)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+use thiserror::Error;
+pub mod virtual_port_profile;
+pub mod vpp;
+pub use vpp::*;
+/// The error type used by this crate.
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("From UTF-8 error: {0}")]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
+    #[error("{0} builder is missing mandatory field: {1}")]
+    BuilderMissingField(&'static str, &'static str),
+    #[error("{0} builder cannot build a variant")]
+    BuilderVariant(&'static str),
+    #[error("String too short, expected at least {0} characters, got {1}")]
+    TooShort(usize, usize),
+    #[error("String too long, expected at most {0} characters, got {1}")]
+    TooLong(usize, usize),
+    #[error("String '{0}' does not match pattern '{1}'")]
+    PatternMismatch(&'static str, String),
+    #[error("Failed to compile regex: {0}")]
+    RegexError(#[from] regex::Error),
+    #[error("Failed to parse '{0}': {1}")]
+    ParseError(
+        &'static str,
+        #[source]
+        Box<dyn std::error::Error + Send + Sync + 'static>,
+    ),
+}
+impl From<std::convert::Infallible> for Error {
+    fn from(_: std::convert::Infallible) -> Self {
+        unreachable!("Infallible error should not occur")
+    }
+}
+/// Helper trait for this crate XML types.
+pub trait ToXml {
+    /// The associated builder type.
+    type Builder: Default;
+    /// Creates a new builder for this type.
+    fn builder() -> Self::Builder {
+        Self::Builder::default()
+    }
+    /// Writes Events to a XML writer.
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write;
+}
+#[doc(hidden)]
+pub trait RegexPattern {
+    const REGEX: &'static str;
+}
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoPattern;
+impl RegexPattern for NoPattern {
+    const REGEX: &'static str = "";
+}
+/// A string type with length constraints and optional runtime regex validation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ConstrainedString<
+    const MIN_LEN: usize,
+    const MAX_LEN: usize,
+    P: RegexPattern = NoPattern,
+> {
+    value: String,
+    _phantom: std::marker::PhantomData<P>,
+}
+impl<
+    const MIN: usize,
+    const MAX: usize,
+    P: RegexPattern,
+> ConstrainedString<MIN, MAX, P> {
+    pub const NO_MIN_CONSTRAINT: usize = 0;
+    pub const NO_MAX_CONSTRAINT: usize = usize::MAX;
+    pub fn try_new(value: impl Into<String>) -> Result<Self> {
+        let s = value.into();
+        Self::validate(&s)?;
+        Ok(Self {
+            value: s,
+            _phantom: std::marker::PhantomData,
+        })
+    }
+    fn validate(s: &str) -> Result<()> {
+        fn get_compiled_regex(pattern: &'static str) -> Result<regex::Regex> {
+            /// Registry for compiled regex patterns
+            static REGEX_REGISTRY: std::sync::OnceLock<
+                std::sync::Mutex<std::collections::HashMap<&'static str, regex::Regex>>,
+            > = std::sync::OnceLock::new();
+            if pattern.is_empty() {
+                return Ok(regex::Regex::new(".*").unwrap());
+            }
+            let registry = REGEX_REGISTRY
+                .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+            let mut map = registry.lock().unwrap();
+            if let Some(regex) = map.get(pattern) {
+                return Ok(regex.clone());
+            }
+            match regex::Regex::new(pattern) {
+                Ok(regex) => {
+                    let result = regex.clone();
+                    map.insert(pattern, regex);
+                    Ok(result)
+                }
+                Err(e) => Err(Error::RegexError(e)),
+            }
+        }
+        if MIN > Self::NO_MIN_CONSTRAINT && s.len() < MIN {
+            return Err(Error::TooShort(MIN, s.len()));
+        }
+        if MAX < Self::NO_MAX_CONSTRAINT && s.len() > MAX {
+            return Err(Error::TooLong(MAX, s.len()));
+        }
+        if !P::REGEX.is_empty() {
+            let regex = get_compiled_regex(P::REGEX)?;
+            if !regex.is_match(s) {
+                return Err(Error::PatternMismatch(P::REGEX, s.to_string()));
+            }
+        }
+        Ok(())
+    }
+    /// Returns the string as a `&str`.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.value
+    }
+    /// Converts the constrained string into a `String`, consuming it.
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::ops::Deref
+for ConstrainedString<MIN, MAX, P> {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::fmt::Display
+for ConstrainedString<MIN, MAX, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> AsRef<str>
+for ConstrainedString<MIN, MAX, P> {
+    fn as_ref(&self) -> &str {
+        &self.value
+    }
+}
+impl<const MIN: usize, const MAX: usize, P: RegexPattern> std::str::FromStr
+for ConstrainedString<MIN, MAX, P> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        Self::try_new(s)
+    }
+}
+/// A specialized Result type where the error is hard-wired to [`enum@Error`].
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+--- main.rs ---
+use std::path::Path;
+use std::{env::args, fs};
+fn main() {
+    let path = args().nth(1).expect("No XML file path provided");
+    let xml_path = Path::new(&path);
+    let xml = fs::read_to_string(xml_path).expect("Failed to read test XML file");
+    let xml = roxmltree::Document::parse(&xml).expect("Failed to parse XML");
+    let root = xml.root().first_child().expect("No root element found");
+    let res = test_vpp::Vpp::from_xml(&root).unwrap();
+    let res = res.to_string();
+    println!("{}", res);
+}
+
+--- virtual_port_profile/virtualport/_8021qbg_parameters.rs ---
+//!`parameters` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+///`<parameters/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct _8021qbgParameters {
+    pub managerid: Option<String>,
+}
+impl ToXml for _8021qbgParameters {
+    type Builder = _8021qbgParametersBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("parameters");
+        {
+            let elem = &self.managerid;
+            if let Some(elem) = elem {
+                start
+                    .push_attribute((
+                        &b"managerid"[..],
+                        quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                    ));
+            }
+        }
+        let empty = { true };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::End(BytesEnd::new("parameters")))?;
+        }
+        Ok(())
+    }
+}
+impl _8021qbgParameters {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if let Some(val) = node.attribute("managerid") {
+            builder.managerid(Some(val))?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for _8021qbgParameters {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<parameters/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct _8021qbgParametersBuilder {
+    pub managerid: Option<String>,
+}
+impl _8021qbgParametersBuilder {
+    pub fn managerid<T>(&mut self, managerid: Option<T>) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.managerid = if let Some(managerid) = managerid {
+            Some(managerid.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    /**
+            Attempt to build [`_8021qbgParameters`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<_8021qbgParameters> {
+        let managerid = Clone::clone(&self.managerid);
+        Ok(_8021qbgParameters { managerid })
+    }
+}
+
+--- virtual_port_profile/virtualport/_8021qbh_parameters.rs ---
+//!`parameters` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+///`<parameters/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct _8021qbhParameters {
+    pub profileid: Option<String>,
+}
+impl ToXml for _8021qbhParameters {
+    type Builder = _8021qbhParametersBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("parameters");
+        {
+            let elem = &self.profileid;
+            if let Some(elem) = elem {
+                start
+                    .push_attribute((
+                        &b"profileid"[..],
+                        quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                    ));
+            }
+        }
+        let empty = { true };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::End(BytesEnd::new("parameters")))?;
+        }
+        Ok(())
+    }
+}
+impl _8021qbhParameters {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if let Some(val) = node.attribute("profileid") {
+            builder.profileid(Some(val))?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for _8021qbhParameters {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<parameters/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct _8021qbhParametersBuilder {
+    pub profileid: Option<String>,
+}
+impl _8021qbhParametersBuilder {
+    pub fn profileid<T>(&mut self, profileid: Option<T>) -> Result<&mut Self>
+    where
+        T: TryInto<String>,
+        Error: From<<T as TryInto<String>>::Error>,
+    {
+        self.profileid = if let Some(profileid) = profileid {
+            Some(profileid.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    /**
+            Attempt to build [`_8021qbhParameters`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<_8021qbhParameters> {
+        let profileid = Clone::clone(&self.profileid);
+        Ok(_8021qbhParameters { profileid })
+    }
+}
+
+--- virtual_port_profile/virtualport/type.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Type {
+    _8021qbg,
+    _8021qbh,
+}
+impl ToXml for Type {
+    type Builder = TypeBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::_8021qbg => {
+                writer.write_event(Event::Text(BytesText::new("802.1Qbg")))?;
+            }
+            Self::_8021qbh => {
+                writer.write_event(Event::Text(BytesText::new("802.1Qbh")))?;
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for Type {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl Type {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<Type> {
+        let mut builder = Type::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            "802.1Qbg" => {
+                                builder._802_1qbg()?;
+                            }
+                            "802.1Qbh" => {
+                                builder._802_1qbh()?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::_8021qbg => {}
+            Self::_8021qbh => {}
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+impl FromStr for Type {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let mut builder = Self::builder();
+        match s {
+            "802.1Qbg" => {
+                builder._802_1qbg()?;
+            }
+            "802.1Qbh" => {
+                builder._802_1qbh()?;
+            }
+            other => {
+                dbg!(other);
+            }
+        }
+        builder.build()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeBuilder {
+    _802_1qbg: Option<()>,
+    _802_1qbh: Option<()>,
+}
+impl TypeBuilder {
+    pub fn _802_1qbg(&mut self) -> Result<&mut Self> {
+        self._802_1qbg = Some(());
+        Ok(self)
+    }
+    pub fn _802_1qbh(&mut self) -> Result<&mut Self> {
+        self._802_1qbh = Some(());
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<Type> {
+        if self._802_1qbg.is_some() {
+            return Ok(Type::_8021qbg);
+        }
+        if self._802_1qbh.is_some() {
+            return Ok(Type::_8021qbh);
+        }
+        Err(Error::BuilderVariant("Type"))
+    }
+}
+
+--- virtual_port_profile/virtualport.rs ---
+//!`virtualport` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod _8021qbg_parameters;
+use _8021qbg_parameters::_8021qbgParameters;
+pub mod _8021qbh_parameters;
+use _8021qbh_parameters::_8021qbhParameters;
+pub mod r#type;
+use r#type::Type;
+///`<virtualport/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Virtualport {
+    pub r#type: Type,
+    pub _8021qbg_parameters: Option<_8021qbgParameters>,
+    pub _8021qbh_parameters: Option<_8021qbhParameters>,
+}
+impl ToXml for Virtualport {
+    type Builder = VirtualportBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("virtualport");
+        {
+            let elem = &self.r#type;
+            start
+                .push_attribute((
+                    &b"type"[..],
+                    quick_xml::escape::escape(&elem.to_string()).as_bytes(),
+                ));
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self._8021qbg_parameters;
+                    elem.as_ref().map(|elem| false).unwrap_or(true)
+                })
+                && ({
+                    let elem = &self._8021qbh_parameters;
+                    elem.as_ref().map(|elem| false).unwrap_or(true)
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self._8021qbg_parameters;
+                if let Some(elem) = elem {
+                    elem.to_xml(writer)?;
+                }
+            }
+            {
+                let elem = &self._8021qbh_parameters;
+                if let Some(elem) = elem {
+                    elem.to_xml(writer)?;
+                }
+            }
+            writer.write_event(Event::End(BytesEnd::new("virtualport")))?;
+        }
+        Ok(())
+    }
+}
+impl Virtualport {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        if let Some(val) = node.attribute("type") {
+            builder.r#type(Type::from_str(val)?)?;
+        }
+        for child in node.children() {
+            match child.tag_name().name() {
+                "parameters" if _8021qbgParameters::from_xml(&child).is_ok() => {
+                    builder
+                        ._8021qbg_parameters(
+                            Some(_8021qbgParameters::from_xml(&child)?),
+                        )?;
+                }
+                "parameters" if _8021qbhParameters::from_xml(&child).is_ok() => {
+                    builder
+                        ._8021qbh_parameters(
+                            Some(_8021qbhParameters::from_xml(&child)?),
+                        )?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        builder.build()
+    }
+}
+impl core::fmt::Display for Virtualport {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<virtualport/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct VirtualportBuilder {
+    pub r#type: Option<Type>,
+    pub _8021qbg_parameters: Option<_8021qbgParameters>,
+    pub _8021qbh_parameters: Option<_8021qbhParameters>,
+}
+impl VirtualportBuilder {
+    pub fn r#type<T>(&mut self, r#type: T) -> Result<&mut Self>
+    where
+        T: TryInto<Type>,
+        Error: From<<T as TryInto<Type>>::Error>,
+    {
+        self.r#type = Some(r#type.try_into()?);
+        Ok(self)
+    }
+    pub fn _8021qbg_parameters<T>(
+        &mut self,
+        _8021qbg_parameters: Option<T>,
+    ) -> Result<&mut Self>
+    where
+        T: TryInto<_8021qbgParameters>,
+        Error: From<<T as TryInto<_8021qbgParameters>>::Error>,
+    {
+        self._8021qbg_parameters = if let Some(_8021qbg_parameters) = _8021qbg_parameters {
+            Some(_8021qbg_parameters.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    pub fn _8021qbh_parameters<T>(
+        &mut self,
+        _8021qbh_parameters: Option<T>,
+    ) -> Result<&mut Self>
+    where
+        T: TryInto<_8021qbhParameters>,
+        Error: From<<T as TryInto<_8021qbhParameters>>::Error>,
+    {
+        self._8021qbh_parameters = if let Some(_8021qbh_parameters) = _8021qbh_parameters {
+            Some(_8021qbh_parameters.try_into()?)
+        } else {
+            None
+        };
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Virtualport`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Virtualport> {
+        let r#type = Clone::clone(
+            self
+                .r#type
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("virtualport", "r#type"))?,
+        );
+        let _8021qbg_parameters = Clone::clone(&self._8021qbg_parameters);
+        let _8021qbh_parameters = Clone::clone(&self._8021qbh_parameters);
+        Ok(Virtualport {
+            r#type,
+            _8021qbg_parameters,
+            _8021qbh_parameters,
+        })
+    }
+}
+
+--- virtual_port_profile.rs ---
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod virtualport;
+use virtualport::Virtualport;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum VirtualPortProfile {
+    Virtualport(Virtualport),
+}
+impl ToXml for VirtualPortProfile {
+    type Builder = VirtualPortProfileBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+        match self {
+            Self::Virtualport(virtualport) => {
+                let elem = virtualport;
+                {
+                    let elem = virtualport;
+                    elem.to_xml(writer)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+impl core::fmt::Display for VirtualPortProfile {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+impl VirtualPortProfile {
+    pub fn from_xml(
+        node: &roxmltree::Node,
+        from_child: &mut Option<roxmltree::Node>,
+    ) -> Result<VirtualPortProfile> {
+        let mut builder = VirtualPortProfile::builder();
+        loop {
+            let Some(child) = from_child else {
+                break;
+            };
+            match child.node_type() {
+                roxmltree::NodeType::Element => {
+                    match child.tag_name().name() {
+                        "virtualport" if Virtualport::from_xml(&child).is_ok() => {
+                            builder.virtualport(Virtualport::from_xml(&child)?)?;
+                        }
+                        _ => {}
+                    }
+                }
+                roxmltree::NodeType::Text => {
+                    if let Some(val) = child.text() {
+                        match val {
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+            *from_child = child.next_sibling();
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+        builder.build()
+    }
+    pub fn to_xml_attr(
+        &self,
+        __start: &mut quick_xml::events::BytesStart<'_>,
+    ) -> Result<()> {
+        match self {
+            Self::Virtualport(virtualport) => {
+                let elem = virtualport;
+            }
+        }
+        Ok(())
+    }
+    pub fn is_empty(&self) -> bool {
+        self.to_string().is_empty()
+    }
+}
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct VirtualPortProfileBuilder {
+    virtualport: Option<Virtualport>,
+}
+impl VirtualPortProfileBuilder {
+    pub fn virtualport<T>(&mut self, virtualport: T) -> Result<&mut Self>
+    where
+        T: TryInto<Virtualport>,
+        Error: From<<T as TryInto<Virtualport>>::Error>,
+    {
+        self.virtualport = Some(virtualport.try_into()?);
+        Ok(self)
+    }
+    pub fn build(&self) -> Result<VirtualPortProfile> {
+        if self.virtualport.is_some() {
+            return Ok(
+                VirtualPortProfile::Virtualport(
+                    Clone::clone(&self.virtualport.as_ref().unwrap()),
+                ),
+            );
+        }
+        Err(Error::BuilderVariant("VirtualPortProfile"))
+    }
+}
+
+--- vpp/portgroup.rs ---
+//!`portgroup` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+use crate::virtual_port_profile::VirtualPortProfile;
+///`<portgroup/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Portgroup {
+    pub virtual_port_profile: VirtualPortProfile,
+}
+impl ToXml for Portgroup {
+    type Builder = PortgroupBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("portgroup");
+        {
+            let elem = &self.virtual_port_profile;
+            elem.to_xml_attr(&mut start)?;
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.virtual_port_profile;
+                    elem.is_empty()
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.virtual_port_profile;
+                elem.to_xml(writer)?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("portgroup")))?;
+        }
+        Ok(())
+    }
+}
+impl Portgroup {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        let child = &mut node.first_child();
+        builder.virtual_port_profile(VirtualPortProfile::from_xml(node, child)?)?;
+        builder.build()
+    }
+}
+impl core::fmt::Display for Portgroup {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<portgroup/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PortgroupBuilder {
+    pub virtual_port_profile: Option<VirtualPortProfile>,
+}
+impl PortgroupBuilder {
+    pub fn virtual_port_profile<T>(
+        &mut self,
+        virtual_port_profile: T,
+    ) -> Result<&mut Self>
+    where
+        T: TryInto<VirtualPortProfile>,
+        Error: From<<T as TryInto<VirtualPortProfile>>::Error>,
+    {
+        self.virtual_port_profile = Some(virtual_port_profile.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Portgroup`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Portgroup> {
+        let virtual_port_profile = Clone::clone(
+            self
+                .virtual_port_profile
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("portgroup", "virtual_port_profile"))?,
+        );
+        Ok(Portgroup { virtual_port_profile })
+    }
+}
+
+--- vpp.rs ---
+//!`vpp` module
+use crate::{Error, Result, ToXml};
+use std::str::FromStr;
+pub mod portgroup;
+use portgroup::Portgroup;
+use crate::virtual_port_profile::VirtualPortProfile;
+///`<vpp/>` element
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Vpp {
+    pub virtual_port_profile: VirtualPortProfile,
+    pub portgroup: Portgroup,
+}
+impl ToXml for Vpp {
+    type Builder = VppBuilder;
+    fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+    where
+        W: std::io::Write,
+    {
+        use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+        let mut start = BytesStart::new("vpp");
+        {
+            let elem = &self.virtual_port_profile;
+            elem.to_xml_attr(&mut start)?;
+        }
+        let empty = {
+            true
+                && ({
+                    let elem = &self.virtual_port_profile;
+                    elem.is_empty()
+                })
+                && ({
+                    let elem = &self.portgroup;
+                    false
+                })
+        };
+        if empty {
+            writer.write_event(Event::Empty(start))?;
+        } else {
+            writer.write_event(Event::Start(start))?;
+            {
+                let elem = &self.virtual_port_profile;
+                elem.to_xml(writer)?;
+            }
+            {
+                let elem = &self.portgroup;
+                elem.to_xml(writer)?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("vpp")))?;
+        }
+        Ok(())
+    }
+}
+impl Vpp {
+    pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+        let mut builder = Self::builder();
+        for child in node.children() {
+            match child.tag_name().name() {
+                "portgroup" if Portgroup::from_xml(&child).is_ok() => {
+                    builder.portgroup(Portgroup::from_xml(&child)?)?;
+                }
+                _ => continue,
+            }
+        }
+        if let Some(val) = node.text() {
+            match val {
+                _ => {}
+            }
+        }
+        let child = &mut node.first_child();
+        builder.virtual_port_profile(VirtualPortProfile::from_xml(node, child)?)?;
+        builder.build()
+    }
+}
+impl core::fmt::Display for Vpp {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut writer = quick_xml::Writer::new_with_indent(
+            std::io::Cursor::new(Vec::new()),
+            b' ',
+            2,
+        );
+        self.to_xml(&mut writer).expect("Failed to generate XML");
+        let res = writer.into_inner().into_inner();
+        let str = String::from_utf8(res).expect("Failed to convert bytes to string");
+        f.write_str(&str)
+    }
+}
+///`<vpp/>` builder
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct VppBuilder {
+    pub virtual_port_profile: Option<VirtualPortProfile>,
+    pub portgroup: Option<Portgroup>,
+}
+impl VppBuilder {
+    pub fn virtual_port_profile<T>(
+        &mut self,
+        virtual_port_profile: T,
+    ) -> Result<&mut Self>
+    where
+        T: TryInto<VirtualPortProfile>,
+        Error: From<<T as TryInto<VirtualPortProfile>>::Error>,
+    {
+        self.virtual_port_profile = Some(virtual_port_profile.try_into()?);
+        Ok(self)
+    }
+    pub fn portgroup<T>(&mut self, portgroup: T) -> Result<&mut Self>
+    where
+        T: TryInto<Portgroup>,
+        Error: From<<T as TryInto<Portgroup>>::Error>,
+    {
+        self.portgroup = Some(portgroup.try_into()?);
+        Ok(self)
+    }
+    /**
+            Attempt to build [`Vpp`].
+
+            If the element is not valid, an error is returned.
+            */
+    pub fn build(&self) -> Result<Vpp> {
+        let virtual_port_profile = Clone::clone(
+            self
+                .virtual_port_profile
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("vpp", "virtual_port_profile"))?,
+        );
+        let portgroup = Clone::clone(
+            self
+                .portgroup
+                .as_ref()
+                .ok_or(Error::BuilderMissingField("vpp", "portgroup"))?,
+        );
+        Ok(Vpp {
+            virtual_port_profile,
+            portgroup,
+        })
+    }
+}
