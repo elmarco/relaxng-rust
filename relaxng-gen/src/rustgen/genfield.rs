@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt::Display;
 
 use heck::ToSnakeCase;
@@ -8,13 +8,13 @@ use proc_macro2::{Literal, TokenStream};
 use quote::{ToTokens, TokenStreamExt, format_ident, quote};
 use syn::{Ident, Path, parse_quote};
 #[allow(unused_imports)]
-use tracing::{debug, info, trace};
+use tracing::{debug, info, trace, warn};
 
-use super::genenum::GenEnumRef;
+use super::genenum::{GenEnumRef, MergedEnumInfo};
 use super::{GenUnit, Result};
 use crate::rustgen::genenum::GenEnum;
 use crate::rustgen::{Config, Error};
-use crate::utils::{safe_ty_name, safe_var_name};
+use crate::utils::{has_default_match_arm, safe_ty_name, safe_var_name};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct GenField {
@@ -155,7 +155,7 @@ impl GenField {
         }
         if self.optional && !self.multiple {
             val = quote! { Some(#val) };
-            if !self.is_value() {
+            if !self.is_value() && !self.ty.is_empty() {
                 val = quote! {
                     if let Some(#field_single) = #field_single {
                         #val
@@ -328,8 +328,19 @@ impl GenField {
                 from_xml_attrs.push(pat)
             }
             SerializeAs::Inline => {
-                let pat = quote! {
-                    _ => { #build_field }
+                let pat = if let Some(path) = ty_path {
+                    // Parse type: use a guard to check if parsing succeeds
+                    quote! {
+                        val if val.parse::<#path>().is_ok() => { #build_field }
+                    }
+                } else {
+                    // Text type: catch-all pattern, skip if we already have one
+                    if has_default_match_arm(from_xml_text) {
+                        return;
+                    }
+                    quote! {
+                        _ => { #build_field }
+                    }
                 };
                 from_xml_text.push(pat);
             }
@@ -405,12 +416,19 @@ impl GenField {
                         return;
                     }
 
-                    let mut val = quote! { #val? };
+                    // For optional inline choice fields, don't fail if parsing fails -
+                    // just skip setting the field. This handles cases where multiple
+                    // mutually exclusive choices are reconciled into the same struct.
                     if self.optional {
-                        val = quote! { Some(#val) };
-                    }
-                    quote! {
-                        builder.#field_ident(#val)?;
+                        quote! {
+                            if let Ok(val) = #val {
+                                builder.#field_ident(Some(val))?;
+                            }
+                        }
+                    } else {
+                        quote! {
+                            builder.#field_ident(#val?)?;
+                        }
                     }
                 };
 
@@ -427,8 +445,22 @@ impl GenField {
         to_xml_elems: &mut TokenStream,
         to_xml_empty: &mut Vec<TokenStream>,
     ) {
+        // In struct's to_xml(), the local variable is `start`
+        // In enum's to_xml_attr(), the parameter is `__start` to avoid shadowing by field names
+        let start_var = if for_self {
+            quote! { start }
+        } else {
+            quote! { __start }
+        };
+
         if self.is_choice() && self.as_inline() {
-            let elem_to_xml = quote! { elem.to_xml_attr(&mut start)?; };
+            // For struct (for_self=true), `start` is a local variable so we need `&mut`
+            // For enum (for_self=false), `__start` is already a `&mut` parameter
+            let elem_to_xml = if for_self {
+                quote! { elem.to_xml_attr(&mut #start_var)?; }
+            } else {
+                quote! { elem.to_xml_attr(#start_var)?; }
+            };
             let elem = self.to_xml_elem_wrap(for_self, elem_to_xml);
             to_xml_attrs.extend(elem);
         }
@@ -457,7 +489,7 @@ impl GenField {
         let mut elem_to_xml = match self.serialize_as {
             SerializeAs::Attribute => {
                 let name_b = self.xml_name_b();
-                quote! { start.push_attribute((&#name_b[..], quick_xml::escape::escape(#val).as_bytes())); }
+                quote! { #start_var.push_attribute((&#name_b[..], quick_xml::escape::escape(#val).as_bytes())); }
             }
             SerializeAs::Inline => {
                 if self.is_text() || self.is_parse() || self.is_value() {
@@ -591,9 +623,10 @@ impl GenField {
         self.multiple |= other.multiple | reconcile_multiple;
         self.recursive |= other.recursive;
 
-        if other.ty.is_root() {
-            self.ty.set_root(true);
-        }
+        // Don't propagate root flag during reconciliation.
+        // The root flag indicates whether the type is defined at crate root,
+        // which depends on where this field's type was originally defined,
+        // not where the merged-in type was defined.
 
         other.optional = false;
         other.multiple = false;
@@ -609,19 +642,97 @@ impl GenField {
             (
                 FieldTy::Choice {
                     gen_enum,
-                    ..
+                    root,
                 },
                 FieldTy::Choice {
-                    gen_enum: other,
+                    gen_enum: other_enum,
                     ..
                 },
             ) => {
-                let mut gen_enum = gen_enum.borrow_mut();
-                gen_enum.reconcile(other.take())?;
-                let mut other = other.borrow_mut();
-                other.name = gen_enum.name.clone();
-                // just for safety
-                other.debug = "invalid reference".to_string();
+                let gen_enum_ref = gen_enum.borrow();
+                let other_enum_ref = other_enum.borrow();
+
+                // Check if either enum has merged_name set
+                let merged_name = gen_enum_ref
+                    .merged_name
+                    .clone()
+                    .or_else(|| other_enum_ref.merged_name.clone());
+
+                if let Some(merged_name) = merged_name {
+                    // Create a NEW merged enum with all variants from both enums
+                    let debug = format!(
+                        "merged({}, {})",
+                        gen_enum_ref.debug, other_enum_ref.debug
+                    );
+                    drop(gen_enum_ref);
+                    drop(other_enum_ref);
+
+                    let mut merged_enum = GenEnum::new(debug);
+                    merged_enum.set_name(merged_name);
+
+                    // Add all fields from the first enum
+                    let gen_enum_ref = gen_enum.borrow();
+                    for field in gen_enum_ref.simple_variants.fields.iter() {
+                        merged_enum.add_field(field.1.clone())?;
+                    }
+                    drop(gen_enum_ref);
+
+                    // Add all fields from the second enum
+                    let other_enum_ref = other_enum.borrow();
+                    for field in other_enum_ref.simple_variants.fields.iter() {
+                        merged_enum.add_field(field.1.clone())?;
+                    }
+                    drop(other_enum_ref);
+
+                    // Create the merged enum ref
+                    let merged_enum_ref = GenEnumRef::from(merged_enum);
+
+                    // Update the first enum's merged_into
+                    {
+                        let mut gen_enum_mut = gen_enum.borrow_mut();
+                        gen_enum_mut.merged_into = Some(MergedEnumInfo {
+                            merged_enum: merged_enum_ref.clone(),
+                        });
+                    }
+
+                    // Update the second enum's merged_into
+                    {
+                        let mut other_enum_mut = other_enum.borrow_mut();
+                        other_enum_mut.merged_into = Some(MergedEnumInfo {
+                            merged_enum: merged_enum_ref.clone(),
+                        });
+                    }
+
+                    // Update self's field type to use the merged enum
+                    *gen_enum = merged_enum_ref.clone();
+                    *root = false; // merged enum is not at root
+
+                    // Return the merged enum as a new unit
+                    return Ok(Some(GenUnit::Enum(merged_enum_ref)));
+                } else {
+                    // No merged_name - use the existing reconciliation logic
+                    // Warn the user that they might want to configure merged_name
+                    warn!(
+                        "Merging choice enums '{}' and '{}' without merged_name config. \
+                         Consider adding merged_name in config to preserve variant-specific types.",
+                        gen_enum_ref.name.as_deref().unwrap_or(&gen_enum_ref.debug),
+                        other_enum_ref.name.as_deref().unwrap_or(&other_enum_ref.debug)
+                    );
+
+                    // Merge the second enum's variants into the first
+                    let other_clone = other_enum_ref.clone();
+                    drop(gen_enum_ref);
+                    drop(other_enum_ref);
+
+                    let mut gen_enum_ref = gen_enum.borrow_mut();
+                    let (_, new_units) =
+                        gen_enum_ref.reconcile_with_mapping(other_clone)?;
+                    for unit in new_units {
+                        gen_enum_ref.add_unit(unit);
+                    }
+                    // The other enum keeps its original identity and variants
+                    // (it will be written as a separate file)
+                }
             }
 
             (
@@ -861,20 +972,6 @@ impl FieldTy {
         }
     }
 
-    pub(crate) fn set_root(&mut self, val: bool) {
-        match self {
-            FieldTy::Xml {
-                root,
-                ..
-            } => *root = val,
-            FieldTy::Choice {
-                root,
-                ..
-            } => *root = val,
-            _ => (),
-        }
-    }
-
     pub(crate) fn is_root(&self) -> bool {
         match self {
             FieldTy::Xml {
@@ -1032,7 +1129,7 @@ impl GenFields {
 }
 
 pub(crate) fn gen_mods_from_fields<'a>(fields: impl Iterator<Item = &'a GenField>) -> TokenStream {
-    let mut set = HashMap::new();
+    let mut set = BTreeMap::new();
 
     let mut mods = quote! {
         use crate::{Error, Result, ToXml};
