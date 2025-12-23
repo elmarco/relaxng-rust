@@ -18,7 +18,7 @@ impl ToXml for Email {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("email");
+        let mut xml_start = BytesStart::new("email");
         let empty = {
             true
                 && ({
@@ -27,9 +27,9 @@ impl ToXml for Email {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -113,7 +113,7 @@ impl ToXml for Name {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("name");
+        let mut xml_start = BytesStart::new("name");
         let empty = {
             true
                 && ({
@@ -122,9 +122,9 @@ impl ToXml for Name {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -209,11 +209,11 @@ impl ToXml for Note {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("note");
+        let mut xml_start = BytesStart::new("note");
         {
             let elem = &self.inlines;
             for elem in elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -224,9 +224,9 @@ impl ToXml for Note {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.inlines;
                 for elem in elem {
@@ -324,7 +324,7 @@ impl ToXml for Card {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("card");
+        let mut xml_start = BytesStart::new("card");
         let empty = {
             true
                 && ({
@@ -341,9 +341,9 @@ impl ToXml for Card {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.name;
                 elem.to_xml(writer)?;
@@ -468,7 +468,7 @@ impl ToXml for AddressBook {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("addressBook");
+        let mut xml_start = BytesStart::new("addressBook");
         let empty = {
             true
                 && ({
@@ -477,9 +477,9 @@ impl ToXml for AddressBook {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.cards;
                 for elem in elem {
@@ -565,11 +565,11 @@ impl ToXml for Code {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("code");
+        let mut xml_start = BytesStart::new("code");
         {
             let elem = &self.inlines;
             for elem in elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -580,9 +580,9 @@ impl ToXml for Code {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.inlines;
                 for elem in elem {
@@ -673,11 +673,11 @@ impl ToXml for Em {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("em");
+        let mut xml_start = BytesStart::new("em");
         {
             let elem = &self.inlines;
             for elem in elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -688,9 +688,9 @@ impl ToXml for Em {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.inlines;
                 for elem in elem {
@@ -865,7 +865,7 @@ impl Inline {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Value(value) => {

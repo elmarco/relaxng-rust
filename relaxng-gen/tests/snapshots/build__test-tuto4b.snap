@@ -19,11 +19,11 @@ impl ToXml for Doc {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("doc");
+        let mut xml_start = BytesStart::new("doc");
         {
             let elem = &self.inlines;
             for elem in elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -34,9 +34,9 @@ impl ToXml for Doc {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.inlines;
                 for elem in elem {
@@ -127,11 +127,11 @@ impl ToXml for Bold {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("bold");
+        let mut xml_start = BytesStart::new("bold");
         {
             let elem = &self.inlines;
             for elem in elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -142,9 +142,9 @@ impl ToXml for Bold {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.inlines;
                 for elem in elem {
@@ -235,11 +235,11 @@ impl ToXml for Italic {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("italic");
+        let mut xml_start = BytesStart::new("italic");
         {
             let elem = &self.inlines;
             for elem in elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -250,9 +250,9 @@ impl ToXml for Italic {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.inlines;
                 for elem in elem {
@@ -344,11 +344,11 @@ impl ToXml for Span {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("span");
+        let mut xml_start = BytesStart::new("span");
         {
             let elem = &self.style;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"style"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -358,7 +358,7 @@ impl ToXml for Span {
         {
             let elem = &self.inlines;
             for elem in elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -369,9 +369,9 @@ impl ToXml for Span {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.inlines;
                 for elem in elem {
@@ -576,7 +576,7 @@ impl Inline {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Value(value) => {

@@ -201,7 +201,7 @@ impl ToXml for Number {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("number");
+        let mut xml_start = BytesStart::new("number");
         let empty = {
             true
                 && ({
@@ -210,9 +210,9 @@ impl ToXml for Number {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;

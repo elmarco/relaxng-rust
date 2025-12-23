@@ -81,7 +81,7 @@ impl Offset {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Utc => {}
@@ -221,14 +221,14 @@ impl ClockChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Offset(offset) => {
                 let elem = offset;
                 {
                     let elem = offset;
-                    __start
+                    xml_start
                         .push_attribute((
                             &b"offset"[..],
                             quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -236,7 +236,7 @@ impl ClockChoice {
                 }
             }
             Self::Variant0 { start } => {
-                __start
+                xml_start
                     .push_attribute((
                         &b"offset"[..],
                         quick_xml::escape::escape("absolute").as_bytes(),
@@ -244,7 +244,7 @@ impl ClockChoice {
                 let elem = start;
                 {
                     let elem = start;
-                    __start
+                    xml_start
                         .push_attribute((
                             &b"start"[..],
                             quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -311,10 +311,10 @@ impl ToXml for Clock {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("clock");
+        let mut xml_start = BytesStart::new("clock");
         {
             let elem = &self.clock_choice;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -324,9 +324,9 @@ impl ToXml for Clock {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.clock_choice;
                 elem.to_xml(writer)?;

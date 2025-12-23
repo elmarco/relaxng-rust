@@ -19,11 +19,11 @@ impl ToXml for Code {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("code");
+        let mut xml_start = BytesStart::new("code");
         {
             let elem = &self.inlines;
             for elem in elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -34,9 +34,9 @@ impl ToXml for Code {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.inlines;
                 for elem in elem {
@@ -127,11 +127,11 @@ impl ToXml for Em {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("em");
+        let mut xml_start = BytesStart::new("em");
         {
             let elem = &self.inlines;
             for elem in elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -142,9 +142,9 @@ impl ToXml for Em {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.inlines;
                 for elem in elem {
@@ -319,7 +319,7 @@ impl Inline {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Value(value) => {
@@ -585,11 +585,11 @@ impl ToXml for Top {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("top");
+        let mut xml_start = BytesStart::new("top");
         {
             let elem = &self.inlines;
             for elem in elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -600,9 +600,9 @@ impl ToXml for Top {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.inlines;
                 for elem in elem {

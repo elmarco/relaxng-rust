@@ -265,7 +265,7 @@ impl Type {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Foo => {}
@@ -400,14 +400,14 @@ impl TestChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Type(r#type) => {
                 let elem = r#type;
                 {
                     let elem = r#type;
-                    __start
+                    xml_start
                         .push_attribute((
                             &b"type"[..],
                             quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -415,7 +415,7 @@ impl TestChoice {
                 }
             }
             Self::Variant0 { refoption } => {
-                __start
+                xml_start
                     .push_attribute((
                         &b"type"[..],
                         quick_xml::escape::escape("ref").as_bytes(),
@@ -424,7 +424,7 @@ impl TestChoice {
                 {
                     let elem = refoption;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"refoption"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -496,10 +496,10 @@ impl ToXml for Test {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("test");
+        let mut xml_start = BytesStart::new("test");
         {
             let elem = &self.test_choice;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -509,9 +509,9 @@ impl ToXml for Test {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.test_choice;
                 elem.to_xml(writer)?;

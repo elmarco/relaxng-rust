@@ -202,11 +202,11 @@ impl ToXml for _8021qbgParameters {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("parameters");
+        let mut xml_start = BytesStart::new("parameters");
         {
             let elem = &self.managerid;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"managerid"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -215,9 +215,9 @@ impl ToXml for _8021qbgParameters {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("parameters")))?;
         }
         Ok(())
@@ -300,11 +300,11 @@ impl ToXml for _8021qbhParameters {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("parameters");
+        let mut xml_start = BytesStart::new("parameters");
         {
             let elem = &self.profileid;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"profileid"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -313,9 +313,9 @@ impl ToXml for _8021qbhParameters {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("parameters")))?;
         }
         Ok(())
@@ -461,7 +461,7 @@ impl Type {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::_8021qbg => {}
@@ -540,10 +540,10 @@ impl ToXml for Virtualport {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("virtualport");
+        let mut xml_start = BytesStart::new("virtualport");
         {
             let elem = &self.r#type;
-            start
+            xml_start
                 .push_attribute((
                     &b"type"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -561,9 +561,9 @@ impl ToXml for Virtualport {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self._8021qbg_parameters;
                 if let Some(elem) = elem {
@@ -771,7 +771,7 @@ impl VirtualPortProfile {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Virtualport(virtualport) => {
@@ -826,10 +826,10 @@ impl ToXml for Portgroup {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("portgroup");
+        let mut xml_start = BytesStart::new("portgroup");
         {
             let elem = &self.virtual_port_profile;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -839,9 +839,9 @@ impl ToXml for Portgroup {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.virtual_port_profile;
                 elem.to_xml(writer)?;
@@ -935,10 +935,10 @@ impl ToXml for Vpp {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("vpp");
+        let mut xml_start = BytesStart::new("vpp");
         {
             let elem = &self.virtual_port_profile;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -952,9 +952,9 @@ impl ToXml for Vpp {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.virtual_port_profile;
                 elem.to_xml(writer)?;

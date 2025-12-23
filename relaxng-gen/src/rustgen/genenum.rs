@@ -901,7 +901,7 @@ impl GenEnum {
 
                     pub fn to_xml_attr(
                         &self,
-                        start: &mut quick_xml::events::BytesStart<'_>,
+                        xml_start: &mut quick_xml::events::BytesStart<'_>,
                     ) -> Result<()> {
                         match self {
                             #(#to_xml_attr),*
@@ -1194,7 +1194,7 @@ impl GenEnum {
 
                     pub fn to_xml_attr(
                         &self,
-                        start: &mut quick_xml::events::BytesStart<'_>,
+                        xml_start: &mut quick_xml::events::BytesStart<'_>,
                     ) -> Result<()> {
                         match self {
                             #(#to_xml_attr),*

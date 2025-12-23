@@ -81,7 +81,7 @@ impl Class {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::GivenName => {}
@@ -155,10 +155,10 @@ impl ToXml for Span {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("span");
+        let mut xml_start = BytesStart::new("span");
         {
             let elem = &self.class;
-            start
+            xml_start
                 .push_attribute((
                     &b"class"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -172,9 +172,9 @@ impl ToXml for Span {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -276,8 +276,8 @@ impl ToXml for Td {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("td");
-        start
+        let mut xml_start = BytesStart::new("td");
+        xml_start
             .push_attribute((
                 &b"class"[..],
                 quick_xml::escape::escape("name").as_bytes(),
@@ -294,9 +294,9 @@ impl ToXml for Td {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -410,8 +410,8 @@ impl ToXml for TdEmail {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("td");
-        start
+        let mut xml_start = BytesStart::new("td");
+        xml_start
             .push_attribute((
                 &b"class"[..],
                 quick_xml::escape::escape("email").as_bytes(),
@@ -424,9 +424,9 @@ impl ToXml for TdEmail {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -526,8 +526,8 @@ impl ToXml for Tr {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("tr");
-        start
+        let mut xml_start = BytesStart::new("tr");
+        xml_start
             .push_attribute((
                 &b"class"[..],
                 quick_xml::escape::escape("card").as_bytes(),
@@ -544,9 +544,9 @@ impl ToXml for Tr {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.td;
                 elem.to_xml(writer)?;
@@ -663,8 +663,8 @@ impl ToXml for Table {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("table");
-        start
+        let mut xml_start = BytesStart::new("table");
+        xml_start
             .push_attribute((
                 &b"class"[..],
                 quick_xml::escape::escape("addressBook").as_bytes(),
@@ -677,9 +677,9 @@ impl ToXml for Table {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.trs;
                 for elem in elem {
@@ -781,7 +781,7 @@ impl ToXml for Body {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("body");
+        let mut xml_start = BytesStart::new("body");
         let empty = {
             true
                 && ({
@@ -790,9 +790,9 @@ impl ToXml for Body {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.table;
                 elem.to_xml(writer)?;
@@ -877,7 +877,7 @@ impl ToXml for Title {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("title");
+        let mut xml_start = BytesStart::new("title");
         let empty = {
             true
                 && ({
@@ -886,9 +886,9 @@ impl ToXml for Title {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -974,7 +974,7 @@ impl ToXml for Head {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("head");
+        let mut xml_start = BytesStart::new("head");
         let empty = {
             true
                 && ({
@@ -983,9 +983,9 @@ impl ToXml for Head {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.title;
                 elem.to_xml(writer)?;
@@ -1075,7 +1075,7 @@ impl ToXml for Html {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("html");
+        let mut xml_start = BytesStart::new("html");
         let empty = {
             true
                 && ({
@@ -1088,9 +1088,9 @@ impl ToXml for Html {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.head;
                 elem.to_xml(writer)?;

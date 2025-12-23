@@ -81,7 +81,7 @@ impl Backup {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::No => {}
@@ -215,7 +215,7 @@ impl Type {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::File => {}
@@ -355,7 +355,7 @@ impl BackupdisktypeChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Backup(backup) => {
@@ -363,7 +363,7 @@ impl BackupdisktypeChoice {
                 {
                     let elem = backup;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"backup"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -376,14 +376,14 @@ impl BackupdisktypeChoice {
                 {
                     let elem = backup;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"backup"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
                             ));
                     }
                 }
-                __start
+                xml_start
                     .push_attribute((
                         &b"type"[..],
                         quick_xml::escape::escape("file").as_bytes(),
@@ -394,14 +394,14 @@ impl BackupdisktypeChoice {
                 {
                     let elem = backup;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"backup"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
                             ));
                     }
                 }
-                __start
+                xml_start
                     .push_attribute((
                         &b"type"[..],
                         quick_xml::escape::escape("block").as_bytes(),
@@ -482,10 +482,10 @@ impl ToXml for Backupdisktype {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("backupdisktype");
+        let mut xml_start = BytesStart::new("backupdisktype");
         {
             let elem = &self.backupdisktype_choice;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -495,9 +495,9 @@ impl ToXml for Backupdisktype {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.backupdisktype_choice;
                 elem.to_xml(writer)?;

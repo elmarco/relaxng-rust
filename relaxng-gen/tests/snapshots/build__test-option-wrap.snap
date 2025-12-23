@@ -260,7 +260,7 @@ impl TargetChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::TypeChoice(r#type) => {
@@ -268,7 +268,7 @@ impl TargetChoice {
                 {
                     let elem = r#type;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"type"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -342,10 +342,10 @@ impl ToXml for Target {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("target");
+        let mut xml_start = BytesStart::new("target");
         {
             let elem = &self.target_choice;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -355,9 +355,9 @@ impl ToXml for Target {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.target_choice;
                 elem.to_xml(writer)?;
@@ -553,7 +553,7 @@ impl TypeChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Xen(xen) => {

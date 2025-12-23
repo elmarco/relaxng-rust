@@ -18,7 +18,7 @@ impl ToXml for Port {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("port");
+        let mut xml_start = BytesStart::new("port");
         let empty = {
             true
                 && ({
@@ -27,9 +27,9 @@ impl ToXml for Port {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -123,7 +123,7 @@ impl ToXml for Timeout {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("timeout");
+        let mut xml_start = BytesStart::new("timeout");
         let empty = {
             true
                 && ({
@@ -132,9 +132,9 @@ impl ToXml for Timeout {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -231,7 +231,7 @@ impl ToXml for Config {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("config");
+        let mut xml_start = BytesStart::new("config");
         let empty = {
             true
                 && ({
@@ -244,9 +244,9 @@ impl ToXml for Config {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.port;
                 elem.to_xml(writer)?;

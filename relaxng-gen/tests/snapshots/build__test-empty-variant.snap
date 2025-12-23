@@ -18,7 +18,7 @@ impl ToXml for Source {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("source");
+        let mut xml_start = BytesStart::new("source");
         let empty = {
             true
                 && ({
@@ -27,9 +27,9 @@ impl ToXml for Source {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -183,7 +183,7 @@ impl TypeChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Dev => {}
@@ -342,14 +342,14 @@ impl BackendChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::ModelChoice(model) => {
                 let elem = model;
                 {
                     let elem = model;
-                    __start
+                    xml_start
                         .push_attribute((
                             &b"model"[..],
                             quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -360,7 +360,7 @@ impl BackendChoice {
                 let elem = r#type;
                 {
                     let elem = r#type;
-                    __start
+                    xml_start
                         .push_attribute((
                             &b"type"[..],
                             quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -369,7 +369,7 @@ impl BackendChoice {
                 let elem = source;
             }
             Self::Variant1 {} => {
-                __start
+                xml_start
                     .push_attribute((
                         &b"type"[..],
                         quick_xml::escape::escape("builtin").as_bytes(),
@@ -455,10 +455,10 @@ impl ToXml for Backend {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("backend");
+        let mut xml_start = BytesStart::new("backend");
         {
             let elem = &self.backend_choice;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -468,9 +468,9 @@ impl ToXml for Backend {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.backend_choice;
                 elem.to_xml(writer)?;
@@ -805,7 +805,7 @@ impl ModelChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Random => {}

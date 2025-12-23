@@ -265,7 +265,7 @@ impl Mode {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Subsystem => {}
@@ -400,7 +400,7 @@ impl Choice1 {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Mode(mode) => {
@@ -408,7 +408,7 @@ impl Choice1 {
                 {
                     let elem = mode;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"mode"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -421,7 +421,7 @@ impl Choice1 {
                 {
                     let elem = mode;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"mode"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -432,7 +432,7 @@ impl Choice1 {
                 {
                     let elem = managed;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"managed"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -501,12 +501,12 @@ impl ToXml for Readonly {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("readonly");
+        let mut xml_start = BytesStart::new("readonly");
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("readonly")))?;
         }
         Ok(())
@@ -576,10 +576,10 @@ impl ToXml for Test {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("test");
+        let mut xml_start = BytesStart::new("test");
         {
             let elem = &self.choice1;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -593,9 +593,9 @@ impl ToXml for Test {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.choice1;
                 elem.to_xml(writer)?;

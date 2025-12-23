@@ -25,7 +25,7 @@ impl ToXml for Cpu {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("cpu");
+        let mut xml_start = BytesStart::new("cpu");
         let empty = {
             true
                 && ({
@@ -46,9 +46,9 @@ impl ToXml for Cpu {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.host_passthrough;
                 elem.to_xml(writer)?;
@@ -202,15 +202,15 @@ impl ToXml for Custom {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("mode");
-        start
+        let mut xml_start = BytesStart::new("mode");
+        xml_start
             .push_attribute((
                 &b"name"[..],
                 quick_xml::escape::escape("custom").as_bytes(),
             ));
         {
             let elem = &self.supported;
-            start
+            xml_start
                 .push_attribute((
                     &b"supported"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -218,9 +218,9 @@ impl ToXml for Custom {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("mode")))?;
         }
         Ok(())
@@ -317,10 +317,10 @@ impl ToXml for Enum {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("enum");
+        let mut xml_start = BytesStart::new("enum");
         {
             let elem = &self.name;
-            start
+            xml_start
                 .push_attribute((
                     &b"name"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -334,9 +334,9 @@ impl ToXml for Enum {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.values;
                 for elem in elem {
@@ -437,15 +437,15 @@ impl ToXml for HostModel {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("mode");
-        start
+        let mut xml_start = BytesStart::new("mode");
+        xml_start
             .push_attribute((
                 &b"name"[..],
                 quick_xml::escape::escape("host-model").as_bytes(),
             ));
         {
             let elem = &self.supported;
-            start
+            xml_start
                 .push_attribute((
                     &b"supported"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -453,9 +453,9 @@ impl ToXml for HostModel {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("mode")))?;
         }
         Ok(())
@@ -553,15 +553,15 @@ impl ToXml for HostPassthrough {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("mode");
-        start
+        let mut xml_start = BytesStart::new("mode");
+        xml_start
             .push_attribute((
                 &b"name"[..],
                 quick_xml::escape::escape("host-passthrough").as_bytes(),
             ));
         {
             let elem = &self.supported;
-            start
+            xml_start
                 .push_attribute((
                     &b"supported"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -575,9 +575,9 @@ impl ToXml for HostPassthrough {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.r_enums;
                 for elem in elem {
@@ -887,15 +887,15 @@ impl ToXml for Maximum {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("mode");
-        start
+        let mut xml_start = BytesStart::new("mode");
+        xml_start
             .push_attribute((
                 &b"name"[..],
                 quick_xml::escape::escape("maximum").as_bytes(),
             ));
         {
             let elem = &self.supported;
-            start
+            xml_start
                 .push_attribute((
                     &b"supported"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -909,9 +909,9 @@ impl ToXml for Maximum {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.r_enums;
                 for elem in elem {
@@ -1025,7 +1025,7 @@ impl ToXml for Value {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("value");
+        let mut xml_start = BytesStart::new("value");
         let empty = {
             true
                 && ({
@@ -1034,9 +1034,9 @@ impl ToXml for Value {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -1183,7 +1183,7 @@ impl VirYesNo {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Yes => {}

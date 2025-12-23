@@ -202,7 +202,7 @@ impl ToXml for Baselabel {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("baselabel");
+        let mut xml_start = BytesStart::new("baselabel");
         let empty = {
             true
                 && ({
@@ -211,9 +211,9 @@ impl ToXml for Baselabel {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -297,7 +297,7 @@ impl ToXml for Imagelabel {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("imagelabel");
+        let mut xml_start = BytesStart::new("imagelabel");
         let empty = {
             true
                 && ({
@@ -306,9 +306,9 @@ impl ToXml for Imagelabel {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -392,7 +392,7 @@ impl ToXml for Label {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("label");
+        let mut xml_start = BytesStart::new("label");
         let empty = {
             true
                 && ({
@@ -401,9 +401,9 @@ impl ToXml for Label {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -560,7 +560,7 @@ impl Relabel {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Yes => {}
@@ -716,7 +716,7 @@ impl Type {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Dynamic => {}
@@ -922,7 +922,7 @@ impl SecLabelKind {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::DynamicLabel { r#type, relabel, label, imagelabel, baselabel } => {
@@ -930,7 +930,7 @@ impl SecLabelKind {
                 {
                     let elem = r#type;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"type"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -941,7 +941,7 @@ impl SecLabelKind {
                 {
                     let elem = relabel;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"relabel"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -953,7 +953,7 @@ impl SecLabelKind {
                 let elem = baselabel;
             }
             Self::StaticLabel { relabel, label, imagelabel } => {
-                __start
+                xml_start
                     .push_attribute((
                         &b"type"[..],
                         quick_xml::escape::escape("static").as_bytes(),
@@ -962,7 +962,7 @@ impl SecLabelKind {
                 {
                     let elem = relabel;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"relabel"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -973,7 +973,7 @@ impl SecLabelKind {
                 let elem = imagelabel;
             }
             Self::NoneLabel { relabel } => {
-                __start
+                xml_start
                     .push_attribute((
                         &b"type"[..],
                         quick_xml::escape::escape("none").as_bytes(),
@@ -982,7 +982,7 @@ impl SecLabelKind {
                 {
                     let elem = relabel;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"relabel"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -1118,11 +1118,11 @@ impl ToXml for Seclabel {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("seclabel");
+        let mut xml_start = BytesStart::new("seclabel");
         {
             let elem = &self.model;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"model"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -1131,7 +1131,7 @@ impl ToXml for Seclabel {
         }
         {
             let elem = &self.sec_label_kind;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -1141,9 +1141,9 @@ impl ToXml for Seclabel {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.sec_label_kind;
                 elem.to_xml(writer)?;

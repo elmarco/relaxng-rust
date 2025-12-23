@@ -91,7 +91,7 @@ impl BoolChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::True => {}
@@ -177,7 +177,7 @@ impl ToXml for Ff {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("ff");
+        let mut xml_start = BytesStart::new("ff");
         let empty = {
             true
                 && ({
@@ -186,9 +186,9 @@ impl ToXml for Ff {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -348,7 +348,7 @@ impl PreferredFormatChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Html => {}
@@ -420,10 +420,10 @@ impl ToXml for PreferredFormat {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("preferredFormat");
+        let mut xml_start = BytesStart::new("preferredFormat");
         {
             let elem = &self.preferred_format_choice;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -433,9 +433,9 @@ impl ToXml for PreferredFormat {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.preferred_format_choice;
                 elem.to_xml(writer)?;
@@ -537,10 +537,10 @@ impl ToXml for Card {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("card");
+        let mut xml_start = BytesStart::new("card");
         {
             let elem = &self.bool;
-            start
+            xml_start
                 .push_attribute((
                     &b"bool"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -554,9 +554,9 @@ impl ToXml for Card {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.preferred_format;
                 elem.to_xml(writer)?;

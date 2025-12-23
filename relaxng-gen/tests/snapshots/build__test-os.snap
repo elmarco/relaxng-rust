@@ -95,7 +95,7 @@ impl TypeChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Raw => {}
@@ -197,10 +197,10 @@ impl ToXml for Table {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("table");
+        let mut xml_start = BytesStart::new("table");
         {
             let elem = &self.r#type;
-            start
+            xml_start
                 .push_attribute((
                     &b"type"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -214,9 +214,9 @@ impl ToXml for Table {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -353,7 +353,7 @@ impl ToXml for Acpi {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("acpi");
+        let mut xml_start = BytesStart::new("acpi");
         let empty = {
             true
                 && ({
@@ -362,9 +362,9 @@ impl ToXml for Acpi {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.tables;
                 for elem in elem {
@@ -743,7 +743,7 @@ impl Archnames {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Aarch64 => {}
@@ -1212,11 +1212,11 @@ impl ToXml for Bios {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("bios");
+        let mut xml_start = BytesStart::new("bios");
         {
             let elem = &self.useserial;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"useserial"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -1226,7 +1226,7 @@ impl ToXml for Bios {
         {
             let elem = &self.reboot_timeout;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"rebootTimeout"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -1235,9 +1235,9 @@ impl ToXml for Bios {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("bios")))?;
         }
         Ok(())
@@ -1424,7 +1424,7 @@ impl DevChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Hd => {}
@@ -1521,10 +1521,10 @@ impl ToXml for Boot {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("boot");
+        let mut xml_start = BytesStart::new("boot");
         {
             let elem = &self.dev;
-            start
+            xml_start
                 .push_attribute((
                     &b"dev"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -1532,9 +1532,9 @@ impl ToXml for Boot {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("boot")))?;
         }
         Ok(())
@@ -1676,7 +1676,7 @@ impl BootloaderChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Value(value) => {
@@ -1754,10 +1754,10 @@ impl ToXml for Bootloader {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("bootloader");
+        let mut xml_start = BytesStart::new("bootloader");
         {
             let elem = &self.bootloader_choice;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -1767,9 +1767,9 @@ impl ToXml for Bootloader {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.bootloader_choice;
                 elem.to_xml(writer)?;
@@ -1856,7 +1856,7 @@ impl ToXml for BootloaderArgs {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("bootloader_args");
+        let mut xml_start = BytesStart::new("bootloader_args");
         let empty = {
             true
                 && ({
@@ -1865,9 +1865,9 @@ impl ToXml for BootloaderArgs {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -1954,7 +1954,7 @@ impl ToXml for Cmdline {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("cmdline");
+        let mut xml_start = BytesStart::new("cmdline");
         let empty = {
             true
                 && ({
@@ -1963,9 +1963,9 @@ impl ToXml for Cmdline {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -2053,7 +2053,7 @@ impl ToXml for Dtb {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("dtb");
+        let mut xml_start = BytesStart::new("dtb");
         let empty = {
             true
                 && ({
@@ -2062,9 +2062,9 @@ impl ToXml for Dtb {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -2188,7 +2188,7 @@ impl ToXml for Initrd {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("initrd");
+        let mut xml_start = BytesStart::new("initrd");
         let empty = {
             true
                 && ({
@@ -2197,9 +2197,9 @@ impl ToXml for Initrd {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -2323,7 +2323,7 @@ impl ToXml for Kernel {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("kernel");
+        let mut xml_start = BytesStart::new("kernel");
         let empty = {
             true
                 && ({
@@ -2332,9 +2332,9 @@ impl ToXml for Kernel {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -2789,14 +2789,14 @@ impl Os {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Osxen(osxen) => {
                 let elem = osxen;
                 {
                     let elem = osxen;
-                    elem.to_xml_attr(__start)?;
+                    elem.to_xml_attr(xml_start)?;
                 }
             }
             Self::OsExe(os_exe) => {
@@ -2909,7 +2909,7 @@ impl ToXml for Init {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("init");
+        let mut xml_start = BytesStart::new("init");
         let empty = {
             true
                 && ({
@@ -2918,9 +2918,9 @@ impl ToXml for Init {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -3040,7 +3040,7 @@ impl ToXml for Initarg {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("initarg");
+        let mut xml_start = BytesStart::new("initarg");
         let empty = {
             true
                 && ({
@@ -3049,9 +3049,9 @@ impl ToXml for Initarg {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -3139,7 +3139,7 @@ impl ToXml for Initdir {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("initdir");
+        let mut xml_start = BytesStart::new("initdir");
         let empty = {
             true
                 && ({
@@ -3148,9 +3148,9 @@ impl ToXml for Initdir {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -3275,10 +3275,10 @@ impl ToXml for Initenv {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("initenv");
+        let mut xml_start = BytesStart::new("initenv");
         {
             let elem = &self.name;
-            start
+            xml_start
                 .push_attribute((
                     &b"name"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -3292,9 +3292,9 @@ impl ToXml for Initenv {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -3424,7 +3424,7 @@ impl ToXml for Initgroup {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("initgroup");
+        let mut xml_start = BytesStart::new("initgroup");
         let empty = {
             true
                 && ({
@@ -3433,9 +3433,9 @@ impl ToXml for Initgroup {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -3559,7 +3559,7 @@ impl ToXml for Inituser {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("inituser");
+        let mut xml_start = BytesStart::new("inituser");
         let empty = {
             true
                 && ({
@@ -3568,9 +3568,9 @@ impl ToXml for Inituser {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -3691,11 +3691,11 @@ impl ToXml for Type {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("type");
+        let mut xml_start = BytesStart::new("type");
         {
             let elem = &self.arch;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"arch"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -3704,9 +3704,9 @@ impl ToXml for Type {
         }
         let empty = { true && (false) };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::Text(BytesText::new("exe")))?;
             writer.write_event(Event::End(BytesEnd::new("type")))?;
         }
@@ -3817,7 +3817,7 @@ impl ToXml for OsExe {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("os");
+        let mut xml_start = BytesStart::new("os");
         let empty = {
             true
                 && ({
@@ -3850,9 +3850,9 @@ impl ToXml for OsExe {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.r_type;
                 elem.to_xml(writer)?;
@@ -4073,10 +4073,10 @@ impl ToXml for Bootmenu {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("bootmenu");
+        let mut xml_start = BytesStart::new("bootmenu");
         {
             let elem = &self.enable;
-            start
+            xml_start
                 .push_attribute((
                     &b"enable"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -4085,7 +4085,7 @@ impl ToXml for Bootmenu {
         {
             let elem = &self.timeout;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"timeout"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -4094,9 +4094,9 @@ impl ToXml for Bootmenu {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("bootmenu")))?;
         }
         Ok(())
@@ -4264,7 +4264,7 @@ impl NameChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::EnrolledKeys => {}
@@ -4339,10 +4339,10 @@ impl ToXml for Feature {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("feature");
+        let mut xml_start = BytesStart::new("feature");
         {
             let elem = &self.enabled;
-            start
+            xml_start
                 .push_attribute((
                     &b"enabled"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -4350,7 +4350,7 @@ impl ToXml for Feature {
         }
         {
             let elem = &self.name;
-            start
+            xml_start
                 .push_attribute((
                     &b"name"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -4358,9 +4358,9 @@ impl ToXml for Feature {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("feature")))?;
         }
         Ok(())
@@ -4461,7 +4461,7 @@ impl ToXml for Firmware {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("firmware");
+        let mut xml_start = BytesStart::new("firmware");
         let empty = {
             true
                 && ({
@@ -4470,9 +4470,9 @@ impl ToXml for Firmware {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.features;
                 for elem in elem {
@@ -4624,7 +4624,7 @@ impl FirmwareChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Bios => {}
@@ -4758,7 +4758,7 @@ impl TypeChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Rom => {}
@@ -4840,11 +4840,11 @@ impl ToXml for Loader {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("loader");
+        let mut xml_start = BytesStart::new("loader");
         {
             let elem = &self.readonly;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"readonly"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -4854,7 +4854,7 @@ impl ToXml for Loader {
         {
             let elem = &self.secure;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"secure"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -4864,7 +4864,7 @@ impl ToXml for Loader {
         {
             let elem = &self.r#type;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"type"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -4874,7 +4874,7 @@ impl ToXml for Loader {
         {
             let elem = &self.stateless;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"stateless"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -4884,7 +4884,7 @@ impl ToXml for Loader {
         {
             let elem = &self.format;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"format"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -4899,9 +4899,9 @@ impl ToXml for Loader {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 if let Some(elem) = elem {
@@ -5127,11 +5127,11 @@ impl ToXml for Nvram {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("nvram");
+        let mut xml_start = BytesStart::new("nvram");
         {
             let elem = &self.template;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"template"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -5141,7 +5141,7 @@ impl ToXml for Nvram {
         {
             let elem = &self.template_format;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"templateFormat"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -5151,7 +5151,7 @@ impl ToXml for Nvram {
         {
             let elem = &self.format;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"format"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -5166,9 +5166,9 @@ impl ToXml for Nvram {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 if let Some(elem) = elem {
@@ -5415,11 +5415,11 @@ impl ToXml for OsHvm {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("os");
+        let mut xml_start = BytesStart::new("os");
         {
             let elem = &self.firmware_attr;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"firmware"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -5490,9 +5490,9 @@ impl ToXml for OsHvm {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.r_type;
                 elem.to_xml(writer)?;
@@ -5922,7 +5922,7 @@ impl ToXml for Os {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("os");
+        let mut xml_start = BytesStart::new("os");
         let empty = {
             true
                 && ({
@@ -5955,9 +5955,9 @@ impl ToXml for Os {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.r_type;
                 elem.to_xml(writer)?;
@@ -6290,7 +6290,7 @@ impl Osxen {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Variant0 { bootloader, bootloader_args, os } => {
@@ -6444,7 +6444,7 @@ impl PflashFormatTypes {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Raw => {}
@@ -6519,7 +6519,7 @@ impl ToXml for Root {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("root");
+        let mut xml_start = BytesStart::new("root");
         let empty = {
             true
                 && ({
@@ -6528,9 +6528,9 @@ impl ToXml for Root {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -6650,7 +6650,7 @@ impl ToXml for Shim {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("shim");
+        let mut xml_start = BytesStart::new("shim");
         let empty = {
             true
                 && ({
@@ -6659,9 +6659,9 @@ impl ToXml for Shim {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
@@ -6815,7 +6815,7 @@ impl ModeChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Emulate => {}
@@ -6900,10 +6900,10 @@ impl ToXml for Smbios {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("smbios");
+        let mut xml_start = BytesStart::new("smbios");
         {
             let elem = &self.mode;
-            start
+            xml_start
                 .push_attribute((
                     &b"mode"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -6911,9 +6911,9 @@ impl ToXml for Smbios {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("smbios")))?;
         }
         Ok(())
@@ -7288,7 +7288,7 @@ impl ArchChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::I686 => {}
@@ -7825,7 +7825,7 @@ impl Choice1 {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Xen => {}
@@ -7978,7 +7978,7 @@ impl Choice2 {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Xen => {}
@@ -8163,7 +8163,7 @@ impl MachineChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Xenpv => {}
@@ -8312,11 +8312,11 @@ impl ToXml for Type {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("type");
+        let mut xml_start = BytesStart::new("type");
         {
             let elem = &self.arch;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"arch"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -8326,7 +8326,7 @@ impl ToXml for Type {
         {
             let elem = &self.machine;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"machine"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -8336,13 +8336,13 @@ impl ToXml for Type {
         {
             let elem = &self.choice1;
             if let Some(elem) = elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         {
             let elem = &self.choice2;
             if let Some(elem) = elem {
-                elem.to_xml_attr(&mut start)?;
+                elem.to_xml_attr(&mut xml_start)?;
             }
         }
         let empty = {
@@ -8357,9 +8357,9 @@ impl ToXml for Type {
                 }) && (false)
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.choice1;
                 if let Some(elem) = elem {
@@ -8583,7 +8583,7 @@ impl VirYesNo {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Yes => {}

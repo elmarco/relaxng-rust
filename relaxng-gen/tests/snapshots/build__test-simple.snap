@@ -16,12 +16,12 @@ impl ToXml for AddressBook {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("addressBook");
+        let mut xml_start = BytesStart::new("addressBook");
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("addressBook")))?;
         }
         Ok(())

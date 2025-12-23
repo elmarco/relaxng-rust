@@ -265,7 +265,7 @@ impl BoolChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::True => {}
@@ -338,15 +338,15 @@ impl ToXml for Tr {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("tr");
-        start
+        let mut xml_start = BytesStart::new("tr");
+        xml_start
             .push_attribute((
                 &b"class"[..],
                 quick_xml::escape::escape("card").as_bytes(),
             ));
         {
             let elem = &self.bool;
-            start
+            xml_start
                 .push_attribute((
                     &b"bool"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -354,9 +354,9 @@ impl ToXml for Tr {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("tr")))?;
         }
         Ok(())

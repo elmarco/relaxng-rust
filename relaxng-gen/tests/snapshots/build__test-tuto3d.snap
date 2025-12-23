@@ -81,7 +81,7 @@ impl MatchChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Foo => {}
@@ -155,10 +155,10 @@ impl ToXml for Foo {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("foo");
+        let mut xml_start = BytesStart::new("foo");
         {
             let elem = &self.r#match;
-            start
+            xml_start
                 .push_attribute((
                     &b"match"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -166,7 +166,7 @@ impl ToXml for Foo {
         }
         {
             let elem = &self.email;
-            start
+            xml_start
                 .push_attribute((
                     &b"email"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -174,9 +174,9 @@ impl ToXml for Foo {
         }
         let empty = { true };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             writer.write_event(Event::End(BytesEnd::new("foo")))?;
         }
         Ok(())
@@ -274,7 +274,7 @@ impl ToXml for AddressBook {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("addressBook");
+        let mut xml_start = BytesStart::new("addressBook");
         let empty = {
             true
                 && ({
@@ -283,9 +283,9 @@ impl ToXml for AddressBook {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.foos;
                 for elem in elem {

@@ -265,7 +265,7 @@ impl JobChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Copy => {}
@@ -394,14 +394,14 @@ impl Choice1 {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::JobChoice(job) => {
                 let elem = job;
                 {
                     let elem = job;
-                    __start
+                    xml_start
                         .push_attribute((
                             &b"job"[..],
                             quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -538,7 +538,7 @@ impl ReadyChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Yes => {}
@@ -626,15 +626,15 @@ impl ToXml for Mirror {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("mirror");
+        let mut xml_start = BytesStart::new("mirror");
         {
             let elem = &self.choice1;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         {
             let elem = &self.ready;
             if let Some(elem) = elem {
-                start
+                xml_start
                     .push_attribute((
                         &b"ready"[..],
                         quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -649,9 +649,9 @@ impl ToXml for Mirror {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.choice1;
                 elem.to_xml(writer)?;

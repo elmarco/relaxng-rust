@@ -447,9 +447,9 @@ impl GenField {
     ) {
         if self.is_choice() && self.as_inline() {
             let elem_to_xml = if for_self {
-                quote! { elem.to_xml_attr(&mut start)?; }
+                quote! { elem.to_xml_attr(&mut xml_start)?; }
             } else {
-                quote! { elem.to_xml_attr(start)?; }
+                quote! { elem.to_xml_attr(xml_start)?; }
             };
             let elem = self.to_xml_elem_wrap(for_self, elem_to_xml);
             to_xml_attrs.extend(elem);
@@ -479,7 +479,7 @@ impl GenField {
         let mut elem_to_xml = match self.serialize_as {
             SerializeAs::Attribute => {
                 let name_b = self.xml_name_b();
-                quote! { start.push_attribute((&#name_b[..], quick_xml::escape::escape(#val).as_bytes())); }
+                quote! { xml_start.push_attribute((&#name_b[..], quick_xml::escape::escape(#val).as_bytes())); }
             }
             SerializeAs::Inline => {
                 if self.is_text() || self.is_parse() || self.is_value() {

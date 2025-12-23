@@ -99,9 +99,9 @@ impl GenStruct {
             };
 
             if empty {
-                writer.write_event(Event::Empty(start))?;
+                writer.write_event(Event::Empty(xml_start))?;
             } else {
-                writer.write_event(Event::Start(start))?;
+                writer.write_event(Event::Start(xml_start))?;
                 #to_xml_elems
                 writer.write_event(Event::End(BytesEnd::new(#name)))?;
             }
@@ -110,7 +110,7 @@ impl GenStruct {
         let body = quote! {
             use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
 
-            let mut start = BytesStart::new(#name);
+            let mut xml_start = BytesStart::new(#name);
 
             #to_xml_attrs
 

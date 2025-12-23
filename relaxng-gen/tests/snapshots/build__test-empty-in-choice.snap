@@ -81,7 +81,7 @@ impl Type {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::File => {}
@@ -215,11 +215,11 @@ impl DeviceChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Variant0 { path } => {
-                __start
+                xml_start
                     .push_attribute((
                         &b"type"[..],
                         quick_xml::escape::escape("file").as_bytes(),
@@ -227,7 +227,7 @@ impl DeviceChoice {
                 let elem = path;
                 {
                     let elem = path;
-                    __start
+                    xml_start
                         .push_attribute((
                             &b"path"[..],
                             quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -235,7 +235,7 @@ impl DeviceChoice {
                 }
             }
             Self::Variant1 {} => {
-                __start
+                xml_start
                     .push_attribute((
                         &b"type"[..],
                         quick_xml::escape::escape("none").as_bytes(),
@@ -306,10 +306,10 @@ impl ToXml for Device {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("device");
+        let mut xml_start = BytesStart::new("device");
         {
             let elem = &self.device_choice;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -319,9 +319,9 @@ impl ToXml for Device {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.device_choice;
                 elem.to_xml(writer)?;

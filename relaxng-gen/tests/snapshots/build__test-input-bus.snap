@@ -95,7 +95,7 @@ impl BusChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Ps2 => {}
@@ -267,7 +267,7 @@ impl TypeChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Tablet => {}
@@ -427,14 +427,14 @@ impl InputChoice {
     }
     pub fn to_xml_attr(
         &self,
-        __start: &mut quick_xml::events::BytesStart<'_>,
+        xml_start: &mut quick_xml::events::BytesStart<'_>,
     ) -> Result<()> {
         match self {
             Self::Variant0 { r#type, bus } => {
                 let elem = r#type;
                 {
                     let elem = r#type;
-                    __start
+                    xml_start
                         .push_attribute((
                             &b"type"[..],
                             quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -444,7 +444,7 @@ impl InputChoice {
                 {
                     let elem = bus;
                     if let Some(elem) = elem {
-                        __start
+                        xml_start
                             .push_attribute((
                                 &b"bus"[..],
                                 quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -453,12 +453,12 @@ impl InputChoice {
                 }
             }
             Self::Variant1 {} => {
-                __start
+                xml_start
                     .push_attribute((
                         &b"type"[..],
                         quick_xml::escape::escape("passthrough").as_bytes(),
                     ));
-                __start
+                xml_start
                     .push_attribute((
                         &b"bus"[..],
                         quick_xml::escape::escape("virtio").as_bytes(),
@@ -527,10 +527,10 @@ impl ToXml for Input {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("input");
+        let mut xml_start = BytesStart::new("input");
         {
             let elem = &self.input_choice;
-            elem.to_xml_attr(&mut start)?;
+            elem.to_xml_attr(&mut xml_start)?;
         }
         let empty = {
             true
@@ -540,9 +540,9 @@ impl ToXml for Input {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.input_choice;
                 elem.to_xml(writer)?;

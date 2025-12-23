@@ -19,10 +19,10 @@ impl ToXml for Email {
         W: std::io::Write,
     {
         use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
-        let mut start = BytesStart::new("email");
+        let mut xml_start = BytesStart::new("email");
         {
             let elem = &self.r#type;
-            start
+            xml_start
                 .push_attribute((
                     &b"type"[..],
                     quick_xml::escape::escape(&elem.to_string()).as_bytes(),
@@ -36,9 +36,9 @@ impl ToXml for Email {
                 })
         };
         if empty {
-            writer.write_event(Event::Empty(start))?;
+            writer.write_event(Event::Empty(xml_start))?;
         } else {
-            writer.write_event(Event::Start(start))?;
+            writer.write_event(Event::Start(xml_start))?;
             {
                 let elem = &self.value;
                 writer.write_event(Event::Text(BytesText::new(&elem.to_string())))?;
