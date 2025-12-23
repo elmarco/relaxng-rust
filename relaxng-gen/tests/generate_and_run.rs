@@ -64,7 +64,7 @@ impl Project {
     fn build(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let out_path = self.temp_dir.path();
 
-        let mut cmd = Command::cargo_bin("relaxng-gen")?;
+        let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("relaxng-gen"));
         cmd.arg(&self.path).arg(out_path).arg("--with-test").assert().success();
 
         let mut cargo_cmd = Command::new("cargo");

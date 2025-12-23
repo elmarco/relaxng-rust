@@ -2,7 +2,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use assert_cmd::prelude::*;
 use glob::glob;
 use insta::assert_snapshot;
 
@@ -59,7 +58,7 @@ fn build_all_fixtures() {
         let project_dir = workspace_dir.join(&project_name);
 
         // Generate the project
-        let mut cmd = Command::cargo_bin("relaxng-gen").unwrap();
+        let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("relaxng-gen"));
         let output = cmd
             .arg(&rng_path)
             .arg(&project_dir)
