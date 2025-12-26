@@ -66,20 +66,32 @@ pub(crate) fn datatype_to_ty(datatype: &Datatypes, ctx: &mut Context) -> TokenSt
             }
             xsd::XsdDatatypes::Integer(min_max_facet, _pattern_facet) => {
                 if min_max_facet.bounded() {
-                    //bigint
-                    todo!()
+                    let min: isize = min_max_facet
+                        .min_cloned()
+                        .and_then(|v| v.try_into().ok())
+                        .unwrap_or(isize::MIN);
+                    let max: isize = min_max_facet
+                        .max_cloned()
+                        .and_then(|v| v.try_into().ok())
+                        .unwrap_or(isize::MAX);
+                    quote! { bounded_integer::BoundedIsize<#min, #max> }
                 } else {
-                    // should be some bigint
                     quote! { isize }
                 }
             }
-            // Note: PositiveInteger technically excludes zero, but u64 is a common mapping
             xsd::XsdDatatypes::PositiveInteger(min_max_facet, _pattern_facet) => {
                 if min_max_facet.bounded() {
-                    //bigint
-                    todo!()
+                    let min: usize = min_max_facet
+                        .min_cloned()
+                        .and_then(|v| v.try_into().ok())
+                        .unwrap_or(1);
+                    let max: usize = min_max_facet
+                        .max_cloned()
+                        .and_then(|v| v.try_into().ok())
+                        .unwrap_or(usize::MAX);
+                    quote! { bounded_integer::BoundedUsize<#min, #max> }
                 } else {
-                    quote! { usize }
+                    quote! { std::num::NonZeroUsize }
                 }
             }
             xsd::XsdDatatypes::UnsignedInt(min_max_facet, _pattern_facet) => {

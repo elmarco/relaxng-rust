@@ -1,0 +1,19 @@
+<element name="config" xmlns="http://relaxng.org/ns/structure/1.0"
+         datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+  <element name="offset">
+    <data type="integer">
+      <param name="minInclusive">-100</param>
+      <param name="maxInclusive">100</param>
+    </data>
+  </element>
+  <element name="count">
+    <data type="positiveInteger">
+      <param name="minInclusive">1</param>
+      <param name="maxInclusive">1000</param>
+    </data>
+  </element>
+  <element name="base">
+    <data type="positiveInteger">
+    </data>
+  </element>
+</element>
