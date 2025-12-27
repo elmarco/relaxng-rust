@@ -343,7 +343,7 @@ impl GenEnum {
         }
 
         let mut from_xml =
-            gen_from_xml_fn(&self.ident(), &from_xml_attrs, &from_xml_elems, &from_xml_text);
+            gen_from_xml_fn(&self.ident(), &from_xml_attrs, &from_xml_elems, &from_xml_text, &from_xml_other);
         if self.as_element.is_some() {
             from_xml = quote! {
                 pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
@@ -764,7 +764,7 @@ impl GenEnum {
                 // Track if we need try_into conversion (only when original is a merged subset enum)
                 let needs_try_into = is_merged_subset(orig);
 
-                if orig.multiple {
+                if orig.multiple && !orig.optional {
                     cond.push(quote! { !self.#name.is_empty()});
                 } else if field.ty != orig.ty
                     && let Some(value) = value
@@ -1252,6 +1252,7 @@ fn gen_from_xml_fn(
     from_xml_attrs: &[TokenStream],
     from_xml_elems: &[TokenStream],
     from_xml_text: &[TokenStream],
+    from_xml_other: &[TokenStream],
 ) -> TokenStream {
     quote! {
         pub fn from_xml(node: &roxmltree::Node, from_child: &mut Option<roxmltree::Node>) -> Result<#name_ident>
@@ -1284,6 +1285,8 @@ fn gen_from_xml_fn(
                     return Ok(build);
                 }
             }
+
+            #(#from_xml_other);*
 
             builder.build()
         }

@@ -2785,6 +2785,8 @@ impl Os {
                 return Ok(build);
             }
         }
+        let child = &mut node.first_child();
+        builder.osxen(Osxen::from_xml(node, child)?)?;
         builder.build()
     }
     pub fn to_xml_attr(
