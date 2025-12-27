@@ -314,7 +314,8 @@ impl GenEnum {
             FieldTy::Xml {
                 ..
             } => 2,
-            FieldTy::Text => 3, // Text is catch-all, must come last
+            FieldTy::Text => 3,        // Text is catch-all, must come last
+            FieldTy::AnyElement => 3,  // AnyElement is catch-all for elements, must come last
         });
         all_fields
     }
@@ -419,6 +420,10 @@ impl GenEnum {
                             builder.#field_id()?;
                         }
                     }
+                }
+                FieldTy::AnyElement => {
+                    // AnyElement is for element content, not text - skip in text parsing
+                    continue;
                 }
             };
             match_arms.push(arm);
@@ -575,6 +580,11 @@ impl GenEnum {
                 FieldTy::Value(_name) => {
                     let var_name = format_ident!("{}", field.variant_name());
                     (var_name, None)
+                }
+                FieldTy::AnyElement => {
+                    let var_name = field.variant_name();
+                    let ty: syn::Path = parse_quote! { crate::AnyElement };
+                    (var_name, Some(ty))
                 }
             };
 
@@ -1005,6 +1015,11 @@ impl GenEnum {
                 FieldTy::Value(_name) => {
                     let var_name = format_ident!("{}", field.variant_name());
                     (var_name, None)
+                }
+                FieldTy::AnyElement => {
+                    let var_name = field.variant_name();
+                    let ty: syn::Path = parse_quote! { crate::AnyElement };
+                    (var_name, Some(ty))
                 }
             };
 

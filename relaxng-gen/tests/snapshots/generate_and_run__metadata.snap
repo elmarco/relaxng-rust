@@ -1,0 +1,9 @@
+---
+source: relaxng-gen/tests/generate_and_run.rs
+expression: "String::from_utf8_lossy(&output.stdout).to_string()"
+---
+<metadata>
+  <libosinfo xmlns="http://libosinfo.org/xmlns/libvirt/domain/1.0">
+    <os xmlns="http://libosinfo.org/xmlns/libvirt/domain/1.0" id="http://redhat.com/rhel/9.5"/>
+  </libosinfo>
+</metadata>

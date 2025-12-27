@@ -25,6 +25,14 @@ impl GenTree {
         self.units.get_mut(path)
     }
 
+    pub(crate) fn set_uses_any_element(&mut self, uses: bool) {
+        for unit in self.units.values_mut() {
+            if let GenUnit::Lib(lib) = unit {
+                lib.set_uses_any_element(uses);
+            }
+        }
+    }
+
     pub(crate) fn insert_unit(&mut self, path: &Path, xpath: &str, unit: GenUnit) {
         match self.units.entry(path.to_path_buf()) {
             indexmap::map::Entry::Occupied(_entry) => {

@@ -11,6 +11,7 @@ pub(crate) struct GenLib {
     pub(crate) schema_filename: String,
     pub(crate) doc: Option<String>,
     pub(crate) regex_patterns: Vec<(String, Ident)>,
+    pub(crate) uses_any_element: bool,
 }
 
 impl GenLib {
@@ -21,6 +22,7 @@ impl GenLib {
             schema_filename,
             doc: None,
             regex_patterns: Vec::new(),
+            uses_any_element: false,
         }
     }
 
@@ -30,6 +32,10 @@ impl GenLib {
 
     pub(crate) fn add_regex_pattern(&mut self, pattern: String, type_name: Ident) {
         self.regex_patterns.push((pattern, type_name));
+    }
+
+    pub(crate) fn set_uses_any_element(&mut self, uses: bool) {
+        self.uses_any_element = uses;
     }
 }
 
@@ -70,6 +76,13 @@ impl GenLib {
                 #![doc = #doc]
             }
         });
+
+        // Only generate AnyElement types if they're used
+        let any_element_types = if self.uses_any_element {
+            Some(Self::gen_any_element_types())
+        } else {
+            None
+        };
 
         let ts = quote! {
             #doc
@@ -260,11 +273,162 @@ impl GenLib {
                 }
             }
 
+            #any_element_types
+
             /// A specialized Result type where the error is hard-wired to [`enum@Error`].
             pub type Result<T, E = Error> = std::result::Result<T, E>;
         };
 
         tokens.extend(ts);
         tokens
+    }
+
+    fn gen_any_element_types() -> TokenStream {
+        quote! {
+            /// Content that can appear inside an [`AnyElement`].
+            #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+            pub enum AnyContent {
+                /// A child element
+                Element(AnyElement),
+                /// Text content
+                Text(String),
+            }
+
+            /// Represents an arbitrary XML element (for `anyName` patterns).
+            ///
+            /// This type captures elements with any name, any attributes, and any content,
+            /// used when the schema allows arbitrary XML structure.
+            #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+            pub struct AnyElement {
+                /// The element's local name
+                pub name: String,
+                /// The element's namespace URI, if any
+                pub namespace: Option<String>,
+                /// Attributes as (name, value) pairs
+                pub attributes: Vec<(String, String)>,
+                /// Child content: elements and text nodes
+                pub children: Vec<AnyContent>,
+            }
+
+            impl AnyElement {
+                /// Parse any XML node into an AnyElement
+                pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
+                    let name = node.tag_name().name().to_string();
+                    let namespace = node.tag_name().namespace().map(|s| s.to_string());
+
+                    let attributes: Vec<_> = node.attributes()
+                        .map(|a| (a.name().to_string(), a.value().to_string()))
+                        .collect();
+
+                    let mut children = Vec::new();
+                    for child in node.children() {
+                        if child.is_element() {
+                            children.push(AnyContent::Element(AnyElement::from_xml(&child)?));
+                        } else if child.is_text() {
+                            if let Some(text) = child.text() {
+                                if !text.trim().is_empty() {
+                                    children.push(AnyContent::Text(text.to_string()));
+                                }
+                            }
+                        }
+                    }
+
+                    Ok(AnyElement {
+                        name,
+                        namespace,
+                        attributes,
+                        children,
+                    })
+                }
+            }
+
+            impl ToXml for AnyElement {
+                type Builder = AnyElementBuilder;
+
+                fn to_xml<W>(&self, writer: &mut quick_xml::Writer<W>) -> Result<()>
+                where
+                    W: std::io::Write,
+                {
+                    use quick_xml::events::{Event, BytesStart, BytesEnd, BytesText};
+
+                    let mut start = BytesStart::new(&self.name);
+
+                    if let Some(ns) = &self.namespace {
+                        start.push_attribute(("xmlns", ns.as_str()));
+                    }
+
+                    for (key, value) in &self.attributes {
+                        start.push_attribute((key.as_str(), value.as_str()));
+                    }
+
+                    if self.children.is_empty() {
+                        writer.write_event(Event::Empty(start))?;
+                    } else {
+                        writer.write_event(Event::Start(start))?;
+                        for child in &self.children {
+                            match child {
+                                AnyContent::Element(elem) => elem.to_xml(writer)?,
+                                AnyContent::Text(text) => {
+                                    writer.write_event(Event::Text(BytesText::new(text)))?;
+                                }
+                            }
+                        }
+                        writer.write_event(Event::End(BytesEnd::new(&self.name)))?;
+                    }
+
+                    Ok(())
+                }
+            }
+
+            /// Builder for [`AnyElement`].
+            #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+            pub struct AnyElementBuilder {
+                name: Option<String>,
+                namespace: Option<String>,
+                attributes: Vec<(String, String)>,
+                children: Vec<AnyContent>,
+            }
+
+            impl AnyElementBuilder {
+                pub fn name(mut self, name: impl Into<String>) -> Self {
+                    self.name = Some(name.into());
+                    self
+                }
+
+                pub fn namespace(mut self, namespace: impl Into<String>) -> Self {
+                    self.namespace = Some(namespace.into());
+                    self
+                }
+
+                pub fn attribute(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+                    self.attributes.push((name.into(), value.into()));
+                    self
+                }
+
+                pub fn child(mut self, child: AnyContent) -> Self {
+                    self.children.push(child);
+                    self
+                }
+
+                pub fn text(mut self, text: impl Into<String>) -> Self {
+                    self.children.push(AnyContent::Text(text.into()));
+                    self
+                }
+
+                pub fn element(mut self, element: AnyElement) -> Self {
+                    self.children.push(AnyContent::Element(element));
+                    self
+                }
+
+                pub fn build(self) -> Result<AnyElement> {
+                    Ok(AnyElement {
+                        name: self.name.ok_or(Error::BuilderMissingField("AnyElement", "name"))?,
+                        namespace: self.namespace,
+                        attributes: self.attributes,
+                        children: self.children,
+                    })
+                }
+            }
+        }
     }
 }

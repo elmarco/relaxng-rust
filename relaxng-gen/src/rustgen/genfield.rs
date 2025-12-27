@@ -234,6 +234,9 @@ impl GenField {
                 self.gen_from_text(None, from_xml_attrs, from_xml_text);
             }
             FieldTy::Empty => {}
+            FieldTy::AnyElement => {
+                self.gen_from_any_element(from_xml_elems);
+            }
         }
     }
 
@@ -259,6 +262,23 @@ impl GenField {
         }
         from_xml_elems.push(quote! {
             #arm => { builder.#field_ident(#val)?; }
+        });
+    }
+
+    fn gen_from_any_element(&self, from_xml_elems: &mut Vec<TokenStream>) {
+        let field_ident = self.single_ident();
+
+        // AnyElement matches any element - use a catch-all pattern with guard
+        // to ensure we only match actual elements (not text nodes)
+        let val = quote! { crate::AnyElement::from_xml(&child)? };
+        let val = if self.optional && !self.multiple {
+            quote! { Some(#val) }
+        } else {
+            val
+        };
+
+        from_xml_elems.push(quote! {
+            _ if child.is_element() => { builder.#field_ident(#val)?; }
         });
     }
 
@@ -474,6 +494,10 @@ impl GenField {
             | FieldTy::Parse(_) => {
                 quote! { &elem.to_string() }
             }
+            FieldTy::AnyElement => {
+                // AnyElement uses to_xml directly, val is not used
+                quote! { unreachable!() }
+            }
         };
 
         let mut elem_to_xml = match self.serialize_as {
@@ -484,6 +508,8 @@ impl GenField {
             SerializeAs::Inline => {
                 if self.is_text() || self.is_parse() || self.is_value() {
                     quote! { writer.write_event(Event::Text(BytesText::new(#val)))?; }
+                } else if self.ty.is_any_element() {
+                    quote! { elem.to_xml(writer)?; }
                 } else {
                     quote! { elem.to_xml(writer)?; }
                 }
@@ -894,6 +920,8 @@ pub(crate) enum FieldTy {
     Text,
     Parse(Path),
     Value(String),
+    /// For anyName elements - captures arbitrary XML structure
+    AnyElement,
 }
 
 impl FieldTy {
@@ -921,6 +949,10 @@ impl FieldTy {
         matches!(self, FieldTy::Xml { .. })
     }
 
+    pub(crate) fn is_any_element(&self) -> bool {
+        matches!(self, FieldTy::AnyElement)
+    }
+
     pub(crate) fn path(&self) -> Option<Path> {
         match self {
             FieldTy::Xml {
@@ -935,6 +967,7 @@ impl FieldTy {
             FieldTy::Text => Some(parse_quote! { String }),
             FieldTy::Value(_val) => None,
             FieldTy::Empty => None, // OR () ?
+            FieldTy::AnyElement => Some(parse_quote! { crate::AnyElement }),
         }
     }
 
@@ -946,7 +979,8 @@ impl FieldTy {
 
     pub(crate) fn gen_mod(&self) -> TokenStream {
         let ty = self.path();
-        if ty.is_none() || self.is_parse() || self.is_text() {
+        if ty.is_none() || self.is_parse() || self.is_text() || self.is_any_element() {
+            // AnyElement is defined in crate root (lib.rs), no mod needed
             return quote! {};
         }
         let mod_name = self.mod_name();

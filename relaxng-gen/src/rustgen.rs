@@ -98,7 +98,9 @@ fn visit_pattern(pattern: &Pattern, ctx: &mut Context) {
     match pattern {
         Pattern::Element(name_class, pattern) => {
             if matches!(name_class, NameClass::AnyName { .. }) {
-                debug!("AnyName element encountered");
+                debug!("AnyName element encountered - adding AnyElement field");
+                ctx.add_field("any_element", None, FieldTy::AnyElement, None);
+                ctx.uses_any_element = true;
                 return;
             }
             let name = name_class_to_name(name_class);
@@ -243,6 +245,8 @@ pub struct Context<'a> {
     /// Tracks which config rule XPaths with doc have been used
     used_doc_rules: HashSet<XPath>,
     regex_patterns: BTreeMap<String, Ident>,
+    /// Whether any AnyElement fields are used
+    uses_any_element: bool,
 }
 
 impl<'a> Context<'a> {
@@ -256,12 +260,16 @@ impl<'a> Context<'a> {
             missing_doc: BTreeMap::new(),
             used_doc_rules: HashSet::new(),
             regex_patterns: BTreeMap::new(),
+            uses_any_element: false,
             config,
         }
     }
 
-    fn write_rs(&self, outdir: &Path) {
+    fn write_rs(&mut self, outdir: &Path) {
         let src = outdir.join("src");
+
+        // Update GenLib with the uses_any_element flag
+        self.units.set_uses_any_element(self.uses_any_element);
 
         self.units.write_rs(&src, self.config);
     }

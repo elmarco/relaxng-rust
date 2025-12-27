@@ -300,6 +300,13 @@ fn gen_from_xml_fn(
     from_xml_text: &[TokenStream],
     from_xml_other: &[TokenStream],
 ) -> TokenStream {
+    // Only add the default arm if there isn't already a catch-all pattern
+    let elem_default = if has_default_match_arm(from_xml_elems) {
+        quote! {}
+    } else {
+        quote! { _ => continue, }
+    };
+
     quote! {
         pub fn from_xml(node: &roxmltree::Node) -> Result<Self>
         {
@@ -310,7 +317,7 @@ fn gen_from_xml_fn(
             for child in node.children() {
                 match child.tag_name().name() {
                     #(#from_xml_elems),*
-                    _ => continue,
+                    #elem_default
                 }
             }
 
