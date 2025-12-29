@@ -2781,9 +2781,6 @@ impl Os {
                 _ => {}
             }
             *from_child = child.next_sibling();
-            if let Ok(build) = builder.build() {
-                return Ok(build);
-            }
         }
         let child = &mut node.first_child();
         builder.osxen(Osxen::from_xml(node, child)?)?;
@@ -6284,9 +6281,6 @@ impl Osxen {
                 _ => {}
             }
             *from_child = child.next_sibling();
-            if let Ok(build) = builder.build() {
-                return Ok(build);
-            }
         }
         builder.build()
     }

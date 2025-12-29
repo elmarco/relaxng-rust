@@ -328,6 +328,25 @@ impl GenEnum {
 
         let fields = self.all_fields_sorted();
 
+        // Check if this choice has group variants - variants that can have multiple
+        // child elements. When group variants are present, we should NOT early exit
+        // because all children belong to the selected variant and we need to parse
+        // ALL of them before building.
+        //
+        // Also check if any variant is discriminated by an attribute with a fixed value
+        // (like type="emulator"). In that case, the variant is known upfront and all
+        // children belong to it.
+        let has_group_variants = !self.group_variants.is_empty();
+
+        // Check if any field is an attribute with a choice type where the original
+        // variant-specific field was a fixed value. This indicates an attribute-discriminated
+        // choice (like type="passthrough" | type="emulator" | type="external").
+        let has_discriminator_attr = self.group_variants.values().any(|variant_fields| {
+            variant_fields.fields.iter().any(|(_idx, orig_field)| {
+                orig_field.as_attribute() && orig_field.fixed_value().is_some()
+            })
+        });
+
         for field in fields {
             field.gen_from_xml(
                 &mut from_xml_attrs,
@@ -344,9 +363,11 @@ impl GenEnum {
 
         // When as_element is set, this choice represents the content of an element,
         // so we should NOT early exit (all children belong to this element).
-        // When as_element is None, this is a pure choice (e.g., one of many device types),
-        // so we SHOULD early exit after parsing one complete item.
-        let early_exit = self.as_element.is_none();
+        // When there are group variants or a discriminator attribute, we should NOT
+        // early exit because all children belong to the selected variant.
+        // When as_element is None and no group variants/discriminator, this is a
+        // pure choice where we SHOULD early exit after parsing one complete item.
+        let early_exit = self.as_element.is_none() && !has_group_variants && !has_discriminator_attr;
         let mut from_xml =
             gen_from_xml_fn(&self.ident(), &from_xml_attrs, &from_xml_elems, &from_xml_text, &from_xml_other, early_exit);
         if self.as_element.is_some() {

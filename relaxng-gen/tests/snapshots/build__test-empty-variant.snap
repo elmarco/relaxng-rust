@@ -334,9 +334,6 @@ impl BackendChoice {
                 _ => {}
             }
             *from_child = child.next_sibling();
-            if let Ok(build) = builder.build() {
-                return Ok(build);
-            }
         }
         builder.build()
     }
