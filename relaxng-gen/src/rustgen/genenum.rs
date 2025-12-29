@@ -342,8 +342,13 @@ impl GenEnum {
             from_xml_text.push(quote! { _ => {} });
         }
 
+        // When as_element is set, this choice represents the content of an element,
+        // so we should NOT early exit (all children belong to this element).
+        // When as_element is None, this is a pure choice (e.g., one of many device types),
+        // so we SHOULD early exit after parsing one complete item.
+        let early_exit = self.as_element.is_none();
         let mut from_xml =
-            gen_from_xml_fn(&self.ident(), &from_xml_attrs, &from_xml_elems, &from_xml_text, &from_xml_other);
+            gen_from_xml_fn(&self.ident(), &from_xml_attrs, &from_xml_elems, &from_xml_text, &from_xml_other, early_exit);
         if self.as_element.is_some() {
             from_xml = quote! {
                 pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
@@ -1253,7 +1258,22 @@ fn gen_from_xml_fn(
     from_xml_elems: &[TokenStream],
     from_xml_text: &[TokenStream],
     from_xml_other: &[TokenStream],
+    early_exit: bool,
 ) -> TokenStream {
+    // When parsing a pure choice (not an element), we should exit early after
+    // successfully building. This allows parsing multiple items from a sequence.
+    // When parsing an element with a choice (as_element is set), we should NOT
+    // exit early because all children belong to this one element.
+    let early_exit_code = if early_exit {
+        quote! {
+            if let Ok(build) = builder.build() {
+                return Ok(build);
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     quote! {
         pub fn from_xml(node: &roxmltree::Node, from_child: &mut Option<roxmltree::Node>) -> Result<#name_ident>
         {
@@ -1281,9 +1301,7 @@ fn gen_from_xml_fn(
                     _ => {}
                 }
                 *from_child = child.next_sibling();
-                if let Ok(build) = builder.build() {
-                    return Ok(build);
-                }
+                #early_exit_code
             }
 
             #(#from_xml_other);*
