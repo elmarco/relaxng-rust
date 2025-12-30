@@ -436,9 +436,10 @@ impl GenField {
                         return;
                     }
 
-                    // For optional inline choice fields, don't fail if parsing fails -
-                    // just skip setting the field. This handles cases where multiple
-                    // mutually exclusive choices are reconciled into the same struct.
+                    // For inline choice fields, don't fail if parsing fails -
+                    // just skip setting the field. This handles discriminated unions
+                    // where variant-specific fields only apply to certain discriminator values.
+                    // The build() function handles the required check based on the discriminator.
                     if self.optional {
                         quote! {
                             if let Ok(val) = #val {
@@ -447,7 +448,9 @@ impl GenField {
                         }
                     } else {
                         quote! {
-                            builder.#field_ident(#val?)?;
+                            if let Ok(val) = #val {
+                                builder.#field_ident(val)?;
+                            }
                         }
                     }
                 };

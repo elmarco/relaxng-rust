@@ -518,7 +518,9 @@ impl Backupdisktype {
             }
         }
         let child = &mut node.first_child();
-        builder.backupdisktype_choice(BackupdisktypeChoice::from_xml(node, child)?)?;
+        if let Ok(val) = BackupdisktypeChoice::from_xml(node, child) {
+            builder.backupdisktype_choice(val)?;
+        }
         builder.build()
     }
 }

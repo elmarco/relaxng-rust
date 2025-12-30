@@ -474,7 +474,9 @@ impl Test {
             }
         }
         let child = &mut node.first_child();
-        builder.test_choice(TestChoice::from_xml(node, child)?)?;
+        if let Ok(val) = TestChoice::from_xml(node, child) {
+            builder.test_choice(val)?;
+        }
         builder.build()
     }
 }

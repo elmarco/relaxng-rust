@@ -865,7 +865,9 @@ impl Portgroup {
             }
         }
         let child = &mut node.first_child();
-        builder.virtual_port_profile(VirtualPortProfile::from_xml(node, child)?)?;
+        if let Ok(val) = VirtualPortProfile::from_xml(node, child) {
+            builder.virtual_port_profile(val)?;
+        }
         builder.build()
     }
 }
@@ -985,7 +987,9 @@ impl Vpp {
             }
         }
         let child = &mut node.first_child();
-        builder.virtual_port_profile(VirtualPortProfile::from_xml(node, child)?)?;
+        if let Ok(val) = VirtualPortProfile::from_xml(node, child) {
+            builder.virtual_port_profile(val)?;
+        }
         builder.build()
     }
 }

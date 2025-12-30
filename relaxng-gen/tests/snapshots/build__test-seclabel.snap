@@ -1167,7 +1167,9 @@ impl Seclabel {
             }
         }
         let child = &mut node.first_child();
-        builder.sec_label_kind(SecLabelKind::from_xml(node, child)?)?;
+        if let Ok(val) = SecLabelKind::from_xml(node, child) {
+            builder.sec_label_kind(val)?;
+        }
         builder.build()
     }
 }

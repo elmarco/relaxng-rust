@@ -840,7 +840,9 @@ impl Controller {
             }
         }
         let child = &mut node.first_child();
-        builder.controller_choice(ControllerChoice::from_xml(node, child)?)?;
+        if let Ok(val) = ControllerChoice::from_xml(node, child) {
+            builder.controller_choice(val)?;
+        }
         builder.build()
     }
 }

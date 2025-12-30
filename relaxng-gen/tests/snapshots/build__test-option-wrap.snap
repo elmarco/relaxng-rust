@@ -381,7 +381,9 @@ impl Target {
             }
         }
         let child = &mut node.first_child();
-        builder.target_choice(TargetChoice::from_xml(node, child)?)?;
+        if let Ok(val) = TargetChoice::from_xml(node, child) {
+            builder.target_choice(val)?;
+        }
         builder.build()
     }
 }

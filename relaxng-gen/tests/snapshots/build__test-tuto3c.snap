@@ -552,9 +552,13 @@ impl Card {
             }
         }
         let child = &mut node.first_child();
-        builder.choice1(Choice1::from_xml(node, child)?)?;
+        if let Ok(val) = Choice1::from_xml(node, child) {
+            builder.choice1(val)?;
+        }
         let child = &mut node.first_child();
-        builder.choice2(Choice2::from_xml(node, child)?)?;
+        if let Ok(val) = Choice2::from_xml(node, child) {
+            builder.choice2(val)?;
+        }
         builder.build()
     }
 }

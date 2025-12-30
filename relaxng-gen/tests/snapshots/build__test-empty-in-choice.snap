@@ -342,7 +342,9 @@ impl Device {
             }
         }
         let child = &mut node.first_child();
-        builder.device_choice(DeviceChoice::from_xml(node, child)?)?;
+        if let Ok(val) = DeviceChoice::from_xml(node, child) {
+            builder.device_choice(val)?;
+        }
         builder.build()
     }
 }

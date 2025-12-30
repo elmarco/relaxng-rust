@@ -169,7 +169,9 @@ impl Domain {
             }
         }
         let child = &mut node.first_child();
-        builder.osref(Osref::from_xml(node, child)?)?;
+        if let Ok(val) = Osref::from_xml(node, child) {
+            builder.osref(val)?;
+        }
         builder.build()
     }
 }

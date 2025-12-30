@@ -563,7 +563,9 @@ impl Input {
             }
         }
         let child = &mut node.first_child();
-        builder.input_choice(InputChoice::from_xml(node, child)?)?;
+        if let Ok(val) = InputChoice::from_xml(node, child) {
+            builder.input_choice(val)?;
+        }
         builder.build()
     }
 }

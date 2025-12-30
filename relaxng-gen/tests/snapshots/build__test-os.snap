@@ -1793,7 +1793,9 @@ impl Bootloader {
             }
         }
         let child = &mut node.first_child();
-        builder.bootloader_choice(BootloaderChoice::from_xml(node, child)?)?;
+        if let Ok(val) = BootloaderChoice::from_xml(node, child) {
+            builder.bootloader_choice(val)?;
+        }
         builder.build()
     }
 }
@@ -2783,7 +2785,9 @@ impl Os {
             *from_child = child.next_sibling();
         }
         let child = &mut node.first_child();
-        builder.osxen(Osxen::from_xml(node, child)?)?;
+        if let Ok(val) = Osxen::from_xml(node, child) {
+            builder.osxen(val)?;
+        }
         builder.build()
     }
     pub fn to_xml_attr(

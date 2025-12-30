@@ -300,7 +300,9 @@ impl PreferredFormat {
             }
         }
         let child = &mut node.first_child();
-        builder.preferred_format_choice(PreferredFormatChoice::from_xml(node, child)?)?;
+        if let Ok(val) = PreferredFormatChoice::from_xml(node, child) {
+            builder.preferred_format_choice(val)?;
+        }
         builder.build()
     }
 }

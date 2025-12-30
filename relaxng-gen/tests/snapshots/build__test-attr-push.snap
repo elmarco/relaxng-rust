@@ -347,7 +347,9 @@ impl Clock {
             }
         }
         let child = &mut node.first_child();
-        builder.clock_choice(ClockChoice::from_xml(node, child)?)?;
+        if let Ok(val) = ClockChoice::from_xml(node, child) {
+            builder.clock_choice(val)?;
+        }
         builder.build()
     }
 }

@@ -491,7 +491,9 @@ impl Backend {
             }
         }
         let child = &mut node.first_child();
-        builder.backend_choice(BackendChoice::from_xml(node, child)?)?;
+        if let Ok(val) = BackendChoice::from_xml(node, child) {
+            builder.backend_choice(val)?;
+        }
         builder.build()
     }
 }
