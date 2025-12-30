@@ -480,7 +480,7 @@ impl Choice1Builder {
         if self.mode.is_some() {
             return Ok(Choice1::Mode(Clone::clone(&self.mode)));
         }
-        Err(Error::BuilderVariant("Choice1"))
+        Ok(Choice1::Mode(Clone::clone(&self.mode)))
     }
 }
 

@@ -558,6 +558,10 @@ impl GenEnum {
         let mut build = quote! {};
         let mut build_group = quote! {};
         let mut build_end = quote! { Err(Error::BuilderVariant(#name)) };
+        // Track if we found a proper fallback (Empty variant or unconditional group)
+        let mut has_fallback = false;
+        // Track if we have an optional variant that can serve as fallback (matches "nothing")
+        let mut optional_fallback: Option<TokenStream> = None;
         let mut variants = Vec::new();
         let mut to_xml_attr = Vec::new();
         let mut to_xml = Vec::new();
@@ -578,6 +582,7 @@ impl GenEnum {
                 FieldTy::Empty => {
                     let var_name = field.variant_name();
                     build_end = quote! { Ok(#name_ident::#var_name) };
+                    has_fallback = true;
                     (var_name, None)
                 }
                 FieldTy::Text => {
@@ -692,6 +697,13 @@ impl GenEnum {
                 }
             };
             build.append_all(rgen);
+
+            // Track optional variants as potential fallback for "match nothing" case.
+            // When a variant field is optional (wraps Option<T>), it can validly be None,
+            // which represents matching nothing in the schema's <optional> element.
+            if field.optional && ty.is_some() {
+                optional_fallback = Some(quote! { Ok(#val) });
+            }
         }
 
         let mut unconditional_build = None;
@@ -869,6 +881,16 @@ impl GenEnum {
         }
         if let Some(rgen) = unconditional_build {
             build_end = rgen;
+            has_fallback = true;
+        }
+
+        // If no explicit fallback was found (no Empty variant, no unconditional group),
+        // but we have an optional variant, use it as the fallback. This handles the case
+        // where a choice can match "nothing" via an optional variant (schema's <optional>).
+        if !has_fallback {
+            if let Some(fallback) = optional_fallback {
+                build_end = fallback;
+            }
         }
 
         let from_str = self.gen_from_str();
@@ -1004,6 +1026,10 @@ impl GenEnum {
         let mut build = quote! {};
         let build_group = quote! {};
         let mut build_end = quote! { Err(Error::BuilderVariant(#name)) };
+        // Track if we found a proper fallback (Empty variant)
+        let mut has_fallback = false;
+        // Track if we have an optional variant that can serve as fallback (matches "nothing")
+        let mut optional_fallback: Option<TokenStream> = None;
         let mut variants = Vec::new();
         let mut to_xml_attr = Vec::new();
         let mut to_xml = Vec::new();
@@ -1020,6 +1046,7 @@ impl GenEnum {
                 FieldTy::Empty => {
                     let var_name = field.variant_name();
                     build_end = quote! { Ok(#name_ident::#var_name) };
+                    has_fallback = true;
                     (var_name, None)
                 }
                 FieldTy::Text => {
@@ -1128,6 +1155,11 @@ impl GenEnum {
             };
             build.extend(rgen);
 
+            // Track optional variants as potential fallback for "match nothing" case.
+            if field.optional && ty.is_some() {
+                optional_fallback = Some(quote! { Ok(#val) });
+            }
+
             // Generate From impl arm: Self::Variant(v) => MergedEnum::Variant(v)
             let from_arm = if var_field.is_some() {
                 quote! {
@@ -1151,6 +1183,13 @@ impl GenEnum {
                 }
             };
             try_from_impl_arms.push(try_from_arm);
+        }
+
+        // If no explicit fallback was found but we have an optional variant, use it as fallback
+        if !has_fallback {
+            if let Some(fallback) = optional_fallback {
+                build_end = fallback;
+            }
         }
 
         let from_str = self.gen_from_str();

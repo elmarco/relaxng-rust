@@ -457,7 +457,7 @@ impl BackupdisktypeChoiceBuilder {
         if self.backup.is_some() {
             return Ok(BackupdisktypeChoice::Backup(Clone::clone(&self.backup)));
         }
-        Err(Error::BuilderVariant("BackupdisktypeChoice"))
+        Ok(BackupdisktypeChoice::Backup(Clone::clone(&self.backup)))
     }
 }
 

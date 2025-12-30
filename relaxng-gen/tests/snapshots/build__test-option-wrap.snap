@@ -320,7 +320,7 @@ impl TargetChoiceBuilder {
         if self.r#type.is_some() {
             return Ok(TargetChoice::TypeChoice(Clone::clone(&self.r#type)));
         }
-        Err(Error::BuilderVariant("TargetChoice"))
+        Ok(TargetChoice::TypeChoice(Clone::clone(&self.r#type)))
     }
 }
 
@@ -658,6 +658,6 @@ impl TypeChoiceBuilder {
         if self.pci_serial.is_some() {
             return Ok(TypeChoice::PciSerial);
         }
-        Err(Error::BuilderVariant("TypeChoice"))
+        Ok(TypeChoice::Virtio(Clone::clone(&self.virtio)))
     }
 }
