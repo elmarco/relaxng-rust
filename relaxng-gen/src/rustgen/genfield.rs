@@ -906,11 +906,14 @@ impl GenField {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub(crate) enum FieldTy {
     Xml {
         path: Path,
         root: bool,
+        /// Whether the referenced struct has all optional fields (no required fields).
+        /// Types with all optional fields should be tried last in match arms as they match anything.
+        all_optional: bool,
     },
     Choice {
         gen_enum: GenEnumRef,
@@ -922,6 +925,28 @@ pub(crate) enum FieldTy {
     Value(String),
     /// For anyName elements - captures arbitrary XML structure
     AnyElement,
+}
+
+// Custom PartialEq that ignores all_optional (it's only used for sorting optimization)
+impl PartialEq for FieldTy {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                FieldTy::Xml { path: p1, root: r1, .. },
+                FieldTy::Xml { path: p2, root: r2, .. },
+            ) => p1 == p2 && r1 == r2,
+            (
+                FieldTy::Choice { gen_enum: e1, root: r1 },
+                FieldTy::Choice { gen_enum: e2, root: r2 },
+            ) => e1 == e2 && r1 == r2,
+            (FieldTy::Empty, FieldTy::Empty) => true,
+            (FieldTy::Text, FieldTy::Text) => true,
+            (FieldTy::Parse(p1), FieldTy::Parse(p2)) => p1 == p2,
+            (FieldTy::Value(v1), FieldTy::Value(v2)) => v1 == v2,
+            (FieldTy::AnyElement, FieldTy::AnyElement) => true,
+            _ => false,
+        }
+    }
 }
 
 impl FieldTy {

@@ -408,12 +408,14 @@ impl<'a> Context<'a> {
         }
 
         let rf = self.stack.get_ref();
+        let all_optional = !gen_struct.has_required_fields();
         self.add_field(
             &gen_struct.xml_name,
             Some(&field_name),
             FieldTy::Xml {
                 path: gen_struct.path(),
                 root: rf.is_some(),
+                all_optional,
             },
             config.doc.clone(),
         );

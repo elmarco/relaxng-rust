@@ -302,14 +302,14 @@ impl GenEnum {
     }
 
     // sort by fixed values first, then guarded patterns, then catch-all (Text)
-    // Within Xml types with the same xml_name, more specific types should come first.
-    // We use a heuristic: longer field names tend to be more specific (e.g., "spice_gl" vs "gl").
-    // This ensures that when multiple types can parse the same XML element, the more specific
-    // one (with likely more required fields) is tried first.
+    // Within Xml types with the same xml_name, we need to order parsers so that
+    // more restrictive ones (with required fields) are tried before permissive ones.
+    //
+    // For Xml fields, we use the `all_optional` flag to determine order:
+    // - Types with required fields (all_optional=false) come first - they can fail fast
+    // - Types with all optional fields (all_optional=true) come last - they match anything
     fn all_fields_sorted(&self) -> Vec<GenField> {
         let mut all_fields = self.all_fields();
-        // Sort by: (type_priority, xml_name, -field_name_length)
-        // This groups fields by xml_name and puts longer (more specific) names first
         all_fields.sort_by(|a, b| {
             let priority_a = match &a.ty {
                 FieldTy::Empty | FieldTy::Value(_) => 0,
@@ -327,11 +327,32 @@ impl GenEnum {
             match priority_a.cmp(&priority_b) {
                 std::cmp::Ordering::Equal => {
                     // Within the same priority, if they have the same xml_name,
-                    // sort by field name length descending (longer names first)
+                    // apply our restrictiveness heuristic
                     match a.xml_name.cmp(&b.xml_name) {
                         std::cmp::Ordering::Equal => {
-                            // Longer field names (more specific) come first
-                            b.name().len().cmp(&a.name().len())
+                            // For Xml fields, use the all_optional flag
+                            let all_optional_a = if let FieldTy::Xml { all_optional, .. } = &a.ty {
+                                *all_optional
+                            } else {
+                                false
+                            };
+                            let all_optional_b = if let FieldTy::Xml { all_optional, .. } = &b.ty {
+                                *all_optional
+                            } else {
+                                false
+                            };
+
+                            // Types with required fields (all_optional=false) come first
+                            // Types with all optional fields (all_optional=true) come last
+                            match (all_optional_a, all_optional_b) {
+                                (false, true) => std::cmp::Ordering::Less,
+                                (true, false) => std::cmp::Ordering::Greater,
+                                _ => {
+                                    // Both have same optionality:
+                                    // sort by field name length descending (longer names first)
+                                    b.name().len().cmp(&a.name().len())
+                                }
+                            }
                         }
                         other => other,
                     }

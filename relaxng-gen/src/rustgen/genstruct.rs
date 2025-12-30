@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::fmt::Display;
+use std::rc::Rc;
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -145,6 +147,12 @@ impl GenStruct {
 
     fn add_unit(&mut self, new_unit: GenUnit) {
         self.units.push(new_unit);
+    }
+
+    /// Returns true if this struct has at least one required field (not optional, not multiple).
+    /// This is used for sorting parsers so that structs with required fields are tried first.
+    pub(crate) fn has_required_fields(&self) -> bool {
+        self.fields.into_iter().any(|f| !f.optional && !f.multiple)
     }
 }
 
@@ -348,5 +356,13 @@ pub(crate) fn gen_impl_display(name_ident: &Ident) -> TokenStream {
                 f.write_str(&str)
             }
         }
+    }
+}
+
+pub(crate) type GenStructRef = Rc<RefCell<GenStruct>>;
+
+impl From<GenStruct> for GenStructRef {
+    fn from(gen_struct: GenStruct) -> Self {
+        Rc::new(RefCell::new(gen_struct))
     }
 }
