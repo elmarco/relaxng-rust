@@ -244,11 +244,11 @@ impl Mode {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "subsystem" => {
-                                builder.subsystem()?;
-                            }
                             "capabilities" => {
                                 builder.capabilities()?;
+                            }
+                            "subsystem" => {
+                                builder.subsystem()?;
                             }
                             _ => {}
                         }
@@ -282,11 +282,11 @@ impl FromStr for Mode {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "subsystem" => {
-                builder.subsystem()?;
-            }
             "capabilities" => {
                 builder.capabilities()?;
+            }
+            "subsystem" => {
+                builder.subsystem()?;
             }
             other => {
                 dbg!(other);

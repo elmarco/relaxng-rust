@@ -520,23 +520,23 @@ impl TypeChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "xen" => {
-                                builder.xen()?;
+                            "isa-serial" => {
+                                builder.isa_serial()?;
+                            }
+                            "pci-serial" => {
+                                builder.pci_serial()?;
                             }
                             "serial" => {
                                 builder.serial()?;
                             }
-                            "virtio" => {
-                                builder.virtio()?;
-                            }
-                            "isa-serial" => {
-                                builder.isa_serial()?;
-                            }
                             "usb-serial" => {
                                 builder.usb_serial()?;
                             }
-                            "pci-serial" => {
-                                builder.pci_serial()?;
+                            "virtio" => {
+                                builder.virtio()?;
+                            }
+                            "xen" => {
+                                builder.xen()?;
                             }
                             _ => {}
                         }
@@ -580,23 +580,23 @@ impl FromStr for TypeChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "xen" => {
-                builder.xen()?;
+            "isa-serial" => {
+                builder.isa_serial()?;
+            }
+            "pci-serial" => {
+                builder.pci_serial()?;
             }
             "serial" => {
                 builder.serial()?;
             }
-            "virtio" => {
-                builder.virtio()?;
-            }
-            "isa-serial" => {
-                builder.isa_serial()?;
-            }
             "usb-serial" => {
                 builder.usb_serial()?;
             }
-            "pci-serial" => {
-                builder.pci_serial()?;
+            "virtio" => {
+                builder.virtio()?;
+            }
+            "xen" => {
+                builder.xen()?;
             }
             other => {
                 dbg!(other);

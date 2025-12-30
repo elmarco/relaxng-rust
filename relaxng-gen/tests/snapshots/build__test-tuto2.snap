@@ -452,14 +452,14 @@ impl Identity {
             match child.node_type() {
                 roxmltree::NodeType::Element => {
                     match child.tag_name().name() {
-                        "name" if Name::from_xml(&child).is_ok() => {
-                            builder.name(Name::from_xml(&child)?)?;
+                        "familyName" if FamilyName::from_xml(&child).is_ok() => {
+                            builder.family_name(FamilyName::from_xml(&child)?)?;
                         }
                         "givenName" if GivenName::from_xml(&child).is_ok() => {
                             builder.given_name(GivenName::from_xml(&child)?)?;
                         }
-                        "familyName" if FamilyName::from_xml(&child).is_ok() => {
-                            builder.family_name(FamilyName::from_xml(&child)?)?;
+                        "name" if Name::from_xml(&child).is_ok() => {
+                            builder.name(Name::from_xml(&child)?)?;
                         }
                         _ => {}
                     }

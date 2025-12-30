@@ -665,11 +665,11 @@ impl ControllerChoice {
         from_child: &mut Option<roxmltree::Node>,
     ) -> Result<ControllerChoice> {
         let mut builder = ControllerChoice::builder();
-        if let Some(val) = node.attribute("type") {
-            builder.r#type(Type::from_str(val)?)?;
-        }
         if let Some(val) = node.attribute("model") {
             builder.model(Some(ControllerModel::from_str(val)?))?;
+        }
+        if let Some(val) = node.attribute("type") {
+            builder.r#type(Type::from_str(val)?)?;
         }
         loop {
             let Some(child) = from_child else {

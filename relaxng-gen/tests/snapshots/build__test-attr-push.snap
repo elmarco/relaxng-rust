@@ -60,11 +60,11 @@ impl Offset {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "utc" => {
-                                builder.utc()?;
-                            }
                             "absolute" => {
                                 builder.absolute()?;
+                            }
+                            "utc" => {
+                                builder.utc()?;
                             }
                             _ => {}
                         }
@@ -98,11 +98,11 @@ impl FromStr for Offset {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "utc" => {
-                builder.utc()?;
-            }
             "absolute" => {
                 builder.absolute()?;
+            }
+            "utc" => {
+                builder.utc()?;
             }
             other => {
                 dbg!(other);

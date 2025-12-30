@@ -236,20 +236,6 @@ impl TestChoice {
         from_child: &mut Option<roxmltree::Node>,
     ) -> Result<TestChoice> {
         let mut builder = TestChoice::builder();
-        if let Some(val) = node.attribute("keyfile") {
-            builder
-                .keyfile(
-                    val
-                        .parse::<
-                            crate::ConstrainedString<
-                                0usize,
-                                1234usize,
-                                crate::RegexPattern0,
-                            >,
-                        >()
-                        .map_err(|e| Error::ParseError("keyfile", Box::new(e)))?,
-                )?;
-        }
         if let Some(val) = node.attribute("agentsock") {
             builder
                 .agentsock(
@@ -262,6 +248,20 @@ impl TestChoice {
                             >,
                         >()
                         .map_err(|e| Error::ParseError("agentsock", Box::new(e)))?,
+                )?;
+        }
+        if let Some(val) = node.attribute("keyfile") {
+            builder
+                .keyfile(
+                    val
+                        .parse::<
+                            crate::ConstrainedString<
+                                0usize,
+                                1234usize,
+                                crate::RegexPattern0,
+                            >,
+                        >()
+                        .map_err(|e| Error::ParseError("keyfile", Box::new(e)))?,
                 )?;
         }
         loop {
@@ -335,24 +335,6 @@ impl FromStr for TestChoice {
                 >()
                 .is_ok() => {
                 builder
-                    .keyfile(
-                        val
-                            .parse::<
-                                crate::ConstrainedString<
-                                    0usize,
-                                    1234usize,
-                                    crate::RegexPattern0,
-                                >,
-                            >()
-                            .map_err(|e| Error::ParseError("keyfile", Box::new(e)))?,
-                    )?;
-            }
-            val if val
-                .parse::<
-                    crate::ConstrainedString<0usize, 1234usize, crate::RegexPattern0>,
-                >()
-                .is_ok() => {
-                builder
                     .agentsock(
                         val
                             .parse::<
@@ -363,6 +345,24 @@ impl FromStr for TestChoice {
                                 >,
                             >()
                             .map_err(|e| Error::ParseError("agentsock", Box::new(e)))?,
+                    )?;
+            }
+            val if val
+                .parse::<
+                    crate::ConstrainedString<0usize, 1234usize, crate::RegexPattern0>,
+                >()
+                .is_ok() => {
+                builder
+                    .keyfile(
+                        val
+                            .parse::<
+                                crate::ConstrainedString<
+                                    0usize,
+                                    1234usize,
+                                    crate::RegexPattern0,
+                                >,
+                            >()
+                            .map_err(|e| Error::ParseError("keyfile", Box::new(e)))?,
                     )?;
             }
             other => {

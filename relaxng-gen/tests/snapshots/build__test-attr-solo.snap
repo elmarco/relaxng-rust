@@ -244,11 +244,11 @@ impl BoolChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "true" => {
-                                builder.r#true()?;
-                            }
                             "false" => {
                                 builder.r#false()?;
+                            }
+                            "true" => {
+                                builder.r#true()?;
                             }
                             _ => {}
                         }
@@ -282,11 +282,11 @@ impl FromStr for BoolChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "true" => {
-                builder.r#true()?;
-            }
             "false" => {
                 builder.r#false()?;
+            }
+            "true" => {
+                builder.r#true()?;
             }
             other => {
                 dbg!(other);

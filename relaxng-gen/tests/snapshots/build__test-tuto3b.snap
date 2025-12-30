@@ -46,14 +46,14 @@ impl Choice1 {
         from_child: &mut Option<roxmltree::Node>,
     ) -> Result<Choice1> {
         let mut builder = Choice1::builder();
-        if let Some(val) = node.attribute("name") {
-            builder.name(val)?;
+        if let Some(val) = node.attribute("familyName") {
+            builder.family_name(val)?;
         }
         if let Some(val) = node.attribute("givenName") {
             builder.given_name(val)?;
         }
-        if let Some(val) = node.attribute("familyName") {
-            builder.family_name(val)?;
+        if let Some(val) = node.attribute("name") {
+            builder.name(val)?;
         }
         loop {
             let Some(child) = from_child else {

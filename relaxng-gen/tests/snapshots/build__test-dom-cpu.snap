@@ -1162,11 +1162,11 @@ impl VirYesNo {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "yes" => {
-                                builder.yes()?;
-                            }
                             "no" => {
                                 builder.no()?;
+                            }
+                            "yes" => {
+                                builder.yes()?;
                             }
                             _ => {}
                         }
@@ -1200,11 +1200,11 @@ impl FromStr for VirYesNo {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "yes" => {
-                builder.yes()?;
-            }
             "no" => {
                 builder.no()?;
+            }
+            "yes" => {
+                builder.yes()?;
             }
             other => {
                 dbg!(other);

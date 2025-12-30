@@ -302,20 +302,42 @@ impl GenEnum {
     }
 
     // sort by fixed values first, then guarded patterns, then catch-all (Text)
+    // Within Xml types with the same xml_name, more specific types should come first.
+    // We use a heuristic: longer field names tend to be more specific (e.g., "spice_gl" vs "gl").
+    // This ensures that when multiple types can parse the same XML element, the more specific
+    // one (with likely more required fields) is tried first.
     fn all_fields_sorted(&self) -> Vec<GenField> {
         let mut all_fields = self.all_fields();
-        all_fields.sort_by_key(|field| match field.ty {
-            FieldTy::Empty => 0,
-            FieldTy::Value(_) => 0,
-            FieldTy::Choice {
-                ..
-            } => 1,
-            FieldTy::Parse(_) => 1, // Parse uses a guard, so it should come before catch-all
-            FieldTy::Xml {
-                ..
-            } => 2,
-            FieldTy::Text => 3,        // Text is catch-all, must come last
-            FieldTy::AnyElement => 3,  // AnyElement is catch-all for elements, must come last
+        // Sort by: (type_priority, xml_name, -field_name_length)
+        // This groups fields by xml_name and puts longer (more specific) names first
+        all_fields.sort_by(|a, b| {
+            let priority_a = match &a.ty {
+                FieldTy::Empty | FieldTy::Value(_) => 0,
+                FieldTy::Choice { .. } | FieldTy::Parse(_) => 1,
+                FieldTy::Xml { .. } => 2,
+                FieldTy::Text | FieldTy::AnyElement => 3,
+            };
+            let priority_b = match &b.ty {
+                FieldTy::Empty | FieldTy::Value(_) => 0,
+                FieldTy::Choice { .. } | FieldTy::Parse(_) => 1,
+                FieldTy::Xml { .. } => 2,
+                FieldTy::Text | FieldTy::AnyElement => 3,
+            };
+            // First compare by type priority
+            match priority_a.cmp(&priority_b) {
+                std::cmp::Ordering::Equal => {
+                    // Within the same priority, if they have the same xml_name,
+                    // sort by field name length descending (longer names first)
+                    match a.xml_name.cmp(&b.xml_name) {
+                        std::cmp::Ordering::Equal => {
+                            // Longer field names (more specific) come first
+                            b.name().len().cmp(&a.name().len())
+                        }
+                        other => other,
+                    }
+                }
+                other => other,
+            }
         });
         all_fields
     }

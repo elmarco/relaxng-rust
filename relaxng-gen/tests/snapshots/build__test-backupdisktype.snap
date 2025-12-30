@@ -194,11 +194,11 @@ impl Type {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "file" => {
-                                builder.file()?;
-                            }
                             "block" => {
                                 builder.block()?;
+                            }
+                            "file" => {
+                                builder.file()?;
                             }
                             _ => {}
                         }
@@ -232,11 +232,11 @@ impl FromStr for Type {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "file" => {
-                builder.file()?;
-            }
             "block" => {
                 builder.block()?;
+            }
+            "file" => {
+                builder.file()?;
             }
             other => {
                 dbg!(other);

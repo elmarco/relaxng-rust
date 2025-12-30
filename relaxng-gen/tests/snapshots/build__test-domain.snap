@@ -769,14 +769,14 @@ impl Osref {
             match child.node_type() {
                 roxmltree::NodeType::Element => {
                     match child.tag_name().name() {
-                        "os" if Os::from_xml(&child).is_ok() => {
-                            builder.os(Os::from_xml(&child)?)?;
-                        }
                         "bootloader" if Bootloader::from_xml(&child).is_ok() => {
                             builder.bootloader(Bootloader::from_xml(&child)?)?;
                         }
                         "bootloader2" if Bootloader2::from_xml(&child).is_ok() => {
                             builder.bootloader2(Bootloader2::from_xml(&child)?)?;
+                        }
+                        "os" if Os::from_xml(&child).is_ok() => {
+                            builder.os(Os::from_xml(&child)?)?;
                         }
                         _ => {}
                     }

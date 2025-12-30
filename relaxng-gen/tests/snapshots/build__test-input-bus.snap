@@ -74,11 +74,11 @@ impl BusChoice {
                             "usb" => {
                                 builder.usb()?;
                             }
-                            "xen" => {
-                                builder.xen()?;
-                            }
                             "virtio" => {
                                 builder.virtio()?;
+                            }
+                            "xen" => {
+                                builder.xen()?;
                             }
                             _ => {}
                         }
@@ -120,11 +120,11 @@ impl FromStr for BusChoice {
             "usb" => {
                 builder.usb()?;
             }
-            "xen" => {
-                builder.xen()?;
-            }
             "virtio" => {
                 builder.virtio()?;
+            }
+            "xen" => {
+                builder.xen()?;
             }
             other => {
                 dbg!(other);
@@ -240,17 +240,17 @@ impl TypeChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "tablet" => {
-                                builder.tablet()?;
+                            "keyboard" => {
+                                builder.keyboard()?;
                             }
                             "mouse" => {
                                 builder.mouse()?;
                             }
-                            "keyboard" => {
-                                builder.keyboard()?;
-                            }
                             "passthrough" => {
                                 builder.passthrough()?;
+                            }
+                            "tablet" => {
+                                builder.tablet()?;
                             }
                             _ => {}
                         }
@@ -286,17 +286,17 @@ impl FromStr for TypeChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "tablet" => {
-                builder.tablet()?;
+            "keyboard" => {
+                builder.keyboard()?;
             }
             "mouse" => {
                 builder.mouse()?;
             }
-            "keyboard" => {
-                builder.keyboard()?;
-            }
             "passthrough" => {
                 builder.passthrough()?;
+            }
+            "tablet" => {
+                builder.tablet()?;
             }
             other => {
                 dbg!(other);
@@ -393,11 +393,11 @@ impl InputChoice {
         from_child: &mut Option<roxmltree::Node>,
     ) -> Result<InputChoice> {
         let mut builder = InputChoice::builder();
-        if let Some(val) = node.attribute("type") {
-            builder.r#type(TypeChoice::from_str(val)?)?;
-        }
         if let Some(val) = node.attribute("bus") {
             builder.bus(Some(BusChoice::from_str(val)?))?;
+        }
+        if let Some(val) = node.attribute("type") {
+            builder.r#type(TypeChoice::from_str(val)?)?;
         }
         loop {
             let Some(child) = from_child else {

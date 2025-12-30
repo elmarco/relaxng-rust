@@ -244,11 +244,11 @@ impl JobChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "copy" => {
-                                builder.copy()?;
-                            }
                             "active-commit" => {
                                 builder.active_commit()?;
+                            }
+                            "copy" => {
+                                builder.copy()?;
                             }
                             _ => {}
                         }
@@ -282,11 +282,11 @@ impl FromStr for JobChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "copy" => {
-                builder.copy()?;
-            }
             "active-commit" => {
                 builder.active_commit()?;
+            }
+            "copy" => {
+                builder.copy()?;
             }
             other => {
                 dbg!(other);
@@ -514,14 +514,14 @@ impl ReadyChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "yes" => {
-                                builder.yes()?;
-                            }
                             "abort" => {
                                 builder.abort()?;
                             }
                             "pivot" => {
                                 builder.pivot()?;
+                            }
+                            "yes" => {
+                                builder.yes()?;
                             }
                             _ => {}
                         }
@@ -556,14 +556,14 @@ impl FromStr for ReadyChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "yes" => {
-                builder.yes()?;
-            }
             "abort" => {
                 builder.abort()?;
             }
             "pivot" => {
                 builder.pivot()?;
+            }
+            "yes" => {
+                builder.yes()?;
             }
             other => {
                 dbg!(other);

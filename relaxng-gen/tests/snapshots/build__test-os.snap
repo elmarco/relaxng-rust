@@ -68,6 +68,9 @@ impl TypeChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
+                            "msdm" => {
+                                builder.msdm()?;
+                            }
                             "raw" => {
                                 builder.raw()?;
                             }
@@ -76,9 +79,6 @@ impl TypeChoice {
                             }
                             "slic" => {
                                 builder.slic()?;
-                            }
-                            "msdm" => {
-                                builder.msdm()?;
                             }
                             _ => {}
                         }
@@ -114,6 +114,9 @@ impl FromStr for TypeChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
+            "msdm" => {
+                builder.msdm()?;
+            }
             "raw" => {
                 builder.raw()?;
             }
@@ -122,9 +125,6 @@ impl FromStr for TypeChoice {
             }
             "slic" => {
                 builder.slic()?;
-            }
-            "msdm" => {
-                builder.msdm()?;
             }
             other => {
                 dbg!(other);
@@ -662,14 +662,14 @@ impl Archnames {
                             "mips" => {
                                 builder.mips()?;
                             }
-                            "mipsel" => {
-                                builder.mipsel()?;
-                            }
                             "mips64" => {
                                 builder.mips64()?;
                             }
                             "mips64el" => {
                                 builder.mips64el()?;
+                            }
+                            "mipsel" => {
+                                builder.mipsel()?;
                             }
                             "openrisc" => {
                                 builder.openrisc()?;
@@ -832,14 +832,14 @@ impl FromStr for Archnames {
             "mips" => {
                 builder.mips()?;
             }
-            "mipsel" => {
-                builder.mipsel()?;
-            }
             "mips64" => {
                 builder.mips64()?;
             }
             "mips64el" => {
                 builder.mips64el()?;
+            }
+            "mipsel" => {
+                builder.mipsel()?;
             }
             "openrisc" => {
                 builder.openrisc()?;
@@ -1397,14 +1397,14 @@ impl DevChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "hd" => {
-                                builder.hd()?;
+                            "cdrom" => {
+                                builder.cdrom()?;
                             }
                             "fd" => {
                                 builder.fd()?;
                             }
-                            "cdrom" => {
-                                builder.cdrom()?;
+                            "hd" => {
+                                builder.hd()?;
                             }
                             "network" => {
                                 builder.network()?;
@@ -1443,14 +1443,14 @@ impl FromStr for DevChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "hd" => {
-                builder.hd()?;
+            "cdrom" => {
+                builder.cdrom()?;
             }
             "fd" => {
                 builder.fd()?;
             }
-            "cdrom" => {
-                builder.cdrom()?;
+            "hd" => {
+                builder.hd()?;
             }
             "network" => {
                 builder.network()?;
@@ -4736,11 +4736,11 @@ impl TypeChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "rom" => {
-                                builder.rom()?;
-                            }
                             "pflash" => {
                                 builder.pflash()?;
+                            }
+                            "rom" => {
+                                builder.rom()?;
                             }
                             _ => {}
                         }
@@ -4774,11 +4774,11 @@ impl FromStr for TypeChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "rom" => {
-                builder.rom()?;
-            }
             "pflash" => {
                 builder.pflash()?;
+            }
+            "rom" => {
+                builder.rom()?;
             }
             other => {
                 dbg!(other);
@@ -6419,11 +6419,11 @@ impl PflashFormatTypes {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "raw" => {
-                                builder.raw()?;
-                            }
                             "qcow2" => {
                                 builder.qcow2()?;
+                            }
+                            "raw" => {
+                                builder.raw()?;
                             }
                             _ => {}
                         }
@@ -6457,11 +6457,11 @@ impl FromStr for PflashFormatTypes {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "raw" => {
-                builder.raw()?;
-            }
             "qcow2" => {
                 builder.qcow2()?;
+            }
+            "raw" => {
+                builder.raw()?;
             }
             other => {
                 dbg!(other);
@@ -7164,15 +7164,6 @@ impl ArchChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "i686" => {
-                                builder.i686()?;
-                            }
-                            "x86_64" => {
-                                builder.x86_64()?;
-                            }
-                            "ia64" => {
-                                builder.ia64()?;
-                            }
                             "aarch64" => {
                                 builder.aarch64()?;
                             }
@@ -7187,6 +7178,12 @@ impl ArchChoice {
                             }
                             "cris" => {
                                 builder.cris()?;
+                            }
+                            "i686" => {
+                                builder.i686()?;
+                            }
+                            "ia64" => {
+                                builder.ia64()?;
                             }
                             "lm32" => {
                                 builder.lm32()?;
@@ -7206,14 +7203,14 @@ impl ArchChoice {
                             "mips" => {
                                 builder.mips()?;
                             }
-                            "mipsel" => {
-                                builder.mipsel()?;
-                            }
                             "mips64" => {
                                 builder.mips64()?;
                             }
                             "mips64el" => {
                                 builder.mips64el()?;
+                            }
+                            "mipsel" => {
+                                builder.mipsel()?;
                             }
                             "openrisc" => {
                                 builder.openrisc()?;
@@ -7262,6 +7259,9 @@ impl ArchChoice {
                             }
                             "unicore32" => {
                                 builder.unicore32()?;
+                            }
+                            "x86_64" => {
+                                builder.x86_64()?;
                             }
                             "xtensa" => {
                                 builder.xtensa()?;
@@ -7334,15 +7334,6 @@ impl FromStr for ArchChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "i686" => {
-                builder.i686()?;
-            }
-            "x86_64" => {
-                builder.x86_64()?;
-            }
-            "ia64" => {
-                builder.ia64()?;
-            }
             "aarch64" => {
                 builder.aarch64()?;
             }
@@ -7357,6 +7348,12 @@ impl FromStr for ArchChoice {
             }
             "cris" => {
                 builder.cris()?;
+            }
+            "i686" => {
+                builder.i686()?;
+            }
+            "ia64" => {
+                builder.ia64()?;
             }
             "lm32" => {
                 builder.lm32()?;
@@ -7376,14 +7373,14 @@ impl FromStr for ArchChoice {
             "mips" => {
                 builder.mips()?;
             }
-            "mipsel" => {
-                builder.mipsel()?;
-            }
             "mips64" => {
                 builder.mips64()?;
             }
             "mips64el" => {
                 builder.mips64el()?;
+            }
+            "mipsel" => {
+                builder.mipsel()?;
             }
             "openrisc" => {
                 builder.openrisc()?;
@@ -7432,6 +7429,9 @@ impl FromStr for ArchChoice {
             }
             "unicore32" => {
                 builder.unicore32()?;
+            }
+            "x86_64" => {
+                builder.x86_64()?;
             }
             "xtensa" => {
                 builder.xtensa()?;
@@ -7797,11 +7797,11 @@ impl Choice1 {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "xen" => {
-                                builder.xen()?;
-                            }
                             "linux" => {
                                 builder.linux()?;
+                            }
+                            "xen" => {
+                                builder.xen()?;
                             }
                             "xenpvh" => {
                                 builder.xenpvh()?;
@@ -7839,11 +7839,11 @@ impl FromStr for Choice1 {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "xen" => {
-                builder.xen()?;
-            }
             "linux" => {
                 builder.linux()?;
+            }
+            "xen" => {
+                builder.xen()?;
             }
             "xenpvh" => {
                 builder.xenpvh()?;
@@ -7950,11 +7950,11 @@ impl Choice2 {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "xen" => {
-                                builder.xen()?;
-                            }
                             "linux" => {
                                 builder.linux()?;
+                            }
+                            "xen" => {
+                                builder.xen()?;
                             }
                             "xenpvh" => {
                                 builder.xenpvh()?;
@@ -7992,11 +7992,11 @@ impl FromStr for Choice2 {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "xen" => {
-                builder.xen()?;
-            }
             "linux" => {
                 builder.linux()?;
+            }
+            "xen" => {
+                builder.xen()?;
             }
             "xenpvh" => {
                 builder.xenpvh()?;
@@ -8113,11 +8113,11 @@ impl MachineChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "xenpv" => {
-                                builder.xenpv()?;
-                            }
                             "xenfv" => {
                                 builder.xenfv()?;
+                            }
+                            "xenpv" => {
+                                builder.xenpv()?;
                             }
                             "xenpvh" => {
                                 builder.xenpvh()?;
@@ -8180,11 +8180,11 @@ impl FromStr for MachineChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "xenpv" => {
-                builder.xenpv()?;
-            }
             "xenfv" => {
                 builder.xenfv()?;
+            }
+            "xenpv" => {
+                builder.xenpv()?;
             }
             "xenpvh" => {
                 builder.xenpvh()?;
@@ -8558,11 +8558,11 @@ impl VirYesNo {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "yes" => {
-                                builder.yes()?;
-                            }
                             "no" => {
                                 builder.no()?;
+                            }
+                            "yes" => {
+                                builder.yes()?;
                             }
                             _ => {}
                         }
@@ -8596,11 +8596,11 @@ impl FromStr for VirYesNo {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "yes" => {
-                builder.yes()?;
-            }
             "no" => {
                 builder.no()?;
+            }
+            "yes" => {
+                builder.yes()?;
             }
             other => {
                 dbg!(other);

@@ -159,14 +159,14 @@ impl TypeChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
+                            "builtin" => {
+                                builder.builtin()?;
+                            }
                             "dev" => {
                                 builder.dev()?;
                             }
                             "file" => {
                                 builder.file()?;
-                            }
-                            "builtin" => {
-                                builder.builtin()?;
                             }
                             _ => {}
                         }
@@ -201,14 +201,14 @@ impl FromStr for TypeChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
+            "builtin" => {
+                builder.builtin()?;
+            }
             "dev" => {
                 builder.dev()?;
             }
             "file" => {
                 builder.file()?;
-            }
-            "builtin" => {
-                builder.builtin()?;
             }
             other => {
                 dbg!(other);
@@ -781,11 +781,11 @@ impl ModelChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "random" => {
-                                builder.random()?;
-                            }
                             "egd" => {
                                 builder.egd()?;
+                            }
+                            "random" => {
+                                builder.random()?;
                             }
                             _ => {}
                         }
@@ -819,11 +819,11 @@ impl FromStr for ModelChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "random" => {
-                builder.random()?;
-            }
             "egd" => {
                 builder.egd()?;
+            }
+            "random" => {
+                builder.random()?;
             }
             other => {
                 dbg!(other);

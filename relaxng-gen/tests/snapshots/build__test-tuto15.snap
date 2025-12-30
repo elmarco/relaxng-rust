@@ -60,11 +60,11 @@ impl Class {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "givenName" => {
-                                builder.given_name()?;
-                            }
                             "familyName" => {
                                 builder.family_name()?;
+                            }
+                            "givenName" => {
+                                builder.given_name()?;
                             }
                             _ => {}
                         }
@@ -98,11 +98,11 @@ impl FromStr for Class {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "givenName" => {
-                builder.given_name()?;
-            }
             "familyName" => {
                 builder.family_name()?;
+            }
+            "givenName" => {
+                builder.given_name()?;
             }
             other => {
                 dbg!(other);

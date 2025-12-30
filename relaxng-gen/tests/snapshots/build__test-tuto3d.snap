@@ -60,11 +60,11 @@ impl MatchChoice {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "foo" => {
-                                builder.foo()?;
-                            }
                             "bar" => {
                                 builder.bar()?;
+                            }
+                            "foo" => {
+                                builder.foo()?;
                             }
                             _ => {}
                         }
@@ -98,11 +98,11 @@ impl FromStr for MatchChoice {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "foo" => {
-                builder.foo()?;
-            }
             "bar" => {
                 builder.bar()?;
+            }
+            "foo" => {
+                builder.foo()?;
             }
             other => {
                 dbg!(other);

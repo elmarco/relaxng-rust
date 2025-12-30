@@ -252,11 +252,11 @@ impl StartupPolicyChoice {
                             "mandatory" => {
                                 builder.mandatory()?;
                             }
-                            "requisite" => {
-                                builder.requisite()?;
-                            }
                             "optional" => {
                                 builder.optional()?;
+                            }
+                            "requisite" => {
+                                builder.requisite()?;
                             }
                             _ => {}
                         }
@@ -294,11 +294,11 @@ impl FromStr for StartupPolicyChoice {
             "mandatory" => {
                 builder.mandatory()?;
             }
-            "requisite" => {
-                builder.requisite()?;
-            }
             "optional" => {
                 builder.optional()?;
+            }
+            "requisite" => {
+                builder.requisite()?;
             }
             other => {
                 dbg!(other);

@@ -537,11 +537,11 @@ impl Relabel {
                 roxmltree::NodeType::Text => {
                     if let Some(val) = child.text() {
                         match val {
-                            "yes" => {
-                                builder.yes()?;
-                            }
                             "no" => {
                                 builder.no()?;
+                            }
+                            "yes" => {
+                                builder.yes()?;
                             }
                             _ => {
                                 builder.text(val)?;
@@ -580,11 +580,11 @@ impl FromStr for Relabel {
     fn from_str(s: &str) -> Result<Self> {
         let mut builder = Self::builder();
         match s {
-            "yes" => {
-                builder.yes()?;
-            }
             "no" => {
                 builder.no()?;
+            }
+            "yes" => {
+                builder.yes()?;
             }
             val => {
                 builder.text(val)?;
@@ -695,11 +695,11 @@ impl Type {
                             "dynamic" => {
                                 builder.dynamic()?;
                             }
-                            "static" => {
-                                builder.r#static()?;
-                            }
                             "none" => {
                                 builder.none()?;
+                            }
+                            "static" => {
+                                builder.r#static()?;
                             }
                             _ => {}
                         }
@@ -737,11 +737,11 @@ impl FromStr for Type {
             "dynamic" => {
                 builder.dynamic()?;
             }
-            "static" => {
-                builder.r#static()?;
-            }
             "none" => {
                 builder.none()?;
+            }
+            "static" => {
+                builder.r#static()?;
             }
             other => {
                 dbg!(other);
@@ -879,11 +879,11 @@ impl SecLabelKind {
         from_child: &mut Option<roxmltree::Node>,
     ) -> Result<SecLabelKind> {
         let mut builder = SecLabelKind::builder();
-        if let Some(val) = node.attribute("type") {
-            builder.r#type(Some(Type::from_str(val)?))?;
-        }
         if let Some(val) = node.attribute("relabel") {
             builder.relabel(Some(Relabel::from_str(val)?))?;
+        }
+        if let Some(val) = node.attribute("type") {
+            builder.r#type(Some(Type::from_str(val)?))?;
         }
         loop {
             let Some(child) = from_child else {
@@ -892,14 +892,14 @@ impl SecLabelKind {
             match child.node_type() {
                 roxmltree::NodeType::Element => {
                     match child.tag_name().name() {
-                        "label" if Label::from_xml(&child).is_ok() => {
-                            builder.label(Some(Label::from_xml(&child)?))?;
+                        "baselabel" if Baselabel::from_xml(&child).is_ok() => {
+                            builder.baselabel(Some(Baselabel::from_xml(&child)?))?;
                         }
                         "imagelabel" if Imagelabel::from_xml(&child).is_ok() => {
                             builder.imagelabel(Some(Imagelabel::from_xml(&child)?))?;
                         }
-                        "baselabel" if Baselabel::from_xml(&child).is_ok() => {
-                            builder.baselabel(Some(Baselabel::from_xml(&child)?))?;
+                        "label" if Label::from_xml(&child).is_ok() => {
+                            builder.label(Some(Label::from_xml(&child)?))?;
                         }
                         _ => {}
                     }
