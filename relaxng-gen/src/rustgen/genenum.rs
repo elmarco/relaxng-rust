@@ -310,6 +310,7 @@ impl GenEnum {
     // - Types with all optional fields (all_optional=true) come last - they match anything
     fn all_fields_sorted(&self) -> Vec<GenField> {
         let mut all_fields = self.all_fields();
+
         all_fields.sort_by(|a, b| {
             let priority_a = match &a.ty {
                 FieldTy::Empty | FieldTy::Value(_) => 0,
@@ -349,8 +350,11 @@ impl GenEnum {
                                 (true, false) => std::cmp::Ordering::Greater,
                                 _ => {
                                     // Both have same optionality:
-                                    // sort by field name length descending (longer names first)
-                                    b.name().len().cmp(&a.name().len())
+                                    // sort by field name length ascending (shorter names first)
+                                    // This tends to put more specific types (e.g., DiskSourceFile)
+                                    // before less specific ones (e.g., DiskBlockSource) when both
+                                    // have all-optional fields.
+                                    a.name().len().cmp(&b.name().len())
                                 }
                             }
                         }

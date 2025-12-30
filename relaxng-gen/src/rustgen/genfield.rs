@@ -612,6 +612,13 @@ impl GenField {
             if reconcile_multiple {
                 self.multiple |= true;
             }
+            // Update all_optional even when fields are "equal" (PartialEq ignores all_optional)
+            if let (
+                FieldTy::Xml { all_optional: self_all_opt, .. },
+                FieldTy::Xml { all_optional: other_all_opt, .. }
+            ) = (&mut self.ty, &other.ty) {
+                *self_all_opt = *self_all_opt && *other_all_opt;
+            }
             return Ok(None);
         }
 
@@ -649,6 +656,17 @@ impl GenField {
         other.recursive = false;
 
         // TODO how to handle merging docs?
+
+        // Update all_optional flag for Xml fields during reconciliation.
+        // If either reference indicates the struct has required fields (all_optional=false),
+        // we should keep that more accurate information.
+        if let (
+            FieldTy::Xml { all_optional: self_all_opt, .. },
+            FieldTy::Xml { all_optional: other_all_opt, .. }
+        ) = (&mut self.ty, &other.ty) {
+            // If either says "has required fields" (all_optional=false), use that
+            *self_all_opt = *self_all_opt && *other_all_opt;
+        }
 
         if self.ty == other.ty {
             return Ok(None);

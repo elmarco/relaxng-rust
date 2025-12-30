@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use indexmap::IndexMap;
@@ -12,6 +13,7 @@ use crate::utils::strip_r_prefix;
 
 use super::Result;
 use super::genenum::GenEnumRef;
+use super::genfield::FieldTy;
 use super::genmod::GenLib;
 use super::genstruct::GenStruct;
 
@@ -79,6 +81,45 @@ impl GenTree {
         mods.sort();
         mods.dedup();
         mods
+    }
+
+    /// Update `all_optional` for all field references based on actual struct content.
+    /// This must be called after all reconciliation is done and before code generation.
+    pub(crate) fn update_all_optional(&mut self) {
+        // Step 1: Build a map from struct ident name -> has_required_fields
+        let mut struct_info: HashMap<String, bool> = HashMap::new();
+        for unit in self.units.values() {
+            if let GenUnit::Struct(st) = unit {
+                let ident = st.ident().to_string();
+                let has_required = st.has_required_fields();
+                struct_info.insert(ident, has_required);
+            }
+        }
+
+        // Step 2: Update all_optional for field references in all enums
+        for unit in self.units.values_mut() {
+            if let GenUnit::Enum(en) = unit {
+                let mut en = en.borrow_mut();
+                // Update fields in all_fields (GenFields)
+                for field in en.all_fields.fields.values_mut() {
+                    if let FieldTy::Xml { path, all_optional, .. } = &mut field.ty {
+                        if let Some(ident) = path.get_ident() {
+                            let ident_str = ident.to_string();
+                            if let Some(&has_required) = struct_info.get(&ident_str) {
+                                let new_all_optional = !has_required;
+                                if *all_optional != new_all_optional {
+                                    debug!(
+                                        "Updating all_optional for field '{}' (type {}): {} -> {}",
+                                        field.name, ident_str, all_optional, new_all_optional
+                                    );
+                                    *all_optional = new_all_optional;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -271,6 +271,10 @@ impl<'a> Context<'a> {
         // Update GenLib with the uses_any_element flag
         self.units.set_uses_any_element(self.uses_any_element);
 
+        // Update all_optional for field references based on final struct content
+        // This must be done after all reconciliation is complete
+        self.units.update_all_optional();
+
         self.units.write_rs(&src, self.config);
     }
 
