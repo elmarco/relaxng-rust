@@ -1217,6 +1217,7 @@ impl<FS: Files> Compiler<FS> {
             types::PatternOrGrammar::Grammar(types::GrammarPattern {
                 span: _,
                 ref content,
+                ..
             }) => {
                 self.compile_grammar_contents(ctx, &content[..])?;
             }
@@ -1616,7 +1617,9 @@ impl<FS: Files> Compiler<FS> {
             types::PatternOrGrammar::Pattern(pat) => self
                 .compile_pattern(&mut inc_ctx, pat)
                 .map_err(|e| RelaxError::IncludeError(span, Box::new(e))),
-            types::PatternOrGrammar::Grammar(types::GrammarPattern { span: _, content }) => {
+            types::PatternOrGrammar::Grammar(types::GrammarPattern {
+                span: _, content, ..
+            }) => {
                 let mut child_ctx = ctx.new_grammar();
                 for g in content {
                     self.compile_grammar_content_item(&mut child_ctx, g)?;

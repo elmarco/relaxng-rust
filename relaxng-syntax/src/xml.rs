@@ -52,6 +52,7 @@ fn pattern_or_grammar(root: Node) -> Result<PatternOrGrammar> {
 type Result<T> = std::result::Result<T, Error>;
 
 const NS: &str = "http://relaxng.org/ns/structure/1.0";
+const ANNOTATIONS_NS: &str = "http://relaxng.org/ns/compatibility/annotations/1.0";
 
 fn pattern(node: Node) -> Result<Pattern> {
     if node.is_element() && node.tag_name().namespace() == Some(NS) {
@@ -135,8 +136,88 @@ fn next_rng_sibling<'a, 'input: 'a>(node: Node<'a, 'input>) -> Option<Node<'a, '
     }
     None
 }
+
+/// Check if a node is an annotation element (in the compatibility annotations namespace)
+fn is_annotation_node(node: Node) -> bool {
+    node.is_element() && node.tag_name().namespace() == Some(ANNOTATIONS_NS)
+}
+
+/// Collect annotation elements from the children of a node.
+/// Returns all annotation elements that appear before the first non-annotation child.
+fn collect_annotations(node: Node) -> Vec<AnnotationElement> {
+    let mut annotations = Vec::new();
+    let mut child = node.first_element_child();
+    while let Some(n) = child {
+        if is_annotation_node(n)
+            && let Ok(ann) = parse_annotation_element(n)
+        {
+            annotations.push(ann);
+        }
+        child = n.next_sibling_element();
+    }
+    annotations
+}
+
+/// Parse an annotation element and its contents
+fn parse_annotation_element(node: Node) -> Result<AnnotationElement> {
+    let name = annotation_name(node)?;
+    let annotation_attributes = node
+        .attributes()
+        .filter(|a| a.namespace().is_none() || a.namespace() == Some(ANNOTATIONS_NS))
+        .map(|a| {
+            let attr_name = Name::Identifier(IdentifierOrKeyword::Identifier(Identifier(
+                a.range_qname(),
+                a.name().to_string(),
+            )));
+            AnnotationAttribute {
+                span: a.range(),
+                name: attr_name,
+                value: Literal::new(a.range_value(), a.value().to_string()),
+            }
+        })
+        .collect();
+
+    let mut annotation_elements_or_literals = Vec::new();
+    for child in node.children() {
+        if child.is_text() {
+            if let Some(text) = child.text() {
+                let seg = LiteralSegment {
+                    body: text.to_string(),
+                };
+                annotation_elements_or_literals.push(AnnotationElementOrLiteral::Literal(Literal(
+                    child.range(),
+                    vec![seg],
+                )));
+            }
+        } else if child.is_element()
+            && let Ok(nested) = parse_annotation_element(child)
+        {
+            annotation_elements_or_literals.push(AnnotationElementOrLiteral::Element(nested));
+        }
+    }
+
+    Ok(AnnotationElement {
+        span: node.range(),
+        name,
+        annotation_attributes,
+        annotation_elements_or_literals,
+    })
+}
+
+/// Create a Name for an annotation element
+fn annotation_name(node: Node) -> Result<Name> {
+    let ns_uri = node.tag_name().namespace().unwrap_or("");
+    let localname = node.tag_name().name();
+    let range = node.range().start + 1..node.range().start + 1 + localname.len();
+    Ok(Name::NamespacedName(NamespacedName {
+        namespace_uri: Literal::new(0..0, ns_uri.to_string()),
+        localname: NcName(range, localname.to_string()),
+    }))
+}
+
 fn element(node: Node) -> Result<ElementPattern> {
     no_attrs_except(node, &["name", "ns", "datatypeLibrary"])?;
+    let annotations = collect_annotations(node);
     let (name_class, pattern) = if let Some(name) = node.attribute_node("name") {
         let name_class = NameClass::Name(qname_att(node, &name)?);
         let pat_el = first_rng_child(node).ok_or(Error::Expected(node.range(), "pattern child"))?;
@@ -153,6 +234,7 @@ fn element(node: Node) -> Result<ElementPattern> {
     };
     Ok(ElementPattern {
         span: node.range().start + 1..node.range().start + 8,
+        annotations,
         name_class,
         pattern: Box::new(pattern),
     })
@@ -318,6 +400,7 @@ fn single_pattern_or_group(mut node: Node) -> Result<Pattern> {
 
 fn attribute(node: Node) -> Result<AttributePattern> {
     no_attrs_except(node, &["name", "ns", "datatypeLibrary"])?;
+    let annotations = collect_annotations(node);
     let ns = get_ns_att(node);
     let (name_class, rest) = if let Some(name) = node.attribute_node("name") {
         if name.value() == "xmlns" && (ns.is_none() || ns.unwrap().value() == "") {
@@ -356,6 +439,7 @@ fn attribute(node: Node) -> Result<AttributePattern> {
     }
     Ok(AttributePattern {
         span: node.range().start + 1..node.range().start + 10,
+        annotations,
         name_class,
         pattern: Box::new(pattern),
     })
@@ -615,6 +699,7 @@ fn external_ref(node: Node) -> Result<ExternalPattern> {
 }
 
 fn grammar(node: Node) -> Result<GrammarPattern> {
+    let annotations = collect_annotations(node);
     let mut next = first_rng_child(node);
     let mut content = vec![];
     while let Some(child) = next {
@@ -624,6 +709,7 @@ fn grammar(node: Node) -> Result<GrammarPattern> {
 
     Ok(GrammarPattern {
         span: node.range(),
+        annotations,
         content,
     })
 }
@@ -1019,6 +1105,136 @@ mod tests {
             )
         } else {
             panic!("Expected an <element>")
+        }
+    }
+
+    #[test]
+    fn with_doc() {
+        let doc = roxmltree::Document::parse(
+            r#"<?xml version="1.0"?>
+            <element name="foo"
+                     xmlns="http://relaxng.org/ns/structure/1.0"
+                     xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+                     xmlns:ex1="http://www.example.com/n1"
+                     xmlns:ex2="http://www.example.com/n2">
+              <a:documentation>A foo element.</a:documentation>
+              <element name="ex1:bar1">
+                <a:documentation>A bar1 element.</a:documentation>
+                <empty/>
+              </element>
+              <element name="ex2:bar2">
+                <empty/>
+              </element>
+            </element>
+            "#,
+        )
+        .expect("Parsing XML");
+
+        let result = super::pattern(doc.root_element()).unwrap();
+        if let Pattern::Element(el) = result {
+            // Check that the foo element has one annotation
+            assert_eq!(el.annotations.len(), 1);
+            assert_eq!(el.annotations[0].text_content(), "A foo element.");
+
+            // Check nested element bar1 has annotation
+            if let Pattern::ListPair(first, _) = *el.pattern {
+                if let Pattern::Element(bar1) = *first {
+                    assert_eq!(bar1.annotations.len(), 1);
+                    assert_eq!(bar1.annotations[0].text_content(), "A bar1 element.");
+                } else {
+                    panic!("Expected bar1 to be an Element");
+                }
+            } else {
+                panic!("Expected a ListPair pattern");
+            }
+        } else {
+            panic!("Expected an <element>")
+        }
+    }
+
+    #[test]
+    fn with_doc_grammar() {
+        let doc = roxmltree::Document::parse(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+            <grammar
+                xmlns="http://relaxng.org/ns/structure/1.0"
+                xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+                datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+                <a:documentation>
+                    This schema defines the structure for a simple library catalog.
+                </a:documentation>
+
+                <start>
+                    <element name="library">
+                        <a:documentation>
+                            The root element of the document.
+                        </a:documentation>
+
+                        <element name="book">
+                            <attribute name="id">
+                                <a:documentation>
+                                    A unique identifier for the book.
+                                </a:documentation>
+                                <data type="ID"/>
+                            </attribute>
+                            <text/>
+                        </element>
+                    </element>
+                </start>
+
+            </grammar>
+            "#,
+        )
+        .expect("Parsing XML");
+
+        let result = super::pattern(doc.root_element()).unwrap();
+        if let Pattern::Grammar(grammar) = result {
+            // Check grammar-level annotation
+            assert_eq!(grammar.annotations.len(), 1);
+            assert!(
+                grammar.annotations[0]
+                    .text_content()
+                    .contains("simple library catalog")
+            );
+
+            // Check start/library element annotation
+            if let Some(GrammarContent::Define(define)) = grammar.content.first() {
+                if let Pattern::Element(library) = &define.3 {
+                    assert_eq!(library.annotations.len(), 1);
+                    assert!(
+                        library.annotations[0]
+                            .text_content()
+                            .contains("root element")
+                    );
+
+                    // Check nested book element and its attribute annotation
+                    if let Pattern::Element(book) = &*library.pattern {
+                        if let Pattern::ListPair(first, _) = &*book.pattern {
+                            if let Pattern::Attribute(id_attr) = &**first {
+                                assert_eq!(id_attr.annotations.len(), 1);
+                                assert!(
+                                    id_attr.annotations[0]
+                                        .text_content()
+                                        .contains("unique identifier")
+                                );
+                            } else {
+                                panic!("Expected id attribute");
+                            }
+                        } else {
+                            panic!("Expected ListPair in book");
+                        }
+                    } else {
+                        panic!("Expected book element");
+                    }
+                } else {
+                    panic!("Expected library element");
+                }
+            } else {
+                panic!("Expected Define in grammar content");
+            }
+        } else {
+            panic!("Expected a Grammar pattern")
         }
     }
 }

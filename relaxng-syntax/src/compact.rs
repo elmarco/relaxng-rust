@@ -49,6 +49,7 @@ fn top_level(input: Span) -> IResult<Span, Schema> {
                 |content| {
                     PatternOrGrammar::Grammar(GrammarPattern {
                         span: 0..0,
+                        annotations: vec![],
                         content,
                     })
                 },
@@ -402,6 +403,7 @@ fn element_pattern(input: Span) -> IResult<Span, ElementPattern> {
         parse,
         |(start, _, name_class, _, _, _, pattern, _, _, end)| ElementPattern {
             span: span(start, end),
+            annotations: vec![],
             name_class,
             pattern: Box::new(pattern),
         },
@@ -428,6 +430,7 @@ fn attribute_pattern(input: Span) -> IResult<Span, AttributePattern> {
         parse,
         |(start, _, name_class, _, _, _, pattern, _, _, end)| AttributePattern {
             span: span(start, end),
+            annotations: vec![],
             name_class,
             pattern: Box::new(pattern),
         },
@@ -497,6 +500,7 @@ fn grammar_pattern(input: Span) -> IResult<Span, GrammarPattern> {
     let mut parser = map(parse, |(start, _, _, _, content, _, _, end)| {
         GrammarPattern {
             span: span(start, end),
+            annotations: vec![],
             content,
         }
     });
@@ -1137,6 +1141,7 @@ mod test {
             "attribute * { text }",
             AttributePattern {
                 span: 0..20,
+                annotations: vec![],
                 name_class: NameClass::AnyName(AnyName(None)),
                 pattern: Box::new(Pattern::Text),
             },
@@ -1290,6 +1295,7 @@ mod test {
                 decls: vec![],
                 pattern_or_grammar: PatternOrGrammar::Grammar(GrammarPattern {
                     span: 0..0,
+                    annotations: vec![],
                     content: vec![GrammarContent::Define(Define(
                         0..30,
                         Identifier(0..16, "integer.datatype".to_string()),
@@ -1319,6 +1325,7 @@ mod test {
                 decls: vec![],
                 pattern_or_grammar: PatternOrGrammar::Grammar(GrammarPattern {
                     span: 0..0,
+                    annotations: vec![],
                     content: vec![GrammarContent::Define(Define(
                         0..30,
                         Identifier(0..16, "integer.datatype".to_string()),
@@ -1388,6 +1395,7 @@ mod test {
                 decls: vec![],
                 pattern_or_grammar: PatternOrGrammar::Pattern(Pattern::Grammar(GrammarPattern {
                     span: 0..11,
+                    annotations: vec![],
                     content: vec![],
                 })),
             },

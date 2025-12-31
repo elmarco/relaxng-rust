@@ -65,6 +65,7 @@ pub enum Pattern {
 #[derive(Debug, PartialEq)]
 pub struct ElementPattern {
     pub span: Span,
+    pub annotations: Vec<AnnotationElement>,
     pub name_class: NameClass,
     pub pattern: Box<Pattern>,
 }
@@ -72,12 +73,14 @@ pub struct ElementPattern {
 #[derive(Debug, PartialEq)]
 pub struct GrammarPattern {
     pub span: Span,
+    pub annotations: Vec<AnnotationElement>,
     pub content: Vec<GrammarContent>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct AttributePattern {
     pub span: Span,
+    pub annotations: Vec<AnnotationElement>,
     pub name_class: NameClass,
     pub pattern: Box<Pattern>,
 }
@@ -330,6 +333,23 @@ pub struct AnnotationElement {
     pub name: Name,
     pub annotation_attributes: Vec<AnnotationAttribute>,
     pub annotation_elements_or_literals: Vec<AnnotationElementOrLiteral>,
+}
+
+impl AnnotationElement {
+    /// Extract the text content from the annotation, trimming whitespace.
+    /// This is useful for `a:documentation` elements.
+    pub fn text_content(&self) -> String {
+        self.annotation_elements_or_literals
+            .iter()
+            .filter_map(|el| match el {
+                AnnotationElementOrLiteral::Literal(lit) => Some(lit.as_string_value()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("")
+            .trim()
+            .to_string()
+    }
 }
 
 #[derive(Debug, PartialEq)]
