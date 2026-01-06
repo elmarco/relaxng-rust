@@ -102,7 +102,12 @@ impl GenTree {
                 let mut en = en.borrow_mut();
                 // Update fields in all_fields (GenFields)
                 for field in en.all_fields.fields.values_mut() {
-                    if let FieldTy::Xml { path, all_optional, .. } = &mut field.ty {
+                    if let FieldTy::Xml {
+                        path,
+                        all_optional,
+                        ..
+                    } = &mut field.ty
+                    {
                         if let Some(ident) = path.get_ident() {
                             let ident_str = ident.to_string();
                             if let Some(&has_required) = struct_info.get(&ident_str) {

@@ -617,9 +617,16 @@ impl GenField {
             }
             // Update all_optional even when fields are "equal" (PartialEq ignores all_optional)
             if let (
-                FieldTy::Xml { all_optional: self_all_opt, .. },
-                FieldTy::Xml { all_optional: other_all_opt, .. }
-            ) = (&mut self.ty, &other.ty) {
+                FieldTy::Xml {
+                    all_optional: self_all_opt,
+                    ..
+                },
+                FieldTy::Xml {
+                    all_optional: other_all_opt,
+                    ..
+                },
+            ) = (&mut self.ty, &other.ty)
+            {
                 *self_all_opt = *self_all_opt && *other_all_opt;
             }
             return Ok(None);
@@ -664,9 +671,16 @@ impl GenField {
         // If either reference indicates the struct has required fields (all_optional=false),
         // we should keep that more accurate information.
         if let (
-            FieldTy::Xml { all_optional: self_all_opt, .. },
-            FieldTy::Xml { all_optional: other_all_opt, .. }
-        ) = (&mut self.ty, &other.ty) {
+            FieldTy::Xml {
+                all_optional: self_all_opt,
+                ..
+            },
+            FieldTy::Xml {
+                all_optional: other_all_opt,
+                ..
+            },
+        ) = (&mut self.ty, &other.ty)
+        {
             // If either says "has required fields" (all_optional=false), use that
             *self_all_opt = *self_all_opt && *other_all_opt;
         }
@@ -690,17 +704,12 @@ impl GenField {
                 let other_enum_ref = other_enum.borrow();
 
                 // Check if either enum has merged_name set
-                let merged_name = gen_enum_ref
-                    .merged_name
-                    .clone()
-                    .or_else(|| other_enum_ref.merged_name.clone());
+                let merged_name =
+                    gen_enum_ref.merged_name.clone().or_else(|| other_enum_ref.merged_name.clone());
 
                 if let Some(merged_name) = merged_name {
                     // Create a NEW merged enum with all variants from both enums
-                    let debug = format!(
-                        "merged({}, {})",
-                        gen_enum_ref.debug, other_enum_ref.debug
-                    );
+                    let debug = format!("merged({}, {})", gen_enum_ref.debug, other_enum_ref.debug);
                     drop(gen_enum_ref);
                     drop(other_enum_ref);
 
@@ -762,8 +771,7 @@ impl GenField {
                     drop(other_enum_ref);
 
                     let mut gen_enum_ref = gen_enum.borrow_mut();
-                    let (_, new_units) =
-                        gen_enum_ref.reconcile_with_mapping(other_clone)?;
+                    let (_, new_units) = gen_enum_ref.reconcile_with_mapping(other_clone)?;
                     for unit in new_units {
                         gen_enum_ref.add_unit(unit);
                     }
@@ -953,12 +961,26 @@ impl PartialEq for FieldTy {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (
-                FieldTy::Xml { path: p1, root: r1, .. },
-                FieldTy::Xml { path: p2, root: r2, .. },
+                FieldTy::Xml {
+                    path: p1,
+                    root: r1,
+                    ..
+                },
+                FieldTy::Xml {
+                    path: p2,
+                    root: r2,
+                    ..
+                },
             ) => p1 == p2 && r1 == r2,
             (
-                FieldTy::Choice { gen_enum: e1, root: r1 },
-                FieldTy::Choice { gen_enum: e2, root: r2 },
+                FieldTy::Choice {
+                    gen_enum: e1,
+                    root: r1,
+                },
+                FieldTy::Choice {
+                    gen_enum: e2,
+                    root: r2,
+                },
             ) => e1 == e2 && r1 == r2,
             (FieldTy::Empty, FieldTy::Empty) => true,
             (FieldTy::Text, FieldTy::Text) => true,

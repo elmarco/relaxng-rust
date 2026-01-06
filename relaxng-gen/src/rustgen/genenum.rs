@@ -56,7 +56,6 @@ pub(crate) struct MergedEnumInfo {
     pub(crate) merged_enum: GenEnumRef,
 }
 
-
 #[derive(Debug, Clone, Default)]
 pub(crate) struct GenEnum {
     pub(crate) debug: String,
@@ -314,14 +313,24 @@ impl GenEnum {
         all_fields.sort_by(|a, b| {
             let priority_a = match &a.ty {
                 FieldTy::Empty | FieldTy::Value(_) => 0,
-                FieldTy::Choice { .. } | FieldTy::Parse(_) => 1,
-                FieldTy::Xml { .. } => 2,
+                FieldTy::Choice {
+                    ..
+                }
+                | FieldTy::Parse(_) => 1,
+                FieldTy::Xml {
+                    ..
+                } => 2,
                 FieldTy::Text | FieldTy::AnyElement => 3,
             };
             let priority_b = match &b.ty {
                 FieldTy::Empty | FieldTy::Value(_) => 0,
-                FieldTy::Choice { .. } | FieldTy::Parse(_) => 1,
-                FieldTy::Xml { .. } => 2,
+                FieldTy::Choice {
+                    ..
+                }
+                | FieldTy::Parse(_) => 1,
+                FieldTy::Xml {
+                    ..
+                } => 2,
                 FieldTy::Text | FieldTy::AnyElement => 3,
             };
             // First compare by type priority
@@ -332,12 +341,20 @@ impl GenEnum {
                     match a.xml_name.cmp(&b.xml_name) {
                         std::cmp::Ordering::Equal => {
                             // For Xml fields, use the all_optional flag
-                            let all_optional_a = if let FieldTy::Xml { all_optional, .. } = &a.ty {
+                            let all_optional_a = if let FieldTy::Xml {
+                                all_optional,
+                                ..
+                            } = &a.ty
+                            {
                                 *all_optional
                             } else {
                                 false
                             };
-                            let all_optional_b = if let FieldTy::Xml { all_optional, .. } = &b.ty {
+                            let all_optional_b = if let FieldTy::Xml {
+                                all_optional,
+                                ..
+                            } = &b.ty
+                            {
                                 *all_optional
                             } else {
                                 false
@@ -414,9 +431,16 @@ impl GenEnum {
         // early exit because all children belong to the selected variant.
         // When as_element is None and no group variants/discriminator, this is a
         // pure choice where we SHOULD early exit after parsing one complete item.
-        let early_exit = self.as_element.is_none() && !has_group_variants && !has_discriminator_attr;
-        let mut from_xml =
-            gen_from_xml_fn(&self.ident(), &from_xml_attrs, &from_xml_elems, &from_xml_text, &from_xml_other, early_exit);
+        let early_exit =
+            self.as_element.is_none() && !has_group_variants && !has_discriminator_attr;
+        let mut from_xml = gen_from_xml_fn(
+            &self.ident(),
+            &from_xml_attrs,
+            &from_xml_elems,
+            &from_xml_text,
+            &from_xml_other,
+            early_exit,
+        );
         if self.as_element.is_some() {
             from_xml = quote! {
                 pub fn from_xml(node: &roxmltree::Node) -> Result<Self> {
@@ -764,17 +788,20 @@ impl GenEnum {
             fn iter_variant_fields<'a>(
                 fields: &'a [(&'a GenField, &'a GenField)],
             ) -> impl Iterator<Item = GenField> + 'a {
-                fields.iter().filter(|&(_, orig)| orig.fixed_value().is_none() && !orig.ty.is_empty()).map(|&(f, orig)| {
-                    if is_merged_subset(orig) {
-                        // Use original type for merged subset enums (SCSIModel, USBModel)
-                        orig.clone()
-                    } else {
-                        // Use reconciled type for everything else
-                        let mut f = f.clone();
-                        f.optional = orig.optional;
-                        f
-                    }
-                })
+                fields
+                    .iter()
+                    .filter(|&(_, orig)| orig.fixed_value().is_none() && !orig.ty.is_empty())
+                    .map(|&(f, orig)| {
+                        if is_merged_subset(orig) {
+                            // Use original type for merged subset enums (SCSIModel, USBModel)
+                            orig.clone()
+                        } else {
+                            // Use reconciled type for everything else
+                            let mut f = f.clone();
+                            f.optional = orig.optional;
+                            f
+                        }
+                    })
             }
 
             // variant enum
@@ -948,7 +975,8 @@ impl GenEnum {
         for (_name, fields) in &self.group_variants {
             for (_, orig_field) in &fields.fields {
                 // Only add original field if it's a merged subset enum
-                if matches!(&orig_field.ty, FieldTy::Choice { gen_enum, .. } if gen_enum.borrow().merged_into.is_some()) {
+                if matches!(&orig_field.ty, FieldTy::Choice { gen_enum, .. } if gen_enum.borrow().merged_into.is_some())
+                {
                     all_fields_for_mods.push(orig_field);
                 }
             }
@@ -1046,11 +1074,7 @@ impl GenEnum {
 
     /// Generate code for a subset enum that was merged into a larger enum.
     /// Generates the subset enum with From<Self> -> MergedEnum
-    fn gen_subset_enum_tokens(
-        &self,
-        config: &Config,
-        merged_info: &MergedEnumInfo,
-    ) -> TokenStream {
+    fn gen_subset_enum_tokens(&self, config: &Config, merged_info: &MergedEnumInfo) -> TokenStream {
         // Use the original all_fields from this enum (before merging happened)
         let name = self.name();
         let name_ident = self.ident();
@@ -1101,13 +1125,20 @@ impl GenEnum {
                     let ty = parse_quote! { String };
                     (var_name, Some(ty))
                 }
-                FieldTy::Xml { path, .. } | FieldTy::Parse(path) => {
+                FieldTy::Xml {
+                    path,
+                    ..
+                }
+                | FieldTy::Parse(path) => {
                     let var_name = field.variant_name();
                     let ty = path.clone();
                     let var_name = format_ident!("{}", var_name);
                     (var_name, Some(ty))
                 }
-                FieldTy::Choice { gen_enum, .. } => {
+                FieldTy::Choice {
+                    gen_enum,
+                    ..
+                } => {
                     let path = gen_enum.borrow().path();
                     let var_name = path.get_ident().unwrap().clone();
                     (var_name, Some(path))

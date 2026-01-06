@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<grammar xmlns="http://relaxng.org/ns/structure/1.0" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <start>
+    <ref name="domain"/>
+  </start>
+
+
+  <define name="domain">
+    <element name="domain">
+      <ref name="virtioOptions"/>
+    </element>
+  </define>
+
+  <define name="virtioOptions">
+    <optional>
+      <attribute name="iommu">
+        <ref name="virOnOff"/>
+      </attribute>
+    </optional>
+    <optional>
+      <attribute name="ats">
+        <ref name="virOnOff"/>
+      </attribute>
+    </optional>
+  </define>
+
+  <define name="virOnOff">
+    <choice>
+      <value>on</value>
+      <value>off</value>
+    </choice>
+  </define>
+
+</grammar>

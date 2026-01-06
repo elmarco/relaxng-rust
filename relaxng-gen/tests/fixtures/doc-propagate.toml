@@ -1,0 +1,15 @@
+[rule."/ref[@name='domain']/element[@name='domain'][1]"]
+doc = "domain doc"
+
+[rule."/ref[@name='virtioOptions']/group[1]/optional[2]/attribute[@name='ats']"]
+doc = "ATS doc"
+
+[rule."/ref[@name='virOnOff']/choice[1]"]
+doc = "vironoff doc"
+doc_propagate = false
+
+[rule."/ref[@name='virOnOff']/choice[1]/value[text()='off']"]
+doc = "Off doc"
+
+[rule."/ref[@name='virOnOff']/choice[1]/value[text()='on']"]
+doc = "On doc"

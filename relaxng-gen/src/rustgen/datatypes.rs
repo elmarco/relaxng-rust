@@ -81,10 +81,8 @@ pub(crate) fn datatype_to_ty(datatype: &Datatypes, ctx: &mut Context) -> TokenSt
             }
             xsd::XsdDatatypes::PositiveInteger(min_max_facet, _pattern_facet) => {
                 if min_max_facet.bounded() {
-                    let min: usize = min_max_facet
-                        .min_cloned()
-                        .and_then(|v| v.try_into().ok())
-                        .unwrap_or(1);
+                    let min: usize =
+                        min_max_facet.min_cloned().and_then(|v| v.try_into().ok()).unwrap_or(1);
                     let max: usize = min_max_facet
                         .max_cloned()
                         .and_then(|v| v.try_into().ok())

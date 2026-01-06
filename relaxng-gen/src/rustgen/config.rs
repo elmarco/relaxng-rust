@@ -31,10 +31,13 @@ impl Config {
         }
         for (xpath, rule) in c.rule {
             let xpath_clone = xpath.clone();
-            self.rule.entry(xpath).and_modify(|r| {
-                warn!("Merging rule for {}", xpath_clone);
-                r.merge(&rule);
-            }).or_insert(rule);
+            self.rule
+                .entry(xpath)
+                .and_modify(|r| {
+                    warn!("Merging rule for {}", xpath_clone);
+                    r.merge(&rule);
+                })
+                .or_insert(rule);
         }
     }
 
@@ -72,6 +75,11 @@ pub struct ConfigRule {
     // The associated documentation.
     pub doc: Option<String>,
 
+    // Whether to propagate the doc to users of this type.
+    // Default: true (propagate)
+    #[serde(default)]
+    pub doc_propagate: Option<bool>,
+
     // used to indicate that the parent type is this
     // For cases like: <element><choice>...</choice></element> -> choice
     #[serde(default)]
@@ -102,6 +110,9 @@ impl ConfigRule {
         self.allow_structure_is_enum |= c.allow_structure_is_enum;
         if c.doc.is_some() {
             self.doc = c.doc.clone();
+        }
+        if c.doc_propagate.is_some() {
+            self.doc_propagate = c.doc_propagate;
         }
         if c.merged_name.is_some() {
             self.merged_name = c.merged_name.clone();

@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::{self, exit};
 use std::rc::Rc;
@@ -37,7 +37,7 @@ use gentest::generate_test;
 mod gentree;
 use gentree::{GenTree, GenUnit};
 mod state;
-use state::{PatState, Ref, StateStack, mod_path_from_iter, xml_xpath_from_iter, xpath_from_iter};
+use state::{PatState, Ref, StateStack, mod_path_from_iter, xpath_from_iter};
 
 pub(crate) fn generate(schema: PathBuf, out: PathBuf, config: &mut Config) -> Context<'_> {
     if config.without_impl && config.with_test {
@@ -240,8 +240,8 @@ pub struct Context<'a> {
     config: &'a Config,
     /// (module_name, type_name, needs_interleave_args)
     root_name: Option<(String, String, bool)>,
-    /// Maps schema XPath to XML XPath for missing documentation
-    missing_doc: BTreeMap<String, String>,
+    /// XPath for missing documentation
+    missing_doc: BTreeSet<String>,
     /// Tracks which config rule XPaths with doc have been used
     used_doc_rules: HashSet<XPath>,
     regex_patterns: BTreeMap<String, Ident>,
@@ -257,7 +257,7 @@ impl<'a> Context<'a> {
             units: GenTree::default(),
             refs: Default::default(),
             root_name: None,
-            missing_doc: BTreeMap::new(),
+            missing_doc: BTreeSet::new(),
             used_doc_rules: HashSet::new(),
             regex_patterns: BTreeMap::new(),
             uses_any_element: false,
@@ -279,8 +279,8 @@ impl<'a> Context<'a> {
     }
 
     pub(crate) fn print_missing_doc(&self) {
-        for (name, _) in self.missing_doc.iter() {
-            println!("[rule.\"{name}\"]");
+        for path in self.missing_doc.iter() {
+            println!("[rule.\"{path}\"]");
             println!("doc = \"\"");
             println!()
         }
@@ -323,7 +323,6 @@ impl<'a> Context<'a> {
 
     fn pop_state(&mut self) {
         let xpath = self.xpath_from_last_ref();
-        let xml_xpath = self.xml_xpath();
         let mod_path = self.mod_path();
         let (state, config) = self.stack.pop().unwrap();
         // TODO: allow the xpath to store the unit to be somewhere else on the tree
@@ -387,7 +386,7 @@ impl<'a> Context<'a> {
         }
 
         if doc_needed && config.doc.is_none() {
-            self.missing_doc.insert(xpath, xml_xpath);
+            self.missing_doc.insert(xpath);
         }
     }
 
@@ -472,16 +471,16 @@ impl<'a> Context<'a> {
         }
 
         let xml_name = gen_enum.var_name().to_string();
+        let doc = if config.doc_propagate == Some(false) {
+            None
+        } else {
+            gen_enum.doc.clone().or_else(|| config.doc.clone())
+        };
+
         if config.replace_with_text {
-            self.add_field(
-                &xml_name,
-                config.field_name.as_deref(),
-                FieldTy::Text,
-                config.doc.clone(),
-            );
+            self.add_field(&xml_name, config.field_name.as_deref(), FieldTy::Text, doc);
         } else {
             let rf = self.stack.get_ref();
-            let doc = gen_enum.doc.clone().or_else(|| config.doc.clone());
             // Set merged_name from config if specified
             gen_enum.set_merged_name(config.merged_name.clone());
             let gen_enum = GenEnumRef::from(gen_enum);
@@ -604,19 +603,24 @@ impl<'a> Context<'a> {
         doc: Option<String>,
     ) -> Result<()> {
         let mut field = GenField::new(xml_name, ty, doc);
-        let mut parent = None;
-        for s in self.stack.iter_states_mut().rev() {
+        let mut parent_idx = None;
+        let mut attr_missing_doc_idx = None;
+
+        // Iterate backwards through the stack using indices
+        let len = self.stack.states.len();
+        for i in (0..len).rev() {
+            let s = &mut self.stack.states[i];
             match &mut s.state {
                 PatState::Element {
                     ..
                 } => {
-                    parent = Some(&mut s.state);
+                    parent_idx = Some(i);
                     break;
                 }
                 PatState::Choice {
                     ..
                 } => {
-                    parent = Some(&mut s.state);
+                    parent_idx = Some(i);
                     break;
                 }
                 PatState::Attribute(state::Attribute {
@@ -631,6 +635,10 @@ impl<'a> Context<'a> {
                         && let Some(ref attr_doc) = config.doc
                     {
                         field.doc = Some(attr_doc.clone());
+                    }
+                    // Track if this attribute has missing doc
+                    if field.doc.is_none() {
+                        attr_missing_doc_idx = Some(i);
                     }
                 }
                 PatState::Optional => field.set_optional(true),
@@ -661,20 +669,29 @@ impl<'a> Context<'a> {
             }
         }
 
+        // Insert missing doc for attribute with correct xpath
+        if let Some(idx) = attr_missing_doc_idx {
+            let xpath = self.xpath_up_to(idx);
+            self.missing_doc.insert(xpath);
+        }
+
         if let Some(name) = name {
             field.name = name.to_string();
         }
 
-        let parent_name = match parent {
-            Some(PatState::Element {
-                gen_struct,
-                ..
-            }) => format!("{gen_struct}"),
-            Some(PatState::Choice {
-                gen_enum,
-                ..
-            }) => format!("{gen_enum}"),
-            _ => String::new(),
+        let parent_name = match parent_idx {
+            Some(idx) => match &self.stack.states[idx].state {
+                PatState::Element {
+                    gen_struct,
+                    ..
+                } => format!("{gen_struct}"),
+                PatState::Choice {
+                    gen_enum,
+                    ..
+                } => format!("{gen_enum}"),
+                _ => String::new(),
+            },
+            None => String::new(),
         };
 
         let field_name = format!("{}.{}", parent_name, field.name);
@@ -693,21 +710,27 @@ impl<'a> Context<'a> {
 
         debug!("Adding field: {}{}{}", field_name, cardinality, recursion);
 
-        match parent {
-            Some(PatState::Element {
-                gen_struct,
-                ..
-            }) => gen_struct.add_field(field)?,
-            Some(PatState::Choice {
-                gen_enum,
-                ..
-            }) => gen_enum.add_field(field)?,
-            _ => {
+        match parent_idx {
+            Some(idx) => match &mut self.stack.states[idx].state {
+                PatState::Element {
+                    gen_struct,
+                    ..
+                } => gen_struct.add_field(field)?,
+                PatState::Choice {
+                    gen_enum,
+                    ..
+                } => gen_enum.add_field(field)?,
+                _ => {}
+            },
+            None => {
                 let ty_path = field.ty_path().unwrap();
                 let path = ty_path.get_ident().unwrap();
                 // Check if the root type is an interleave-based enum (needs 2-arg from_xml)
                 let needs_interleave = match &field.ty {
-                    FieldTy::Choice { gen_enum, .. } => gen_enum.borrow().as_element.is_none(),
+                    FieldTy::Choice {
+                        gen_enum,
+                        ..
+                    } => gen_enum.borrow().as_element.is_none(),
                     _ => false,
                 };
                 self.root_name = Some((field.name.to_string(), path.to_string(), needs_interleave));
@@ -754,14 +777,14 @@ impl<'a> Context<'a> {
         xpath_from_iter(iter, true)
     }
 
+    fn xpath_up_to(&self, end_idx: usize) -> String {
+        let iter = self.stack.iter_up_to(end_idx);
+        xpath_from_iter(iter, true)
+    }
+
     fn mod_path(&self) -> PathBuf {
         let iter = self.stack.iter_with_counter(true);
         mod_path_from_iter(iter)
-    }
-
-    fn xml_xpath(&self) -> String {
-        let iter = self.stack.iter_with_counter(true);
-        xml_xpath_from_iter(iter)
     }
 
     fn add_regex_pattern(&mut self, pat: &str) -> Ident {
