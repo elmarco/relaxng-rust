@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
 use serde::Deserialize;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::xpath::XPath;
 
@@ -30,7 +30,11 @@ impl Config {
             self.general = c.general;
         }
         for (xpath, rule) in c.rule {
-            self.rule.entry(xpath).and_modify(|r| r.merge(&rule)).or_insert(rule);
+            let xpath_clone = xpath.clone();
+            self.rule.entry(xpath).and_modify(|r| {
+                warn!("Merging rule for {}", xpath_clone);
+                r.merge(&rule);
+            }).or_insert(rule);
         }
     }
 

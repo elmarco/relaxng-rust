@@ -71,7 +71,7 @@ Rules are defined using the `[rule."XPATH"]` syntax, where `XPATH` is the path t
 ```toml
 [rule."/ref[@name='virYesNo']/choice[1]"]
 name = "YesNo"                 # Rename the generated Rust type to "YesNo"
-doc = "schemas/basictypes.toml:2" # Attach documentation to this type
+doc = "a yes/no value"         # Attach documentation to this type
 replace_with_text = true       # Force this node to be treated as a simple String
 field_name = "custom_field"    # Rename the field in the parent struct
 skip = true                    # Do not generate code for this node

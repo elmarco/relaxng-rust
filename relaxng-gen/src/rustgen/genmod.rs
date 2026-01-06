@@ -273,6 +273,14 @@ impl GenLib {
                 }
             }
 
+            impl<const MIN: usize, const MAX: usize, P: RegexPattern> TryFrom<&str> for ConstrainedString<MIN, MAX, P> {
+                type Error = Error;
+
+                fn try_from(s: &str) -> Result<Self> {
+                    Self::try_new(s)
+                }
+            }
+
             #any_element_types
 
             /// A specialized Result type where the error is hard-wired to [`enum@Error`].
