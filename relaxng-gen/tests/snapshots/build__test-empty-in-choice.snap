@@ -419,7 +419,7 @@ pub enum Error {
     TooShort(usize, usize),
     #[error("String too long, expected at most {0} characters, got {1}")]
     TooLong(usize, usize),
-    #[error("String '{0}' does not match pattern '{1}'")]
+    #[error("String '{1}' does not match pattern '{0}'")]
     PatternMismatch(&'static str, String),
     #[error("Failed to compile regex: {0}")]
     RegexError(#[from] regex::Error),
